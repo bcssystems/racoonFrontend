@@ -186,7 +186,7 @@
   border-left-color: var(--primary);
 }
 .sidebar-item.active {
-  background: rgba(37,99,235,0.15);
+  background: rgba(102,112,122,0.18);
   color: var(--secondary);
   border-left-color: var(--secondary);
   font-weight: 500;
