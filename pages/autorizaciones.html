@@ -1,0 +1,56 @@
+<div class="page-content">
+  <div class="page-header">
+    <div>
+      <h4><i class="fas fa-shield-alt me-2" style="color:var(--primary)"></i>Autorizaciones</h4>
+      <small class="text-muted">Genera el c&oacute;digo de autorizaci&oacute;n para las cancelaciones de venta solicitadas</small>
+    </div>
+  </div>
+
+  <div class="filter-bar">
+    <div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;width:100%">
+      <select class="form-select form-select-sm" id="filterAutEstado" style="max-width:200px">
+        <option value="">Todos los estados</option>
+        <option value="SOLICITADA_CANCELACION" selected>Pendiente de autorizaci&oacute;n</option>
+      </select>
+    </div>
+  </div>
+
+  <div class="panel-card overflow-hidden">
+    <div class="table-responsive">
+      <table class="table table-custom mb-0">
+        <thead>
+          <tr>
+            <th>ID</th>
+            <th>Sucursal</th>
+            <th>Caja</th>
+            <th>Cliente</th>
+            <th>Total</th>
+            <th>Solicitante</th>
+            <th>Motivo</th>
+            <th>Fecha solicitud</th>
+            <th>Estado</th>
+            <th style="width:60px"></th>
+          </tr>
+        </thead>
+        <tbody id="autorizacionesBody">
+          <tr><td colspan="10"><div class="empty-state"><i class="fas fa-shield-alt"></i><p>Cargando...</p></div></td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<div class="modal fade" id="modalCodigoAutorizacion" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered modal-sm">
+    <div class="modal-content border-0 shadow text-center">
+      <div class="modal-header border-0 justify-content-center pb-0">
+        <h6 class="modal-title fw-bold" id="modalCodigoVenta"></h6>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body pt-3 pb-4">
+        <div class="display-3 fw-bold" id="modalCodigoValor" style="letter-spacing:8px;color:var(--primary)"></div>
+        <p class="text-muted small mt-2 mb-0" id="modalCodigoExpira"></p>
+      </div>
+    </div>
+  </div>
+</div>

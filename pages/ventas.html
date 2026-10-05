@@ -1,0 +1,553 @@
+<div id="pos-interface">
+  <div class="pos-layout">
+    <div class="pos-left">
+      <div class="pos-panel pos-panel-client">
+        <label class="form-label fw-semibold mb-1">Cliente</label>
+        <div class="row g-1 align-items-center">
+          <div class="col-12">
+            <div class="d-flex gap-1">
+              <div class="flex-grow-1" id="pos-cliente-wrapper">
+                <select class="form-select form-select-sm" id="posCliente">
+                  <option value="">Cliente mostrador...</option>
+                </select>
+              </div>
+              <button class="btn btn-outline-primary btn-sm ripple" id="btnNuevoClientePOS" title="Nuevo Cliente">
+                <i class="fas fa-plus"></i>
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="pos-panel pos-panel-product-search">
+        <div class="d-flex gap-2">
+          <select class="form-select form-select-sm" id="posFilterCategoria" style="width:auto;min-width:150px;max-width:200px" title="Filtrar por categor&iacute;a">
+            <option value="">Todas las categor&iacute;as</option>
+          </select>
+          <div class="flex-grow-1 input-group input-group-sm">
+            <span class="input-group-text"><i class="fas fa-search"></i></span>
+            <input type="text" class="form-control" id="posProductSearch" placeholder="Buscar por SKU, nombre o categor&iacute;a...">
+          </div>
+          <button class="btn btn-outline-secondary btn-sm ripple" id="btnVerInventario" title="Ver inventario">
+            <i class="fas fa-boxes"></i>
+          </button>
+        </div>
+        <div id="posProductResults" class="pos-product-results mt-1 d-none">
+          <div class="list-group list-group-flush" id="posProductList"></div>
+        </div>
+      </div>
+
+      <div class="pos-panel pos-panel-espera-tabs" id="posEsperaTabsPanel">
+        <ul class="nav nav-tabs module-tabs" id="posEsperaTabs" role="tablist"></ul>
+      </div>
+
+      <div class="pos-panel pos-panel-cart flex-grow-1">
+        <div class="table-responsive">
+          <table class="table table-custom mb-0 table-sm">
+            <thead>
+              <tr>
+                <th>Producto</th>
+                <th style="width:70px">Stock</th>
+                <th style="width:60px">Unidad</th>
+                <th style="width:90px">Cant</th>
+                <th style="width:90px">Precio</th>
+                <th style="width:90px">Subtotal</th>
+                <th style="width:30px"></th>
+              </tr>
+            </thead>
+            <tbody id="posCartBody">
+              <tr><td colspan="7"><div class="empty-state py-3"><i class="fas fa-cart-plus"></i><p>Agrega productos a la venta</p></div></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="pos-panel pos-panel-totals">
+        <div class="row g-2 align-items-center">
+          <div class="col-4">
+            <small class="text-muted">Subtotal</small>
+            <div class="fw-bold" id="posSubtotal">$0.00</div>
+          </div>
+          <div class="col-4">
+            <small class="text-muted">Descuento</small>
+            <div class="fw-bold text-danger" id="posDescuento">$0.00</div>
+          </div>
+          <div class="col-4">
+            <small class="text-muted">Total</small>
+            <div class="fw-bold fs-5" style="color:var(--primary)" id="posTotal">$0.00</div>
+          </div>
+        </div>
+        <div class="d-flex gap-2 mt-2">
+          <button class="btn btn-success flex-fill ripple" id="btnCobrarPOS">
+            <i class="fas fa-check me-1"></i> Cobrar
+          </button>
+          <button class="btn btn-warning flex-fill ripple" id="btnEsperaPOS">
+            <i class="fas fa-pause me-1"></i> Espera
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <div class="pos-right">
+      <div class="pos-panel pos-panel-saldo">
+        <div class="text-center">
+          <div class="small fw-semibold" id="posCajaInfo">Caja: &mdash; | Sucursal: &mdash;</div>
+        </div>
+      </div>
+
+      <div class="pos-panel pos-panel-actions">
+        <div class="d-grid gap-2">
+          <button class="btn btn-outline-success btn-sm ripple" id="btnIngresarEfectivo">
+            <i class="fas fa-plus-circle me-1"></i> Ingresar Efectivo
+          </button>
+          <button class="btn btn-outline-info btn-sm ripple" id="btnCortePOS">
+            <i class="fas fa-calculator me-1"></i> Realizar Corte
+          </button>
+          <button class="btn btn-outline-warning btn-sm ripple" id="btnGastoPOS">
+            <i class="fas fa-money-bill-wave me-1"></i> Agregar Gasto
+          </button>
+          <button class="btn btn-outline-danger btn-sm ripple" id="btnCancelarVentaPOS">
+            <i class="fas fa-ban me-1"></i> Cancelar Venta
+          </button>
+          <button class="btn btn-outline-info btn-sm ripple" id="btnPromocionesPOS">
+            <i class="fas fa-percent me-1"></i> Promociones
+          </button>
+          <button class="btn btn-outline-secondary btn-sm ripple" id="btnVentaRapidaPOS">
+            <i class="fas fa-bolt me-1"></i> Venta R&aacute;pida
+          </button>
+          <button class="btn btn-outline-dark btn-sm ripple" id="btnAbandonarCaja">
+            <i class="fas fa-sign-out-alt me-1"></i> Abandonar Caja
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="modal fade" id="posCobroModal" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered modal-lg">
+    <div class="modal-content border-0 shadow">
+      <div class="modal-header border-0">
+        <h5 class="modal-title fw-bold">Cobrar Venta</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <div class="text-center mb-3">
+          <small class="text-muted">Total a cobrar</small>
+          <h3 class="fw-bold" style="color:var(--primary)" id="posCobroTotal">$0.00</h3>
+        </div>
+        <div id="posCobroPagos">
+          <div class="text-center py-3"><i class="fas fa-spinner fa-spin"></i> Cargando formas de pago...</div>
+        </div>
+        <div class="mt-2">
+          <label class="form-label small">Nota (opcional)</label>
+          <textarea class="form-control form-control-sm" id="posCobroNota" rows="2" maxlength="500" placeholder="Nota interna para esta venta"></textarea>
+        </div>
+        <div class="mt-2 text-end pequeno" id="posCobroSumaMsg">
+          Suma: <strong id="posCobroSuma">$0.00</strong>
+          <span id="posCobroCambio" class="d-none ms-2"><strong class="text-info">Cambio: <span id="posCobroCambioValor">$0.00</span></strong></span>
+        </div>
+      </div>
+      <div class="modal-footer border-0">
+        <button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancelar</button>
+        <button type="button" class="btn btn-success px-4 ripple" id="btnConfirmarCobroPOS">
+          <i class="fas fa-check me-1"></i> Cobrar
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="modal fade" id="posClienteModal" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered modal-lg">
+    <div class="modal-content border-0 shadow">
+      <div class="modal-header border-0">
+        <h5 class="modal-title fw-bold" id="posClienteModalTitle">Nuevo Cliente</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <form id="formPosCliente">
+          <div class="row g-2">
+            <div class="col-4">
+              <label class="form-label">Nombre <span class="text-danger">*</span></label>
+              <input type="text" class="form-control form-control-sm" id="posClienteNombre" required>
+            </div>
+            <div class="col-4">
+              <label class="form-label">Ap. Paterno <span class="text-danger">*</span></label>
+              <input type="text" class="form-control form-control-sm" id="posClienteApaterno" required>
+            </div>
+            <div class="col-4">
+              <label class="form-label">Ap. Materno</label>
+              <input type="text" class="form-control form-control-sm" id="posClienteAmaterno">
+            </div>
+            <div class="col-4">
+              <label class="form-label">Tel&eacute;fono <span class="text-danger">*</span></label>
+              <input type="text" class="form-control form-control-sm" id="posClienteTelefono" required>
+            </div>
+            <div class="col-4">
+              <label class="form-label">Pa&iacute;s</label>
+              <select class="form-select form-select-sm" id="posClientePais"></select>
+            </div>
+            <div class="col-4">
+              <label class="form-label">WhatsApp</label>
+              <input type="text" class="form-control form-control-sm" id="posClienteWhatsapp">
+            </div>
+            <div class="col-6">
+              <label class="form-label">Empresa</label>
+              <input type="text" class="form-control form-control-sm" id="posClienteEmpresa">
+            </div>
+            <div class="col-6">
+              <label class="form-label">R&eacute;gimen Fiscal</label>
+              <select class="form-select form-select-sm" id="posClienteRegimen"></select>
+            </div>
+            <div class="col-6">
+              <label class="form-label">RFC</label>
+              <input type="text" class="form-control form-control-sm" id="posClienteRfc" maxlength="13">
+            </div>
+            <div class="col-6">
+              <label class="form-label">Contacto</label>
+              <input type="text" class="form-control form-control-sm" id="posClienteRepresentanteLegal" maxlength="200">
+            </div>
+            <div class="col-12">
+              <label class="form-label">Direcci&oacute;n de entrega</label>
+              <input type="text" class="form-control form-control-sm" id="posClienteDireccionEntrega" maxlength="300">
+            </div>
+            <div class="col-12"><hr class="my-1"></div>
+            <div class="col-2">
+              <label class="form-label">C.P.</label>
+              <input type="text" class="form-control form-control-sm" id="posClienteCp" maxlength="5" placeholder="12345">
+            </div>
+            <div class="col-4">
+              <label class="form-label">Estado</label>
+              <input type="text" class="form-control form-control-sm" id="posClienteEstado" readonly>
+            </div>
+            <div class="col-3">
+              <label class="form-label">Municipio</label>
+              <input type="text" class="form-control form-control-sm" id="posClienteMunicipio">
+            </div>
+            <div class="col-3">
+              <label class="form-label">Colonia</label>
+              <select class="form-select form-select-sm" id="posClienteColonia">
+                <option value="">Seleccionar...</option>
+              </select>
+            </div>
+            <div class="col-4">
+              <label class="form-label">Calle</label>
+              <input type="text" class="form-control form-control-sm" id="posClienteCalle" maxlength="200">
+            </div>
+            <div class="col-2">
+              <label class="form-label">N&uacute;m. Exterior</label>
+              <input type="text" class="form-control form-control-sm" id="posClienteNumExt" maxlength="20">
+            </div>
+            <div class="col-2">
+              <label class="form-label">N&uacute;m. Interior</label>
+              <input type="text" class="form-control form-control-sm" id="posClienteNumInt" maxlength="20">
+            </div>
+            <div class="col-12"><hr class="my-1"></div>
+            <div class="col-3">
+              <div class="form-check mt-2">
+                <input type="checkbox" class="form-check-input" id="posClienteTieneCredito">
+                <label class="form-check-label" for="posClienteTieneCredito">&iquest;Tiene cr&eacute;dito?</label>
+              </div>
+            </div>
+            <div class="col-3" id="posClienteLimiteCreditoGroup" style="display:none">
+              <label class="form-label">L&iacute;mite de Cr&eacute;dito</label>
+              <input type="number" class="form-control form-control-sm" id="posClienteLimiteCredito" step="0.01" min="0">
+            </div>
+          </div>
+        </form>
+      </div>
+      <div class="modal-footer border-0">
+        <button type="button" class="btn btn-light btn-sm" data-bs-dismiss="modal">Cancelar</button>
+        <button type="button" class="btn btn-primary btn-sm px-4 ripple" id="btnGuardarPosCliente">Guardar</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="modal fade" id="posCorteModal" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered modal-lg">
+    <div class="modal-content border-0 shadow">
+      <div class="modal-header border-0">
+        <h5 class="modal-title fw-bold">Vista Previa de Corte</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body" id="posCorteBody"></div>
+      <div class="modal-footer border-0">
+        <button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancelar</button>
+        <button type="button" class="btn btn-success px-4 ripple" id="btnRealizarCortePOS">Realizar Corte</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="modal fade" id="posVentaRapidaModal" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered modal-sm">
+    <div class="modal-content border-0 shadow">
+      <div class="modal-header border-0">
+        <h5 class="modal-title fw-bold">Venta R&aacute;pida</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <form id="formPosVentaRapida">
+          <div class="mb-2">
+            <label class="form-label">Descripci&oacute;n <span class="text-danger">*</span></label>
+            <input type="text" class="form-control form-control-sm" id="posVrDescripcion" required>
+          </div>
+          <div class="row g-2">
+            <div class="col-6">
+              <label class="form-label">P. Compra</label>
+              <input type="number" class="form-control form-control-sm" id="posVrCompra" step="0.01" value="0">
+            </div>
+            <div class="col-6">
+              <label class="form-label">P. Venta <span class="text-danger">*</span></label>
+              <input type="number" class="form-control form-control-sm" id="posVrVenta" required step="0.01">
+            </div>
+            <div class="col-6">
+              <label class="form-label">Cantidad</label>
+              <input type="number" class="form-control form-control-sm" id="posVrCantidad" min="1" value="1">
+            </div>
+            <div class="col-6"></div>
+          </div>
+        </form>
+      </div>
+      <div class="modal-footer border-0">
+        <button type="button" class="btn btn-light btn-sm" data-bs-dismiss="modal">Cancelar</button>
+        <button type="button" class="btn btn-success btn-sm px-4 ripple" id="btnRealizarVentaRapidaPOS">Vender</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+  <div class="modal fade" id="posGastoModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered modal-sm">
+      <div class="modal-content border-0 shadow">
+        <div class="modal-header border-0">
+          <h5 class="modal-title fw-bold">Solicitar Gasto</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body">
+          <div class="small text-muted mb-2" id="posGastoCajaInfo">Caja: &mdash; | Sucursal: &mdash;</div>
+          <form id="formPosGasto">
+            <div class="mb-2">
+              <label class="form-label">Descripci&oacute;n <span class="text-danger">*</span></label>
+              <input type="text" class="form-control form-control-sm" id="posGastoDesc" required>
+            </div>
+            <div class="mb-2">
+              <label class="form-label">Monto <span class="text-danger">*</span></label>
+              <input type="number" class="form-control form-control-sm" id="posGastoMonto" required min="0.01" step="0.01">
+            </div>
+          </form>
+        </div>
+        <div class="modal-footer border-0">
+          <button type="button" class="btn btn-light btn-sm" data-bs-dismiss="modal">Cancelar</button>
+          <button type="button" class="btn btn-warning btn-sm px-4 ripple" id="btnSolicitarGastoPOS">Solicitar</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal fade" id="posIngresoModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered modal-sm">
+      <div class="modal-content border-0 shadow">
+        <div class="modal-header border-0">
+          <h5 class="modal-title fw-bold">Ingresar Efectivo</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body">
+          <form id="formPosIngreso">
+            <div class="mb-2">
+              <label class="form-label">Monto <span class="text-danger">*</span></label>
+              <input type="number" class="form-control form-control-sm" id="posIngresoMonto" required min="0.01" step="0.01">
+            </div>
+            <div class="mb-2">
+              <label class="form-label">Motivo <span class="text-danger">*</span></label>
+              <input type="text" class="form-control form-control-sm" id="posIngresoMotivo" required>
+            </div>
+          </form>
+        </div>
+        <div class="modal-footer border-0">
+          <button type="button" class="btn btn-light btn-sm" data-bs-dismiss="modal">Cancelar</button>
+          <button type="button" class="btn btn-success btn-sm px-4 ripple" id="btnGuardarIngreso">Ingresar</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal fade" id="posCreditoModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered modal-sm">
+      <div class="modal-content border-0 shadow">
+        <div class="modal-header border-0">
+          <h5 class="modal-title fw-bold">Venta a Cr&eacute;dito</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body">
+          <div class="text-center mb-3">
+            <small class="text-muted">Total a financiar</small>
+            <h3 class="fw-bold" style="color:var(--primary)" id="posCreditoTotal">$0.00</h3>
+          </div>
+          <form id="formPosCredito">
+            <div class="mb-3">
+              <label class="form-label">Cliente <span class="text-danger">*</span></label>
+              <div class="fw-semibold small" id="posCreditoClienteName">-</div>
+            </div>
+            <div class="mt-3 p-2 bg-light rounded">
+              <small class="text-muted">Total: <strong id="posCreditoMontoOriginal">$0.00</strong></small>
+            </div>
+          </form>
+        </div>
+        <div class="modal-footer border-0">
+          <button type="button" class="btn btn-light btn-sm" data-bs-dismiss="modal">Cancelar</button>
+          <button type="button" class="btn btn-info btn-sm px-4 ripple" id="btnConfirmarCreditoPOS">
+            <i class="fas fa-check me-1"></i> Confirmar Cr&eacute;dito
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal fade" id="posPromocionModal" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered modal-lg">
+    <div class="modal-content border-0 shadow">
+      <div class="modal-header border-0">
+        <h5 class="modal-title fw-bold"><i class="fas fa-percent me-1"></i> Promociones y Combos</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <ul class="nav nav-tabs mb-3" id="promoTab">
+          <li class="nav-item"><a class="nav-link active" id="tabPromos" data-bs-toggle="tab" href="#promosList">Promociones</a></li>
+          <li class="nav-item"><a class="nav-link" id="tabCombos" data-bs-toggle="tab" href="#combosList">Combos</a></li>
+        </ul>
+        <div class="tab-content">
+          <div class="tab-pane fade show active" id="promosList">
+            <div id="posPromosContainer" class="row g-2" style="max-height:350px;overflow-y:auto">
+              <div class="text-center py-4 text-muted"><i class="fas fa-spinner fa-spin"></i> Cargando...</div>
+            </div>
+          </div>
+          <div class="tab-pane fade" id="combosList">
+            <div id="posCombosContainer" class="row g-2" style="max-height:350px;overflow-y:auto">
+              <div class="text-center py-4 text-muted"><i class="fas fa-spinner fa-spin"></i> Cargando...</div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer border-0">
+        <button type="button" class="btn btn-light btn-sm" data-bs-dismiss="modal">Cerrar</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+  <div class="modal fade" id="posCancelarModal" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered modal-lg">
+    <div class="modal-content border-0 shadow">
+      <div class="modal-header border-0">
+        <h5 class="modal-title fw-bold">Cancelar Venta</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <div class="table-responsive" style="max-height:300px">
+          <table class="table table-custom table-sm mb-0">
+            <thead>
+              <tr>
+                <th style="width:40px"></th>
+                <th>ID</th>
+                <th>Cliente</th>
+                <th>Total</th>
+                <th>Fecha</th>
+                <th>Estado</th>
+              </tr>
+            </thead>
+            <tbody id="posCancelarVentaBody"></tbody>
+          </table>
+        </div>
+        <div id="posCancelarEmpty" class="text-center py-4 d-none">
+          <i class="fas fa-check-circle fa-2x text-muted mb-2"></i>
+          <p class="text-muted mb-0">No hay ventas recientes para solicitar cancelaci&oacute;n</p>
+        </div>
+        <div class="d-none mt-3 border rounded bg-light p-3" id="posCancelarPanel">
+          <div class="alert alert-warning py-2 mb-2 small" id="posCancelarInfo"></div>
+          <div class="mb-0 d-none" id="posCancelarMotivoGroup">
+            <label class="form-label small text-muted mb-1">Motivo de la cancelaci&oacute;n</label>
+            <textarea class="form-control form-control-sm" id="posCancelarMotivo" rows="2" maxlength="300" placeholder="Indica el motivo..."></textarea>
+          </div>
+          <div class="mb-0 d-none" id="posCancelarCodigoGroup">
+            <label class="form-label small text-muted mb-1">C&oacute;digo de autorizaci&oacute;n del administrador</label>
+            <input type="text" class="form-control form-control-sm text-center" id="posCancelarCodigo" maxlength="4" inputmode="numeric" autocomplete="off" placeholder="0000">
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer border-0">
+        <button type="button" class="btn btn-light btn-sm" data-bs-dismiss="modal">Cerrar</button>
+        <button type="button" class="btn btn-danger btn-sm px-4 ripple d-none" id="btnConfirmarCancelarPOS">
+          <i class="fas fa-ban me-1"></i> <span id="btnConfirmarCancelarPOSLabel">Solicitar Cancelaci&oacute;n</span>
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="modal fade" id="posPrecioModal" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered modal-sm">
+    <div class="modal-content border-0 shadow">
+      <div class="modal-header border-0">
+        <h5 class="modal-title fw-bold"><i class="fas fa-tag me-1"></i> Modificar Precio</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <p class="small fw-semibold mb-2" id="posPrecioProducto">&mdash;</p>
+        <div class="mb-2">
+          <label class="form-label small text-muted mb-0">Precio actual</label>
+          <div class="fw-bold" id="posPrecioActual">$0.00</div>
+        </div>
+        <div class="mb-1">
+          <label class="form-label small text-muted">Nuevo precio</label>
+          <div class="input-group">
+            <span class="input-group-text">$</span>
+            <input type="number" class="form-control" id="posPrecioNuevo" step="0.01" min="0.01" placeholder="0.00">
+          </div>
+        </div>
+        <p class="small text-muted mb-0 mt-2">El cambio aplica solo a esta l&iacute;nea de la venta, no al cat&aacute;logo.</p>
+      </div>
+      <div class="modal-footer border-0">
+        <button type="button" class="btn btn-light btn-sm" data-bs-dismiss="modal">Cancelar</button>
+        <button type="button" class="btn btn-success btn-sm px-4 ripple" id="btnConfirmarPrecioPOS">
+          <i class="fas fa-check me-1"></i> <span id="btnConfirmarPrecioPOSLabel">Aplicar Precio</span>
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+  <div class="modal fade" id="abonoPOSModal" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered modal-lg">
+    <div class="modal-content border-0 shadow">
+      <div class="modal-header border-0">
+        <h5 class="modal-title fw-bold"><i class="fas fa-money-check-dollar me-1"></i> Abono a Cr&eacute;dito (POS)</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <label class="form-label small fw-semibold">Cliente</label>
+        <div class="mb-2" id="abonoPOSClienteName" style="font-size:0.95rem">&mdash;</div>
+        <div class="mb-3">
+          <label class="form-label small">Cr&eacute;dito</label>
+          <select class="form-select form-select-sm" id="abonoPOSCredito"></select>
+        </div>
+        <div class="text-center mb-3">
+          <small class="text-muted">Total a abonar</small>
+          <h3 class="fw-bold" style="color:var(--primary)" id="abonoPOSSuma">$0.00</h3>
+        </div>
+        <div id="abonoPOSPagos">
+          <div class="text-center py-3"><i class="fas fa-spinner fa-spin"></i> Cargando formas de pago...</div>
+        </div>
+        <p class="small text-muted mb-0 mt-3">El abono registra ingreso a: <strong id="abonoPOSCajaInfo">&mdash;</strong></p>
+      </div>
+      <div class="modal-footer border-0">
+        <button type="button" class="btn btn-light btn-sm" data-bs-dismiss="modal">Cancelar</button>
+        <button type="button" class="btn btn-success btn-sm px-4 ripple" id="btnConfirmarAbonoPOS">
+          <i class="fas fa-check me-1"></i> Registrar Abono
+        </button>
+      </div>
+    </div>
+  </div>
+</div>

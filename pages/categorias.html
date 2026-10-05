@@ -1,0 +1,73 @@
+<div class="page-content">
+  <div class="page-header">
+    <div>
+      <h4><i class="fas fa-th-large me-2" style="color:var(--primary)"></i>Categorías</h4>
+      <small class="text-muted">Gestión de Categorías de productos</small>
+    </div>
+    <button class="btn btn-primary ripple" id="btnNuevaCategoria">
+      <i class="fas fa-plus me-1"></i> Nueva Categoría
+    </button>
+  </div>
+
+  <div class="panel-card p-3 mb-3">
+    <div class="d-flex gap-2 align-items-end flex-wrap">
+      <div class="flex-grow-1" style="min-width:220px">
+        <label class="form-label small">Buscar Categorías</label>
+        <input type="text" class="form-control form-control-sm" id="searchCategoria" placeholder="Buscar por nombre...">
+      </div>
+      <div>
+        <label class="form-label small">&nbsp;</label>
+        <button class="btn btn-outline-secondary btn-sm ripple px-3" id="btnLimpiarCategoria">
+          <i class="fas fa-undo me-1"></i> Limpiar
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <div class="panel-card overflow-hidden">
+    <div class="table-responsive">
+      <table class="table table-custom mb-0">
+        <thead>
+          <tr>
+            <th style="width:8%">ID</th>
+            <th style="width:28%">Nombre</th>
+            <th>Descripci&oacute;n</th>
+            <th style="width:12%">Estado</th>
+            <th style="width:90px"></th>
+          </tr>
+        </thead>
+        <tbody id="tableBody">
+          <tr><td colspan="5"><div class="empty-state"><i class="fas fa-th-large"></i><p>Cargando...</p></div></td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<div class="modal fade" id="categoriaModal" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered modal-sm">
+    <div class="modal-content border-0 shadow">
+      <div class="modal-header border-0">
+        <h5 class="modal-title fw-bold" id="categoriaModalTitle">Nueva Categorías</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <form id="formCategoria">
+          <input type="hidden" id="categoriaId">
+          <div class="mb-3">
+            <label class="form-label">Nombre <span class="text-danger">*</span></label>
+            <input type="text" class="form-control" id="categoriaNombre" required maxlength="100" placeholder="Ej. Telas, Hilos, Cierres">
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Descripción</label>
+            <textarea class="form-control" id="categoriaDescripcion" rows="2" maxlength="300" placeholder="Descripci&oacute;n opcional"></textarea>
+          </div>
+        </form>
+      </div>
+      <div class="modal-footer border-0">
+        <button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancelar</button>
+        <button type="button" class="btn btn-primary px-4 ripple" id="btnGuardarCategoria">Guardar</button>
+      </div>
+    </div>
+  </div>
+</div>

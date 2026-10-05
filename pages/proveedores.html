@@ -1,0 +1,88 @@
+<div class="page-content">
+  <div class="page-header">
+    <div>
+      <h4><i class="fas fa-truck me-2" style="color:var(--primary)"></i>Proveedores</h4>
+      <small class="text-muted">Gesti&oacute;n de proveedores</small>
+    </div>
+    <button class="btn btn-primary ripple" id="btnNuevoProveedor">
+      <i class="fas fa-plus me-1"></i> Nuevo Proveedor
+    </button>
+  </div>
+
+  <div class="filter-bar">
+    <input type="text" class="form-control" id="searchProveedor" placeholder="Buscar por nombre o RFC...">
+  </div>
+
+  <div class="panel-card overflow-hidden">
+    <div class="table-responsive">
+      <table class="table table-custom mb-0">
+        <thead>
+          <tr>
+            <th>Nombre</th>
+            <th>RFC</th>
+            <th>Tel&eacute;fono</th>
+            <th>Email</th>
+            <th>Contacto</th>
+            <th>Activo</th>
+            <th style="width:100px"></th>
+          </tr>
+        </thead>
+        <tbody id="tableProveedoresBody">
+          <tr><td colspan="7"><div class="empty-state"><i class="fas fa-truck"></i><p>Cargando...</p></div></td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="mt-3" id="paginationProveedores"></div>
+</div>
+
+<div class="modal fade" id="proveedorModal" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content border-0 shadow">
+      <div class="modal-header border-0">
+        <h5 class="modal-title fw-bold" id="proveedorModalTitle">Nuevo Proveedor</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <form id="formProveedor">
+          <input type="hidden" id="proveedorId">
+          <div class="mb-3">
+            <label class="form-label">Nombre <span class="text-danger">*</span></label>
+            <input type="text" class="form-control" id="proveedorNombre" required maxlength="200">
+          </div>
+          <div class="row g-3 mb-3">
+            <div class="col-md-6">
+              <label class="form-label">RFC</label>
+              <input type="text" class="form-control" id="proveedorRfc" maxlength="20">
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">Tel&eacute;fono</label>
+              <input type="text" class="form-control" id="proveedorTelefono" maxlength="20">
+            </div>
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Email</label>
+            <input type="email" class="form-control" id="proveedorEmail" maxlength="150">
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Direcci&oacute;n</label>
+            <textarea class="form-control" id="proveedorDireccion" rows="2" maxlength="300"></textarea>
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Nombre de Contacto</label>
+            <input type="text" class="form-control" id="proveedorContacto" maxlength="150">
+          </div>
+          <div class="form-check">
+            <input type="checkbox" class="form-check-input" id="proveedorActivo" checked>
+            <label class="form-check-label" for="proveedorActivo">Proveedor activo</label>
+          </div>
+        </form>
+      </div>
+      <div class="modal-footer border-0">
+        <button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancelar</button>
+        <button type="button" class="btn btn-primary px-4 ripple" id="btnGuardarProveedor">Guardar</button>
+      </div>
+    </div>
+  </div>
+</div>

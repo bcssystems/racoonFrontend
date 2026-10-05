@@ -1,0 +1,368 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Bonds — Panel</title>
+  <link href="assets/bootstrap/css/bootstrap.min.css" rel="stylesheet">
+  <link href="assets/fontawesome/css/all.min.css" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <link href="css/main.css" rel="stylesheet">
+  <link href="css/login.css" rel="stylesheet">
+  <link href="css/dashboard.css" rel="stylesheet">
+</head>
+<body>
+
+  <!-- LOGIN VIEW -->
+  <div id="login-view">
+    <div id="login-left">
+      <div class="login-left-content">
+        <div class="login-brand-icon">
+          <i class="fas fa-chart-line"></i>
+        </div>
+        <h1 class="login-brand-name">BONDS</h1>
+        <p class="login-brand-desc">Sistema de Administración</p>
+      </div>
+    </div>
+    <div id="login-right">
+      <div class="login-card">
+        <div class="text-center mb-4">
+          <div class="login-form-icon">
+            <i class="fas fa-chart-line"></i>
+          </div>
+          <h4 class="login-form-title">Iniciar Sesión</h4>
+          <p class="login-form-sub">Ingresa tus credenciales para acceder</p>
+        </div>
+        <form id="login-form" novalidate>
+          <div class="mb-3">
+            <label for="username" class="form-label fw-medium">Usuario</label>
+            <div class="input-group">
+              <span class="input-group-text"><i class="fas fa-user"></i></span>
+              <input type="text" class="form-control" id="username" placeholder="Tu usuario" required autocomplete="username">
+            </div>
+          </div>
+          <div class="mb-4">
+            <label for="password" class="form-label fw-medium">Contraseña</label>
+            <div class="input-group">
+              <span class="input-group-text"><i class="fas fa-lock"></i></span>
+              <input type="password" class="form-control" id="password" placeholder="••••••••" required autocomplete="current-password">
+              <button class="btn btn-outline-secondary px-3" type="button" id="toggle-password" tabindex="-1">
+                <i class="fas fa-eye" id="toggle-password-icon"></i>
+              </button>
+            </div>
+          </div>
+          <button type="submit" class="btn btn-primary w-100 btn-login ripple" id="btn-login">
+            <span id="btn-login-text">Iniciar Sesión</span>
+            <span id="btn-login-loader" class="d-none">
+              <span class="spinner-border spinner-border-sm me-2" role="status"></span>
+              Ingresando...
+            </span>
+          </button>
+        </form>
+      </div>
+      <div class="login-footer">
+        <small class="text-muted">&copy; 2026 Bonds — Todos los derechos reservados</small>
+      </div>
+    </div>
+  </div>
+
+  <!-- DASHBOARD VIEW -->
+  <div id="dashboard-view" class="d-none">
+
+    <!-- Topbar -->
+    <header id="topbar">
+      <div class="topbar-left">
+        <button class="btn btn-link topbar-toggle d-lg-none" id="sidebarToggle" type="button">
+          <i class="fas fa-bars"></i>
+        </button>
+        <div class="topbar-brand-icon">
+          <i class="fas fa-chart-line icon-brand"></i>
+        </div>
+        <span class="topbar-brand">Bonds</span>
+      </div>
+      <div class="topbar-right">
+        <button class="btn btn-topbar-icon" id="btn-reload" title="Recargar módulo actual">
+          <i class="fas fa-sync-alt"></i>
+        </button>
+        <div class="topbar-user-info">
+          <span class="topbar-greeting">Bienvenido,</span>
+          <span class="topbar-user fw-semibold" id="display-name">Usuario</span>
+        </div>
+        <div class="topbar-avatar" id="topbar-avatar">U</div>
+        <button class="btn btn-topbar-logout" id="btn-logout" title="Cerrar sesión">
+          <i class="fas fa-sign-out-alt"></i>
+        </button>
+      </div>
+    </header>
+
+    <!-- Sidebar -->
+    <aside id="sidebar">
+      <div class="sidebar-header">
+        <div class="sidebar-brand-icon">
+          <i class="fas fa-chart-line"></i>
+        </div>
+        <div class="sidebar-brand-text">
+          <div class="sidebar-title">Bonds</div>
+          <small class="sidebar-sub">Panel</small>
+        </div>
+      </div>
+      <nav class="sidebar-nav" id="sidebar-nav">
+        <ul class="sidebar-menu">
+          <li>
+            <a href="#" class="sidebar-item sidebar-sub-toggle" data-target="sub-pdv">
+              <i class="fas fa-chevron-right sidebar-item-arrow"></i>
+              <i class="fas fa-cash-register sidebar-item-icon"></i>
+              <span>Punto de Venta</span>
+            </a>
+            <ul class="sidebar-submenu" id="sub-pdv">
+              <li>
+                <a href="#" class="sidebar-item sidebar-sub-item" data-view="pages/ventas.html" data-module="ventas" data-permiso="VENTAS_VER">
+                  <i class="fas fa-shopping-cart sidebar-item-icon"></i>
+                  <span>Ventas</span>
+                </a>
+              </li>
+              <li>
+                <a href="#" class="sidebar-item sidebar-sub-item" data-view="pages/historial-ventas.html" data-module="historial-ventas" data-permiso="HISTORIAL_VENTAS_VER">
+                  <i class="fas fa-history sidebar-item-icon"></i>
+                  <span>Historial</span>
+                </a>
+              </li>
+              <li>
+                <a href="#" class="sidebar-item sidebar-sub-item" data-view="pages/cancelaciones.html" data-module="cancelaciones" data-permiso="CANCELACIONES_VER">
+                  <i class="fas fa-ban sidebar-item-icon"></i>
+                  <span>Cancelaciones de venta</span>
+                </a>
+              </li>
+              <li>
+                <a href="#" class="sidebar-item sidebar-sub-item" data-view="pages/gastos.html" data-module="gastos" data-permiso="GASTOS_VER">
+                  <i class="fas fa-money-bill-wave sidebar-item-icon"></i>
+                  <span>Gastos</span>
+                </a>
+              </li>
+              <li>
+                <a href="#" class="sidebar-item sidebar-sub-item" data-view="pages/cotizaciones.html" data-module="cotizaciones" data-permiso="COTIZACIONES_VER">
+                  <i class="fas fa-file-invoice sidebar-item-icon"></i>
+                  <span>Cotizaciones</span>
+                </a>
+              </li>
+              <li>
+                <a href="#" class="sidebar-item sidebar-sub-item" data-view="pages/cortes.html" data-module="cortes" data-permiso="CORTES_VER">
+                  <i class="fas fa-calculator sidebar-item-icon"></i>
+                  <span>Cortes</span>
+                </a>
+              </li>
+            </ul>
+          </li>
+          <li>
+            <a href="#" class="sidebar-item sidebar-sub-toggle" data-target="sub-inventarios">
+              <i class="fas fa-chevron-right sidebar-item-arrow"></i>
+              <i class="fas fa-boxes sidebar-item-icon"></i>
+              <span>Inventarios</span>
+            </a>
+            <ul class="sidebar-submenu" id="sub-inventarios">
+              <li>
+                <a href="#" class="sidebar-item sidebar-sub-item" data-view="pages/productos.html" data-module="productos" data-permiso="PRODUCTOS_VER">
+                  <i class="fas fa-box sidebar-item-icon"></i>
+                  <span>Productos</span>
+                </a>
+              </li>
+              <li>
+                <a href="#" class="sidebar-item sidebar-sub-item" data-view="pages/compras.html" data-module="compras" data-permiso="RECEPCIONES_VER">
+                  <i class="fas fa-truck-loading sidebar-item-icon"></i>
+                  <span>Compras</span>
+                </a>
+              </li>
+              <li>
+                <a href="#" class="sidebar-item sidebar-sub-item" data-view="pages/movimientos-inventario.html" data-module="movimientos-inventario" data-permiso="MOVIMIENTOS_INVENTARIO_VER">
+                  <i class="fas fa-arrows-rotate sidebar-item-icon"></i>
+                  <span>Movimientos de Inventario</span>
+                </a>
+              </li>
+            </ul>
+          </li>
+          <li>
+            <a href="#" class="sidebar-item sidebar-sub-toggle" data-target="sub-clientes">
+              <i class="fas fa-chevron-right sidebar-item-arrow"></i>
+              <i class="fas fa-address-book sidebar-item-icon"></i>
+              <span>Clientes</span>
+            </a>
+            <ul class="sidebar-submenu" id="sub-clientes">
+              <li>
+                <a href="#" class="sidebar-item sidebar-sub-item" data-view="pages/clientes.html" data-module="clientes" data-permiso="CLIENTES_VER">
+                  <i class="fas fa-users sidebar-item-icon"></i>
+                  <span>Listar Clientes</span>
+                </a>
+              </li>
+              <li>
+                <a href="#" class="sidebar-item sidebar-sub-item" data-view="pages/creditos.html" data-module="creditos" data-permiso="CREDITOS_VER">
+                  <i class="fas fa-credit-card sidebar-item-icon"></i>
+                  <span>Cr&eacute;ditos</span>
+                </a>
+              </li>
+            </ul>
+          </li>
+          <li>
+            <a href="#" class="sidebar-item sidebar-sub-toggle" data-target="sub-catalogos">
+              <i class="fas fa-chevron-right sidebar-item-arrow"></i>
+              <i class="fas fa-folder sidebar-item-icon"></i>
+              <span>Cat&aacute;logos</span>
+            </a>
+            <ul class="sidebar-submenu" id="sub-catalogos">
+              <li>
+                <a href="#" class="sidebar-item sidebar-sub-item" data-view="pages/sucursales.html" data-module="sucursales" data-permiso="SUCURSALES_VER">
+                  <i class="fas fa-store sidebar-item-icon"></i>
+                  <span>Sucursales</span>
+                </a>
+              </li>
+              <li>
+                <a href="#" class="sidebar-item sidebar-sub-item" data-view="pages/tipos-pago.html" data-module="tipos-pago" data-permiso="TIPOS_PAGO_VER">
+                  <i class="fas fa-credit-card sidebar-item-icon"></i>
+                  <span>Tipos de Pago</span>
+                </a>
+              </li>
+              <li>
+                <a href="#" class="sidebar-item sidebar-sub-item" data-view="pages/categorias.html" data-module="categorias" data-permiso="CATEGORIAS_VER">
+                  <i class="fas fa-th-large sidebar-item-icon"></i>
+                  <span>Categor&iacute;as</span>
+                </a>
+              </li>
+              <li>
+                <a href="#" class="sidebar-item sidebar-sub-item" data-view="pages/proveedores.html" data-module="proveedores" data-permiso="PROVEEDORES_VER">
+                  <i class="fas fa-truck sidebar-item-icon"></i>
+                  <span>Proveedores</span>
+                </a>
+              </li>
+            </ul>
+          </li>
+          <li>
+            <a href="#" class="sidebar-item sidebar-sub-toggle" data-target="sub-auditoria">
+              <i class="fas fa-chevron-right sidebar-item-arrow"></i>
+              <i class="fas fa-clipboard-list sidebar-item-icon"></i>
+              <span>Auditor&iacute;a</span>
+            </a>
+            <ul class="sidebar-submenu" id="sub-auditoria">
+              <li>
+                <a href="#" class="sidebar-item sidebar-sub-item" data-view="pages/kardex.html" data-module="kardex" data-permiso="KARDEX_VER">
+                  <i class="fas fa-book sidebar-item-icon"></i>
+                  <span>Kardex</span>
+                </a>
+              </li>
+              <li>
+                <a href="#" class="sidebar-item sidebar-sub-item" data-view="pages/autorizaciones.html" data-module="autorizaciones" data-permiso="AUTORIZACIONES_VER">
+                  <i class="fas fa-shield-alt sidebar-item-icon"></i>
+                  <span>Autorizaciones</span>
+                </a>
+              </li>
+            </ul>
+          </li>
+          <li>
+            <a href="#" class="sidebar-item sidebar-sub-toggle" data-target="sub-admin">
+              <i class="fas fa-chevron-right sidebar-item-arrow"></i>
+              <i class="fas fa-cog sidebar-item-icon"></i>
+              <span>Administraci&oacute;n</span>
+            </a>
+            <ul class="sidebar-submenu" id="sub-admin">
+              <li>
+                <a href="#" class="sidebar-item sidebar-sub-item" data-view="pages/personas.html" data-module="personas" data-permiso="PERSONAS_VER">
+                  <i class="fas fa-users sidebar-item-icon"></i>
+                  <span>Usuarios</span>
+                </a>
+              </li>
+              <li>
+                <a href="#" class="sidebar-item sidebar-sub-item" data-view="pages/roles.html" data-module="roles" data-permiso="ROLES_VER">
+                  <i class="fas fa-user-shield sidebar-item-icon"></i>
+                  <span>Roles</span>
+                </a>
+              </li>
+              <li>
+                <a href="#" class="sidebar-item sidebar-sub-item" data-view="pages/cajas.html" data-module="cajas" data-permiso="CAJAS_VER" data-permiso-exact="true">
+                  <i class="fas fa-cash-register sidebar-item-icon"></i>
+                  <span>Cajas</span>
+                </a>
+              </li>
+              <li>
+                <a href="#" class="sidebar-item sidebar-sub-item" data-view="pages/promociones.html" data-module="promociones" data-permiso="PROMOCIONES_VER">
+                  <i class="fas fa-percent sidebar-item-icon"></i>
+                  <span>Promociones y Combos</span>
+                </a>
+              </li>
+              <li>
+                <a href="#" class="sidebar-item sidebar-sub-item" data-view="pages/configuracion.html" data-module="configuracion" data-permiso="CONFIGURACION_VER">
+                  <i class="fas fa-sliders-h sidebar-item-icon"></i>
+                  <span>Configuraci&oacute;n</span>
+                </a>
+              </li>
+            </ul>
+          </li>
+        </ul>
+      </nav>
+      <div class="sidebar-footer">
+        <small class="text-muted" id="sidebar-version">v1.0.0</small>
+      </div>
+    </aside>
+
+    <!-- Mobile overlay -->
+    <div class="sidebar-overlay" id="sidebarOverlay"></div>
+
+    <!-- Main Content -->
+    <main id="main-content">
+      <div class="welcome-container">
+        <div class="welcome-card text-center">
+          <div class="welcome-icon mb-4">
+            <i class="fas fa-chart-line"></i>
+          </div>
+          <h2 class="welcome-title">Bienvenido al Sistema</h2>
+          <p class="welcome-text text-muted">Selecciona un módulo en el menú lateral para comenzar</p>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <!-- TOAST CONTAINER -->
+  <div id="toast-container"></div>
+
+  <!-- CONFIRM MODAL -->
+  <div class="modal fade" id="confirmModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-sm">
+      <div class="modal-content border-0 shadow-lg">
+        <div class="modal-body text-center p-4">
+          <div class="confirm-icon mb-3">
+            <i class="fas fa-exclamation-triangle fa-3x text-warning"></i>
+          </div>
+          <h5 class="fw-semibold mb-2" id="confirmTitle">¿Estás seguro?</h5>
+          <p class="text-muted mb-0 small" id="confirmMsg">Esta acción no se puede deshacer.</p>
+        </div>
+        <div class="modal-footer border-0 justify-content-center pb-4 pt-0">
+          <button type="button" class="btn btn-light px-4" data-bs-dismiss="modal">Cancelar</button>
+          <button type="button" class="btn btn-danger px-4" id="confirmBtn">Eliminar</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SCRIPTS -->
+  <script src="assets/bootstrap/js/bootstrap.bundle.min.js"></script>
+  <script src="assets/fontawesome/js/all.min.js"></script>
+  <script src="assets/jspdf/umd/jspdf.min.js"></script>
+  <script src="assets/html2canvas/html2canvas.min.js"></script>
+  <script src="js/version.js"></script>
+  <script>
+    document.querySelectorAll('link[rel="stylesheet"][href^="css/"]').forEach(function(l) {
+      if (typeof PAYLOAD_VERSION !== 'undefined') l.href = l.href.split('?')[0] + '?v=' + PAYLOAD_VERSION;
+    });
+    document.querySelectorAll('script[src^="js/"]').forEach(function(s) {
+      if (s.src.indexOf('version.js') === -1 && typeof PAYLOAD_VERSION !== 'undefined') {
+        s.src = s.src.split('?')[0] + '?v=' + PAYLOAD_VERSION;
+      }
+    });
+    var sidebarVer = document.getElementById('sidebar-version');
+    if (sidebarVer && typeof PAYLOAD_VERSION !== 'undefined') sidebarVer.textContent = 'v' + PAYLOAD_VERSION;
+  </script>
+  <script src="js/api.js"></script>
+  <script src="js/utils.js"></script>
+  <script src="js/dashboard.js"></script>
+  <script>initSidebarDelegation();</script>
+  <script src="js/auth.js"></script>
+  <script>Auth.init();</script>
+</body>
+</html>

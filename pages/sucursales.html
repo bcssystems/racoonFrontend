@@ -1,0 +1,63 @@
+<div class="page-content">
+  <div class="page-header">
+    <div>
+      <h4><i class="fas fa-store me-2" style="color:var(--primary)"></i>Sucursales</h4>
+      <small class="text-muted">Gestión de sucursales</small>
+    </div>
+  </div>
+
+  <div class="panel-card overflow-hidden">
+    <div class="table-responsive">
+      <table class="table table-custom mb-0">
+        <thead>
+          <tr>
+            <th>Nombre</th>
+            <th>Dirección</th>
+            <th>Teléfono</th>
+            <th>Estado</th>
+            <th style="width:100px"></th>
+          </tr>
+        </thead>
+        <tbody id="tableSucursalesBody">
+          <tr><td colspan="5"><div class="empty-state"><i class="fas fa-store"></i><p>Cargando...</p></div></td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<div class="modal fade" id="sucursalModal" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content border-0 shadow">
+      <div class="modal-header border-0">
+        <h5 class="modal-title fw-bold" id="sucursalModalTitle">Nueva Sucursal</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <form id="formSucursal">
+          <input type="hidden" id="sucursalId">
+          <div class="mb-3">
+            <label class="form-label">Nombre <span class="text-danger">*</span></label>
+            <input type="text" class="form-control" id="sucursalNombre" required maxlength="150">
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Dirección</label>
+            <input type="text" class="form-control" id="sucursalDireccion" maxlength="300">
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Teléfono</label>
+            <input type="text" class="form-control" id="sucursalTelefono" maxlength="20">
+          </div>
+          <div class="form-check">
+            <input type="checkbox" class="form-check-input" id="sucursalActiva">
+            <label class="form-check-label" for="sucursalActiva">Sucursal activa</label>
+          </div>
+        </form>
+      </div>
+      <div class="modal-footer border-0">
+        <button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancelar</button>
+        <button type="button" class="btn btn-primary px-4 ripple" id="btnGuardarSucursal">Guardar</button>
+      </div>
+    </div>
+  </div>
+</div>

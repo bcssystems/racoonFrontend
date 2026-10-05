@@ -1,0 +1,296 @@
+let state = { data: [], editingId: null, sucursales: [] };
+
+export function init() {
+  bindEvents();
+  cargarSucursales();
+  cargarCajas();
+}
+
+function bindEvents() {
+  document.getElementById('btnGuardarCaja')?.addEventListener('click', guardarCaja);
+  document.getElementById('tableCajasBody')?.addEventListener('click', handleTableClick);
+  document.getElementById('filtroSucursal')?.addEventListener('change', cargarCajas);
+  document.getElementById('btnConfirmarMovimiento')?.addEventListener('click', confirmarMovimiento);
+  document.getElementById('btnConfirmarApertura')?.addEventListener('click', confirmarApertura);
+  document.getElementById('btnRealizarCorte')?.addEventListener('click', realizarCorte);
+}
+
+async function cargarSucursales() {
+  try {
+    state.sucursales = await API.get('/sucursales');
+    const sel = document.getElementById('filtroSucursal');
+    sel.innerHTML = '<option value="">Todas las sucursales</option>' +
+      state.sucursales.map(s => `<option value="${s.idSucursal}">${Utils.esc(s.nombre)}</option>`).join('');
+
+    const selCaja = document.getElementById('cajaSucursal');
+    if (selCaja) {
+      selCaja.innerHTML = state.sucursales.map(s =>
+        `<option value="${s.idSucursal}">${Utils.esc(s.nombre)}</option>`).join('');
+      Utils.makeSearchableSelect('cajaSucursal');
+    }
+  } catch (err) { Utils.showToast(err.message, 'error'); }
+}
+
+async function cargarCajas() {
+  try {
+    const sucId = document.getElementById('filtroSucursal')?.value;
+    state.data = sucId ? await API.get('/cajas/sucursal/' + sucId) : await API.get('/cajas');
+    renderTable();
+  } catch (err) { Utils.showToast(err.message, 'error'); }
+}
+
+function renderTable() {
+  const tbody = document.getElementById('tableCajasBody');
+  if (!tbody) return;
+
+  if (!state.data || state.data.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="7"><div class="empty-state"><i class="fas fa-cash-register"></i><p>No hay cajas</p></div></td></tr>';
+    return;
+  }
+
+  tbody.innerHTML = state.data.map(c => {
+    const activa = c.estado === 'ABIERTA';
+    return `<tr>
+      <td><strong>${Utils.esc(c.nombre)}</strong></td>
+      <td><span class="badge-status ${c.tipo === 'SECUNDARIA' ? 'badge-warning' : 'badge-active'}">${c.tipo || 'PRINCIPAL'}</span></td>
+      <td>${Utils.esc(c.sucursalNombre) || '-'}</td>
+      <td><strong>${Utils.formatMonto(c.saldoActual)}</strong></td>
+      <td><span class="badge-status ${activa ? 'badge-active' : 'badge-inactive'}">${c.estado}</span></td>
+      <td>${Utils.formatDateTime(c.fechaApertura)}</td>
+      <td class="acciones-cell">
+        <button type="button" class="btn-kebab-toggle kebab-trigger" data-id="${c.idCaja}" data-estado="${c.estado}" title="Acciones"><i class="fas fa-ellipsis-v"></i></button>
+      </td>
+    </tr>`;
+  }).join('');
+}
+
+function handleTableClick(e) {
+  const kebab = e.target.closest('.kebab-trigger');
+  if (kebab) {
+    e.preventDefault();
+    const id = parseInt(kebab.dataset.id);
+    const estado = kebab.dataset.estado;
+    const abierta = estado === 'ABIERTA';
+    const items = [
+      { icon: 'fa-exchange-alt', text: 'Ver movimientos', color: 'var(--info)', onClick: () => verMovimientos(id) },
+    ];
+    if (Utils.hasPermiso('CAJAS_EDITAR')) {
+      items.push({ icon: 'fa-edit', text: 'Editar', color: 'var(--primary)', onClick: () => abrirModal(id) });
+    }
+    if (abierta) {
+      if (Utils.hasPermiso('CAJAS_CIERRE')) {
+        items.push({ danger: true, icon: 'fa-lock', text: 'Cerrar caja', onClick: () => cerrarCaja(id) });
+      }
+      if (Utils.hasPermiso('CAJAS_CORTE')) {
+        items.push({ icon: 'fa-calculator', text: 'Corte', color: 'var(--warning)', onClick: () => previewCorte(id) });
+      }
+    } else {
+      if (Utils.hasPermiso('CAJAS_APERTURA')) {
+        items.push({ icon: 'fa-unlock', text: 'Abrir caja', color: 'var(--success)', onClick: () => abrirAperturaModal(id) });
+      }
+    }
+    if (Utils.hasPermiso('CAJAS_ELIMINAR')) {
+      items.push({ danger: true, icon: 'fa-trash', text: 'Eliminar', onClick: () => confirmarEliminar(id) });
+    }
+    Utils.abrirMenuKebab(kebab, items);
+    return;
+  }
+  const btn = e.target.closest('.btn-action');
+  if (!btn) return;
+  const id = parseInt(btn.dataset.id);
+  const action = btn.dataset.action;
+
+  if (action === 'edit' || (!action && btn.classList.contains('btn-action-edit'))) abrirModal(id);
+  else if (action === 'delete' || (!action && btn.classList.contains('btn-action-delete'))) confirmarEliminar(id);
+  else if (action === 'abrir') abrirAperturaModal(id);
+  else if (action === 'cerrar') cerrarCaja(id);
+  else if (action === 'corte-preview') previewCorte(id);
+}
+
+function abrirModal(id) {
+  state.editingId = id;
+  const modal = new bootstrap.Modal(document.getElementById('cajaModal'));
+  document.getElementById('cajaModalTitle').textContent = id ? 'Editar Caja' : 'Nueva Caja';
+  document.getElementById('formCaja').reset();
+  document.getElementById('cajaId').value = '';
+
+  if (id) {
+    const c = state.data.find(c => c.idCaja === id);
+    if (c) {
+      document.getElementById('cajaId').value = c.idCaja;
+      document.getElementById('cajaNombre').value = c.nombre || '';
+      document.getElementById('cajaTipo').value = c.tipo || 'PRINCIPAL';
+      document.getElementById('cajaSucursal').value = c.idSucursal || '';
+      Utils.updateSearchableOptions('cajaSucursal');
+    }
+  }
+  modal.show();
+}
+
+async function guardarCaja() {
+  const data = {
+    nombre: document.getElementById('cajaNombre').value.trim(),
+    tipo: document.getElementById('cajaTipo').value,
+    idSucursal: parseInt(document.getElementById('cajaSucursal').value),
+  };
+
+  if (!data.nombre) { Utils.showToast('El nombre es obligatorio', 'warning'); return; }
+  if (!data.idSucursal) { Utils.showToast('Selecciona una sucursal', 'warning'); return; }
+
+  try {
+    if (state.editingId) {
+      await API.put('/cajas/' + state.editingId, data);
+      Utils.showToast('Caja actualizada', 'success');
+    } else {
+      await API.post('/cajas', data);
+      Utils.showToast('Caja creada', 'success');
+    }
+    bootstrap.Modal.getInstance(document.getElementById('cajaModal'))?.hide();
+    cargarCajas();
+  } catch (err) { Utils.showToast(err.message, 'error'); }
+}
+
+async function confirmarEliminar(id) {
+  const confirmed = await Utils.confirmAction('¿Eliminar esta caja?', 'Confirmar', 'Eliminar');
+  if (!confirmed) return;
+  try {
+    await API.del('/cajas/' + id);
+    Utils.showToast('Caja eliminada', 'success');
+    cargarCajas();
+  } catch (err) { Utils.showToast(err.message, 'error'); }
+}
+
+function abrirAperturaModal(id) {
+  document.getElementById('apCajaId').value = id;
+  document.getElementById('formApertura').reset();
+  document.getElementById('apSaldoInicial').value = '0';
+  new bootstrap.Modal(document.getElementById('cajaAperturaModal')).show();
+}
+
+async function confirmarApertura() {
+  const id = parseInt(document.getElementById('apCajaId').value);
+  const saldoInicial = parseFloat(document.getElementById('apSaldoInicial').value);
+  if (isNaN(saldoInicial) || saldoInicial < 0) {
+    Utils.showToast('Ingresa un saldo inicial v&aacute;lido', 'warning');
+    return;
+  }
+  try {
+    await API.post('/cajas/' + id + '/apertura', { saldoInicial });
+    Utils.showToast('Caja abierta', 'success');
+    bootstrap.Modal.getInstance(document.getElementById('cajaAperturaModal'))?.hide();
+    cargarCajas();
+  } catch (err) { Utils.showToast(err.message, 'error'); }
+}
+
+async function cerrarCaja(id) {
+  const confirmed = await Utils.confirmAction('¿Cerrar esta caja?', 'Confirmar', 'Cerrar');
+  if (!confirmed) return;
+  try {
+    await API.post('/cajas/' + id + '/cierre', {});
+    Utils.showToast('Caja cerrada', 'success');
+    cargarCajas();
+  } catch (err) { Utils.showToast(err.message, 'error'); }
+}
+
+async function confirmarMovimiento() {
+  const id = parseInt(document.getElementById('movCajaId').value);
+  const tipo = document.getElementById('movTipo').value;
+  const monto = parseFloat(document.getElementById('movMonto').value);
+  const motivo = document.getElementById('movMotivo').value.trim();
+
+  if (isNaN(monto) || monto <= 0) { Utils.showToast('Monto inv&aacute;lido', 'warning'); return; }
+
+  const endpoint = tipo === 'INGRESO' ? '/cajas/' + id + '/ingresos' : '/cajas/' + id + '/egresos';
+  try {
+    await API.post(endpoint, { monto, motivo });
+    Utils.showToast('Movimiento registrado', 'success');
+    bootstrap.Modal.getInstance(document.getElementById('cajaMovimientoModal'))?.hide();
+    cargarCajas();
+  } catch (err) { Utils.showToast(err.message, 'error'); }
+}
+
+async function verMovimientos(id) {
+  try {
+    const movs = await API.get('/cajas/' + id + '/movimientos');
+    const caja = state.data.find(c => c.idCaja === id);
+    document.getElementById('movimientosModalTitle').textContent =
+      'Movimientos - ' + (caja ? caja.nombre : '');
+
+    const body = document.getElementById('tableMovimientosBody');
+    if (!movs || movs.length === 0) {
+      body.innerHTML = '<tr><td colspan="4"><div class="empty-state"><i class="fas fa-exchange-alt"></i><p>Sin movimientos</p></div></td></tr>';
+    } else {
+      body.innerHTML = movs.map(m => {
+        const esIngreso = m.tipo === 'INGRESO';
+        return `<tr>
+          <td>${Utils.formatDateTime(m.fecha)}</td>
+          <td><span class="badge-status ${esIngreso ? 'badge-active' : 'badge-inactive'}">${m.tipo}</span></td>
+          <td style="color:${esIngreso ? 'var(--success)' : 'var(--danger)'};font-weight:600">
+            ${esIngreso ? '+' : '-'}${Utils.formatMonto(m.monto)}
+          </td>
+          <td>${Utils.esc(m.motivo) || '-'}</td>
+        </tr>`;
+      }).join('');
+    }
+    new bootstrap.Modal(document.getElementById('movimientosModal')).show();
+  } catch (err) { Utils.showToast(err.message, 'error'); }
+}
+
+async function previewCorte(id) {
+  try {
+    const corte = await API.get('/cajas/' + id + '/corte-preview');
+    const body = document.getElementById('cortePreviewBody');
+    document.getElementById('cortePreviewTitle').textContent =
+      'Vista Previa de Corte - ' + (state.data.find(c => c.idCaja === id)?.nombre || '');
+
+    body.innerHTML = `
+      <div class="row g-3">
+        <div class="col-6"><div class="panel-card p-3 text-center">
+          <small class="text-muted">Saldo Inicial</small>
+          <h4 class="mb-0">${Utils.formatMonto(corte.saldoInicial)}</h4>
+        </div></div>
+        <div class="col-6"><div class="panel-card p-3 text-center">
+          <small class="text-muted">Total Ventas</small>
+          <h4 class="mb-0 text-success">${Utils.formatMonto(corte.totalVentas)}</h4>
+        </div></div>
+        <div class="col-6"><div class="panel-card p-3 text-center">
+          <small class="text-muted">Contado</small>
+          <h5 class="mb-0">${Utils.formatMonto(corte.totalVentasContado)}</h5>
+        </div></div>
+        <div class="col-6"><div class="panel-card p-3 text-center">
+          <small class="text-muted">Cr&eacute;dito</small>
+          <h5 class="mb-0">${Utils.formatMonto(corte.totalVentasCredito)}</h5>
+        </div></div>
+        <div class="col-6"><div class="panel-card p-3 text-center">
+          <small class="text-muted">Ingresos</small>
+          <h5 class="mb-0 text-success">${Utils.formatMonto(corte.totalIngresos)}</h5>
+        </div></div>
+        <div class="col-6"><div class="panel-card p-3 text-center">
+          <small class="text-muted">Egresos</small>
+          <h5 class="mb-0 text-danger">${Utils.formatMonto(corte.totalEgresos)}</h5>
+        </div></div>
+        <div class="col-6"><div class="panel-card p-3 text-center">
+          <small class="text-muted">Abonos (Cr\u00e9ditos)</small>
+          <h5 class="mb-0" style="color:var(--info)">${Utils.formatMonto(corte.totalAbonos || 0)}</h5>
+        </div></div>
+      </div>
+      <hr>
+      <div class="text-center">
+        <h5>Saldo Esperado</h5>
+        <h3 class="fw-bold" style="color:var(--primary)">${Utils.formatMonto(corte.saldoEsperado)}</h3>
+      </div>
+    `;
+    document.getElementById('btnRealizarCorte').dataset.cajaId = id;
+    new bootstrap.Modal(document.getElementById('cortePreviewModal')).show();
+  } catch (err) { Utils.showToast(err.message, 'error'); }
+}
+
+async function realizarCorte() {
+  const id = parseInt(document.getElementById('btnRealizarCorte').dataset.cajaId);
+  try {
+    await API.post('/cajas/' + id + '/corte', {});
+    Utils.showToast('Corte realizado exitosamente', 'success');
+    bootstrap.Modal.getInstance(document.getElementById('cortePreviewModal'))?.hide();
+    cargarCajas();
+  } catch (err) { Utils.showToast(err.message, 'error'); }
+}

@@ -1,0 +1,158 @@
+<div class="page-header">
+  <div>
+    <h5 class="mb-0"><i class="fas fa-percent me-2"></i>Promociones y Combos</h5>
+  </div>
+  <button class="btn btn-primary btn-sm" id="btnNuevaPromocion"><i class="fas fa-plus me-1"></i>Nueva Promoción</button>
+</div>
+
+<div class="card mb-3">
+  <div class="card-body">
+    <div class="row g-2 align-items-end">
+      <div class="col-md-4">
+        <label class="form-label small">Tipo</label>
+        <select class="form-select form-select-sm" id="filterTipo">
+          <option value="">Todos</option>
+          <option value="PROMOCION">Promociones</option>
+          <option value="COMBO">Combos</option>
+        </select>
+      </div>
+      <div class="col-md-4">
+        <label class="form-label small">Estado</label>
+        <select class="form-select form-select-sm" id="filterActivo">
+          <option value="">Todos</option>
+          <option value="true">Activos</option>
+          <option value="false">Inactivos</option>
+        </select>
+      </div>
+      <div class="col-md-2">
+        <button class="btn btn-outline-secondary btn-sm w-100" id="btnFiltrar"><i class="fas fa-search me-1"></i>Filtrar</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="panel-card p-0 overflow-hidden">
+  <div class="table-responsive">
+    <table class="table table-custom mb-0">
+        <thead>
+          <tr>
+            <th>Nombre</th>
+            <th>Tipo</th>
+            <th>Descuento</th>
+            <th>Precio Sugerido</th>
+            <th>Precio Final</th>
+            <th>Vigencia</th>
+            <th>Estado</th>
+            <th class="text-end">Acciones</th>
+          </tr>
+        </thead>
+        <tbody id="tablePromocionesBody"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<nav class="mt-3" id="paginationPromociones"></nav>
+
+<div class="modal fade" id="promocionModal" tabindex="-1">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h6 class="modal-title" id="promocionModalTitle">Nueva Promoción</h6>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <form id="formPromocion">
+          <input type="hidden" id="promocionId">
+          <div class="row g-2 mb-2">
+            <div class="col-md-8">
+              <label class="form-label small">Nombre</label>
+              <input type="text" class="form-control form-control-sm" id="promocionNombre" required>
+            </div>
+            <div class="col-md-4">
+              <label class="form-label small">Tipo</label>
+              <select class="form-select form-select-sm" id="promocionTipo">
+                <option value="PROMOCION">Promoción</option>
+                <option value="COMBO">Combo</option>
+              </select>
+            </div>
+          </div>
+          <div class="mb-2">
+            <label class="form-label small">Descripción</label>
+            <textarea class="form-control form-control-sm" id="promocionDescripcion" rows="2"></textarea>
+          </div>
+          <div class="row g-2 mb-2">
+            <div class="col-md-3">
+              <label class="form-label small">Descuento %</label>
+              <input type="number" class="form-control form-control-sm" id="promocionDescuento" min="0" max="100" step="0.01" required>
+            </div>
+            <div class="col-md-3">
+              <label class="form-label small">Fecha Inicio</label>
+              <input type="datetime-local" class="form-control form-control-sm" id="promocionFechaInicio" required>
+            </div>
+            <div class="col-md-3">
+              <label class="form-label small">Fecha Fin <span class="text-muted">(opcional)</span></label>
+              <input type="datetime-local" class="form-control form-control-sm" id="promocionFechaFin">
+            </div>
+            <div class="col-md-3 d-flex align-items-end">
+              <div class="form-check">
+                <input type="checkbox" class="form-check-input" id="promocionActivo" checked>
+                <label class="form-check-label small">Activo</label>
+              </div>
+            </div>
+          </div>
+
+          <hr class="my-2">
+
+          <div id="promocionProductoGroup">
+            <label class="form-label small">Producto</label>
+            <select class="form-select form-select-sm sucursal-select" id="promocionProducto">
+              <option value="">Seleccionar producto</option>
+            </select>
+          </div>
+
+          <div id="comboProductosGroup" class="d-none">
+            <div class="d-flex justify-content-between align-items-center mb-1">
+              <label class="form-label small mb-0">Productos del Combo</label>
+            </div>
+            <div class="row g-1 mb-2">
+              <div class="col-md-7">
+                <select class="form-select form-select-sm" id="comboProductoSelect"><option value="">Seleccionar producto</option></select>
+              </div>
+              <div class="col-md-3">
+                <input type="number" class="form-control form-control-sm" id="comboProductoCantidad" value="1" min="1">
+              </div>
+              <div class="col-md-2">
+                <button class="btn btn-outline-primary btn-sm w-100" id="btnAgregarComboProducto"><i class="fas fa-plus"></i></button>
+              </div>
+            </div>
+            <div class="table-responsive">
+              <table class="table table-sm mb-0">
+                <thead><tr><th>Producto</th><th>Cant</th><th>Precio base</th><th>Subtotal</th><th></th></tr></thead>
+                <tbody id="comboProductosTableBody"></tbody>
+              </table>
+            </div>
+          </div>
+
+          <hr class="my-2">
+
+          <div class="row g-2">
+            <div class="col-md-4">
+              <label class="form-label small">Precio Sugerido</label>
+              <input type="number" class="form-control form-control-sm" id="promocionPrecioSugerido" step="0.01" readonly>
+              <small class="text-muted">Calculado automáticamente</small>
+            </div>
+            <div class="col-md-4">
+              <label class="form-label small">Precio Final <span class="text-muted">(editable)</span></label>
+              <input type="number" class="form-control form-control-sm" id="promocionPrecioFinal" step="0.01">
+            </div>
+          </div>
+        </form>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-sm btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+        <button class="btn btn-sm btn-primary" id="btnGuardarPromocion"><i class="fas fa-save me-1"></i>Guardar</button>
+      </div>
+    </div>
+  </div>
+</div>

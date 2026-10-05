@@ -1,0 +1,232 @@
+<div class="page-content">
+  <div class="page-header">
+    <div>
+      <h4><i class="fas fa-credit-card me-2" style="color:var(--primary)"></i>Cr&eacute;ditos</h4>
+      <small class="text-muted">Gesti&oacute;n de cr&eacute;ditos y abonos</small>
+    </div>
+  </div>
+
+  <div class="panel-card p-3 mb-3">
+    <div class="d-flex gap-2 align-items-end flex-wrap">
+      <div class="flex-grow-1" style="min-width:200px">
+        <label class="form-label small">Buscar Cliente</label>
+        <input type="text" class="form-control form-control-sm" id="searchCreditoCliente" placeholder="Buscar cliente con cr&eacute;dito...">
+      </div>
+      <div>
+        <label class="form-label small">Filtro</label>
+        <div class="btn-group" role="group">
+          <input type="radio" class="btn-check" name="filtroCredito" id="filtroCredPendientes" value="pendientes" checked>
+          <label class="btn btn-outline-warning btn-sm" for="filtroCredPendientes">Pendientes</label>
+          <input type="radio" class="btn-check" name="filtroCredito" id="filtroCredLiquidados" value="liquidados">
+          <label class="btn btn-outline-success btn-sm" for="filtroCredLiquidados">Liquidados</label>
+          <input type="radio" class="btn-check" name="filtroCredito" id="filtroCredTodos" value="todos">
+          <label class="btn btn-outline-secondary btn-sm" for="filtroCredTodos">Todos</label>
+        </div>
+      </div>
+      <div>
+        <label class="form-label small">&nbsp;</label>
+        <div class="d-flex gap-1">
+          <button class="btn btn-primary btn-sm ripple px-3" id="btnBuscarCreditoCliente">
+            <i class="fas fa-search me-1"></i> Buscar
+          </button>
+          <button class="btn btn-outline-secondary btn-sm ripple px-3" id="btnLimpiarCreditoCliente">
+            <i class="fas fa-undo me-1"></i> Limpiar
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="row g-3" id="creditoClientesSection">
+    <div class="col-12">
+      <div class="panel-card overflow-hidden">
+        <div class="table-responsive">
+          <table class="table table-custom mb-0">
+            <thead>
+              <tr>
+                <th style="width:25%">Cliente</th>
+                <th style="width:15%">Tel&eacute;fono</th>
+                <th style="width:15%" class="text-end">L&iacute;mite</th>
+                <th style="width:15%" class="text-end">Saldo Actual</th>
+                <th style="width:15%" class="text-end">Disponible</th>
+                <th style="width:15%"></th>
+              </tr>
+            </thead>
+            <tbody id="tableCreditosClientesBody">
+              <tr><td colspan="6"><div class="empty-state"><i class="fas fa-credit-card"></i><p>Selecciona un cliente para ver sus cr&eacute;ditos</p></div></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal fade" id="creditoDetalleModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable modal-lg">
+      <div class="modal-content border-0 shadow">
+        <div class="modal-header border-0 pb-0">
+          <h5 class="modal-title fw-bold"><i class="fas fa-list me-1" style="color:var(--primary)"></i> Cr&eacute;ditos de <span id="creditoClienteName">-</span></h5>
+          <div class="small ms-3">Deuda total: <strong id="creditosDeudaTotal" style="color:var(--danger)">$0.00</strong></div>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body pt-2">
+          <div class="panel-card mb-0">
+            <h6 class="fw-semibold mb-2"><i class="fas fa-file-invoice me-1"></i> Cr&eacute;ditos</h6>
+            <div class="table-responsive" style="max-height:420px">
+              <table class="table table-custom table-sm mb-0">
+                <thead>
+                  <tr>
+                    <th style="width:5%">#</th>
+                    <th style="width:10%">Venta</th>
+                    <th style="width:18%" class="text-end">Original</th>
+                    <th style="width:18%" class="text-end">Pendiente</th>
+                    <th style="width:22%">Vencimiento</th>
+                    <th style="width:12%">Estado</th>
+                    <th style="width:15%"></th>
+                  </tr>
+                </thead>
+                <tbody id="tableCreditosBody">
+                  <tr><td colspan="7"><div class="empty-state py-2"><i class="fas fa-file-invoice"></i><p>Sin cr&eacute;ditos</p></div></td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer border-0">
+          <button class="btn btn-light btn-sm ripple" id="btnCerrarDetalle"><i class="fas fa-times me-1"></i> Cerrar</button>
+          <button class="btn btn-success btn-sm ripple" id="btnAbonarTodas"><i class="fas fa-money-bill-wave me-1"></i> Abonar a Todas</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal fade" id="estadoCuentaModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable modal-lg">
+      <div class="modal-content border-0 shadow">
+        <div class="modal-header border-0 pb-0">
+          <h5 class="modal-title fw-bold"><i class="fas fa-file-invoice me-1" style="color:var(--primary)"></i> Estado de cuenta de <span id="estadoCuentaClienteName">-</span></h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body pt-2">
+          <div class="panel-card mb-0">
+            <div class="d-flex justify-content-between align-items-center mb-2">
+              <h6 class="fw-semibold mb-0"><i class="fas fa-file-invoice me-1"></i> Movimientos</h6>
+              <div class="small">Deuda total: <strong id="estadoDeudaTotal" style="color:var(--danger)">$0.00</strong></div>
+            </div>
+            <div class="table-responsive" style="max-height:320px">
+              <table class="table table-custom table-sm mb-0">
+                <thead>
+                  <tr>
+                    <th style="width:12%">Folio</th>
+                    <th style="width:9%">Venta</th>
+                    <th style="width:18%">Fecha</th>
+                    <th>Tipo de movimiento</th>
+                    <th class="text-end" style="width:12%">Cantidad</th>
+                    <th style="width:12%">Estado</th>
+                    <th class="text-end" style="width:13%">Lo que falta</th>
+                  </tr>
+                </thead>
+                <tbody id="tableMovimientosBody">
+                  <tr><td colspan="7"><div class="empty-state py-2"><i class="fas fa-file-invoice"></i><p>Sin movimientos</p></div></td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+          <div class="panel-card mb-0 mt-3">
+            <h6 class="fw-semibold mb-2"><i class="fas fa-sticky-note me-1"></i> Notas de ventas</h6>
+            <div id="notasVentasList">
+              <p class="text-muted small mb-0">Sin notas de ventas</p>
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer border-0">
+          <button class="btn btn-light btn-sm ripple" id="btnCerrarEstadoCuenta"><i class="fas fa-times me-1"></i> Cerrar</button>
+          <button class="btn btn-outline-danger btn-sm ripple" id="btnDescargarEstadoCuentaPDF"><i class="fas fa-file-pdf me-1"></i> Descargar PDF</button>
+          <button class="btn btn-outline-primary btn-sm ripple" id="btnImprimirEstadoCuenta"><i class="fas fa-print me-1"></i> Imprimir Estado de Cuenta</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="modal fade" id="abonoModal" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered modal-sm">
+    <div class="modal-content border-0 shadow">
+      <div class="modal-header border-0">
+        <h5 class="modal-title fw-bold">Registrar Abono</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <form id="formAbono">
+          <div class="mb-2">
+            <label class="form-label">Cr&eacute;dito</label>
+            <div class="fw-semibold small" id="abonoCreditoInfo">-</div>
+          </div>
+          <div class="mb-2">
+            <label class="form-label">Saldo Pendiente</label>
+            <div class="fw-semibold" id="abonoSaldoPendiente">$0.00</div>
+          </div>
+          <div class="mb-2">
+            <label class="form-label">Monto a Abonar <span class="text-danger">*</span></label>
+            <input type="number" class="form-control" id="abonoMonto" step="0.01" min="0.01" required>
+          </div>
+          <div class="mb-2">
+            <label class="form-label">Tipo</label>
+            <select class="form-select" id="abonoTipo">
+              <option value="PARCIAL">Abono Parcial</option>
+              <option value="LIQUIDACION">Liquidaci&oacute;n Total</option>
+            </select>
+          </div>
+          <div class="mb-2">
+            <label class="form-label">M&eacute;todo de Pago <span class="text-danger">*</span></label>
+            <select class="form-select" id="abonoTipoPago" required></select>
+          </div>
+        </form>
+      </div>
+      <div class="modal-footer border-0">
+        <button type="button" class="btn btn-light btn-sm" data-bs-dismiss="modal">Cancelar</button>
+        <button type="button" class="btn btn-success btn-sm px-4 ripple" id="btnConfirmarAbono">
+          <i class="fas fa-check me-1"></i> Registrar Abono
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="modal fade" id="abonoGeneralModal" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered modal-sm">
+    <div class="modal-content border-0 shadow">
+      <div class="modal-header border-0">
+        <h5 class="modal-title fw-bold">Abonar a Todas</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <form id="formAbonoGeneral">
+          <div class="mb-2">
+            <label class="form-label">Cliente</label>
+            <div class="fw-semibold small" id="abonoGeneralCliente">-</div>
+          </div>
+          <div class="mb-2">
+            <label class="form-label">Deuda Total</label>
+            <div class="fw-semibold" id="abonoGeneralDeudaTotal">$0.00</div>
+          </div>
+          <div class="mb-2">
+            <label class="form-label">Monto a Abonar <span class="text-danger">*</span></label>
+            <input type="number" class="form-control" id="abonoGeneralMonto" step="0.01" min="0.01" required>
+          </div>
+          <div class="mb-2">
+            <label class="form-label">M&eacute;todo de Pago <span class="text-danger">*</span></label>
+            <select class="form-select" id="abonoGeneralTipoPago" required></select>
+          </div>
+          <small class="text-muted">El monto se distribuir&aacute; proporcionalmente entre todos los cr&eacute;ditos activos.</small>
+        </form>
+      </div>
+      <div class="modal-footer border-0">
+        <button type="button" class="btn btn-light btn-sm" data-bs-dismiss="modal">Cancelar</button>
+        <button type="button" class="btn btn-success btn-sm px-4 ripple" id="btnConfirmarAbonoGeneral">
+          <i class="fas fa-check me-1"></i> Abonar
+        </button>
+      </div>
+    </div>
+  </div>
+</div>

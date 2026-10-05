@@ -1,0 +1,171 @@
+<div class="page-content">
+  <div class="page-header">
+    <div>
+      <h4><i class="fas fa-cash-register me-2" style="color:var(--primary)"></i>Cajas</h4>
+      <small class="text-muted">Gesti&oacute;n de cajas registradoras</small>
+    </div>
+  </div>
+
+  <div class="filter-bar">
+    <select class="form-select" id="filtroSucursal" style="min-width:220px">
+      <option value="">Todas las sucursales</option>
+    </select>
+  </div>
+
+  <div class="panel-card overflow-hidden">
+    <div class="table-responsive">
+      <table class="table table-custom mb-0">
+        <thead>
+          <tr>
+            <th>Nombre</th>
+            <th>Tipo</th>
+            <th>Sucursal</th>
+            <th>Saldo Actual</th>
+            <th>Estado</th>
+            <th>Ult. Apertura</th>
+            <th style="width:180px"></th>
+          </tr>
+        </thead>
+        <tbody id="tableCajasBody">
+          <tr><td colspan="7"><div class="empty-state"><i class="fas fa-cash-register"></i><p>Cargando...</p></div></td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<div class="modal fade" id="cajaModal" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content border-0 shadow">
+      <div class="modal-header border-0">
+        <h5 class="modal-title fw-bold" id="cajaModalTitle">Nueva Caja</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <form id="formCaja">
+          <input type="hidden" id="cajaId">
+          <div class="mb-3">
+            <label class="form-label">Nombre <span class="text-danger">*</span></label>
+            <input type="text" class="form-control" id="cajaNombre" required maxlength="100">
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Tipo <span class="text-danger">*</span></label>
+            <select class="form-select" id="cajaTipo">
+              <option value="PRINCIPAL">Principal</option>
+              <option value="SECUNDARIA">Secundaria</option>
+            </select>
+            <div class="form-text">D&oacute;nde se retroalimenta el fondo de caja chica.</div>
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Sucursal <span class="text-danger">*</span></label>
+            <select class="form-select" id="cajaSucursal"></select>
+          </div>
+        </form>
+      </div>
+      <div class="modal-footer border-0">
+        <button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancelar</button>
+        <button type="button" class="btn btn-primary px-4 ripple" id="btnGuardarCaja">Guardar</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="modal fade" id="cajaMovimientoModal" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered modal-sm">
+    <div class="modal-content border-0 shadow">
+      <div class="modal-header border-0">
+        <h5 class="modal-title fw-bold" id="cajaMovimientoTitle">Movimiento</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <form id="formMovimiento">
+          <input type="hidden" id="movCajaId">
+          <input type="hidden" id="movTipo">
+          <div class="mb-3">
+            <label class="form-label">Monto <span class="text-danger">*</span></label>
+            <input type="number" class="form-control" id="movMonto" required min="0.01" step="0.01">
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Motivo</label>
+            <input type="text" class="form-control" id="movMotivo" maxlength="200">
+          </div>
+        </form>
+      </div>
+      <div class="modal-footer border-0">
+        <button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancelar</button>
+        <button type="button" class="btn btn-primary px-4 ripple" id="btnConfirmarMovimiento">Confirmar</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="modal fade" id="cajaAperturaModal" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered modal-sm">
+    <div class="modal-content border-0 shadow">
+      <div class="modal-header border-0">
+        <h5 class="modal-title fw-bold">Abrir Caja</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <form id="formApertura">
+          <input type="hidden" id="apCajaId">
+          <div class="mb-3">
+            <label class="form-label">Saldo Inicial <span class="text-danger">*</span></label>
+            <input type="number" class="form-control" id="apSaldoInicial" required min="0" step="0.01">
+          </div>
+        </form>
+      </div>
+      <div class="modal-footer border-0">
+        <button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancelar</button>
+        <button type="button" class="btn btn-success px-4 ripple" id="btnConfirmarApertura">Abrir Caja</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="modal fade" id="movimientosModal" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered modal-lg">
+    <div class="modal-content border-0 shadow">
+      <div class="modal-header border-0">
+        <h5 class="modal-title fw-bold" id="movimientosModalTitle">Movimientos</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body p-0">
+        <div class="table-responsive">
+          <table class="table table-custom mb-0">
+            <thead>
+              <tr>
+                <th>Fecha</th>
+                <th>Tipo</th>
+                <th>Monto</th>
+                <th>Motivo</th>
+              </tr>
+            </thead>
+            <tbody id="tableMovimientosBody">
+              <tr><td colspan="4"><div class="empty-state"><i class="fas fa-exchange-alt"></i><p>Cargando...</p></div></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+      <div class="modal-footer border-0">
+        <button type="button" class="btn btn-light" data-bs-dismiss="modal">Cerrar</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="modal fade" id="cortePreviewModal" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered modal-lg">
+    <div class="modal-content border-0 shadow">
+      <div class="modal-header border-0">
+        <h5 class="modal-title fw-bold" id="cortePreviewTitle">Vista Previa de Corte</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body" id="cortePreviewBody"></div>
+      <div class="modal-footer border-0">
+        <button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancelar</button>
+        <button type="button" class="btn btn-success px-4 ripple" id="btnRealizarCorte">Realizar Corte</button>
+      </div>
+    </div>
+  </div>
+</div>

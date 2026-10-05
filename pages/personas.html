@@ -1,0 +1,128 @@
+<div class="page-content">
+  <div class="page-header">
+    <div>
+      <h4><i class="fas fa-users me-2" style="color:var(--primary)"></i>Usuarios</h4>
+      <small class="text-muted">Gestión de usuarios del sistema</small>
+    </div>
+    <button class="btn btn-primary ripple" id="btnNuevaPersona">
+      <i class="fas fa-plus me-1"></i> Nuevo Usuario
+    </button>
+  </div>
+
+  <div class="filter-bar">
+    <div style="width:100%"></div>
+    <button class="btn btn-outline-secondary btn-sm text-nowrap ms-2" id="btnTogglePersonasInactivas">
+      <i class="fas fa-eye me-1"></i> Mostrar inactivos
+    </button>
+  </div>
+
+  <div class="panel-card overflow-hidden">
+    <div class="table-responsive">
+      <table class="table table-custom mb-0">
+        <thead>
+          <tr>
+            <th>Nombre</th>
+            <th>Usuario</th>
+            <th>Rol</th>
+            <th>Registro</th>
+            <th>Estado</th>
+            <th style="width:100px"></th>
+          </tr>
+        </thead>
+        <tbody id="tablePersonasBody">
+          <tr><td colspan="6"><div class="empty-state"><i class="fas fa-users"></i><p>Cargando...</p></div></td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="mt-3" id="paginationPersonas"></div>
+</div>
+
+<div class="modal fade" id="personaModal" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered modal-lg">
+    <div class="modal-content border-0 shadow">
+      <div class="modal-header border-0">
+        <h5 class="modal-title fw-bold" id="personaModalTitle">Nuevo Usuario</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <form id="formPersona">
+          <input type="hidden" id="personaId">
+          <div class="row g-3">
+            <div class="col-md-6">
+              <label class="form-label">Nombre <span class="text-danger">*</span></label>
+              <input type="text" class="form-control" id="personaNombre" required maxlength="100">
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">Apellido <span class="text-danger">*</span></label>
+              <input type="text" class="form-control" id="personaApellido" required maxlength="100">
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">Usuario <span class="text-danger">*</span></label>
+              <input type="text" class="form-control" id="personaUsuario" required maxlength="100">
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">Contraseña <span class="text-danger">*</span></label>
+              <input type="password" class="form-control" id="personaPassword" maxlength="100">
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">Rol Base <span class="text-danger">*</span></label>
+              <select class="form-select" id="personaRol"></select>
+            </div>
+            <div class="col-md-6 d-flex align-items-end">
+              <div class="form-check">
+                <input type="checkbox" class="form-check-input" id="personaActiva">
+                <label class="form-check-label" for="personaActiva">Usuario activo</label>
+              </div>
+            </div>
+          </div>
+
+          <div class="mt-3">
+            <button class="btn btn-sm btn-outline-secondary" type="button" data-bs-toggle="collapse" data-bs-target="#collapsePermisosAdicionales" aria-expanded="false">
+              <i class="fas fa-key me-1"></i> Permisos Adicionales
+            </button>
+            <div class="collapse mt-2" id="collapsePermisosAdicionales">
+              <div class="border rounded p-3" style="max-height:280px;overflow-y:auto" id="personaPermisosAdicionales"></div>
+            </div>
+          </div>
+        </form>
+      </div>
+      <div class="modal-footer border-0">
+        <button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancelar</button>
+        <button type="button" class="btn btn-primary px-4 ripple" id="btnGuardarPersona">Guardar</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="modal fade" id="personaDetalleModal" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content border-0 shadow">
+      <div class="modal-header border-0">
+        <h5 class="modal-title fw-bold"><i class="fas fa-user-shield me-1" style="color:var(--primary)"></i> Detalle del Usuario</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body pt-2">
+        <div class="row g-3">
+          <div class="col-md-6">
+            <div class="panel-card mb-0">
+              <h6 class="fw-semibold mb-2"><i class="fas fa-id-card me-1"></i> Datos del usuario</h6>
+              <div id="personaDetalleInfo" class="small"></div>
+            </div>
+          </div>
+          <div class="col-md-6">
+            <div class="panel-card mb-0">
+              <h6 class="fw-semibold mb-2"><i class="fas fa-key me-1"></i> Permisos del rol</h6>
+              <div id="personaDetallePermisos" class="small" style="max-height:220px;overflow-y:auto"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer border-0">
+        <button type="button" class="btn btn-light btn-sm" data-bs-dismiss="modal">Cerrar</button>
+        <button type="button" class="btn btn-primary btn-sm" id="btnDetalleEditarPersona"><i class="fas fa-edit me-1"></i> Editar</button>
+      </div>
+    </div>
+  </div>
+</div>

@@ -1,0 +1,257 @@
+<div class="page-content">
+  <div class="page-header">
+    <div>
+      <h4><i class="fas fa-box me-2" style="color:var(--primary)"></i>Productos</h4>
+      <small class="text-muted">Gesti&oacute;n de inventario de productos</small>
+    </div>
+    <button class="btn btn-primary ripple" id="btnNuevoProducto">
+      <i class="fas fa-plus me-1"></i> Nuevo Producto
+    </button>
+  </div>
+
+<div class="row g-3 mb-4">
+  <div class="col-md-4">
+    <div class="panel-card p-3 text-center">
+      <div class="text-muted small">Stock Global</div>
+      <div class="h4 mb-0 fw-bold" id="statsStock">0</div>
+    </div>
+  </div>
+  <div class="col-md-4">
+    <div class="panel-card p-3 text-center">
+      <div class="text-muted small">Productos Activos</div>
+      <div class="h4 mb-0 fw-bold" id="statsActivos">0</div>
+    </div>
+  </div>
+  <div class="col-md-4">
+    <div class="panel-card p-3 text-center" style="cursor:pointer" id="statsCostoTotalCard">
+      <div class="text-muted small">Costo Total Inventario</div>
+      <div class="h4 mb-0 fw-bold" id="statsCostoTotal" style="color:var(--primary)">$0.00</div>
+    </div>
+  </div>
+</div>
+
+<div class="filter-bar">
+    <div class="input-group" style="flex: 1 1 100%">
+      <span class="input-group-text"><i class="fas fa-search"></i></span>
+      <input type="text" class="form-control" id="searchProducto" placeholder="Buscar por SKU o nombre...">
+    </div>
+    <div class="d-flex gap-2 flex-wrap align-items-center">
+      <select class="form-select" id="filterCategoria" style="width:auto;min-width:160px;max-width:200px">
+        <option value="">Todas las categor&iacute;as</option>
+      </select>
+      <button class="btn btn-outline-secondary btn-sm text-nowrap" id="btnToggleInactivos">
+        <i class="fas fa-eye me-1"></i> Mostrar inactivos
+      </button>
+      <span class="badge sucursal-principal-badge" id="sucursalPrincipalBadge" style="background:var(--primary-light);color:var(--primary);font-size:.8rem;padding:.5rem .75rem">
+        <i class="fas fa-building me-1"></i> Sucursal principal
+      </span>
+      <div class="vr mx-1 d-none d-md-block"></div>
+      <button class="btn btn-sm btn-outline-success ripple text-nowrap" id="btnExportarInventario">
+        <i class="fas fa-file-csv me-1"></i> CSV
+      </button>
+      <button class="btn btn-sm btn-outline-success ripple text-nowrap" id="btnExportarInventarioExcel">
+        <i class="fas fa-file-excel me-1"></i> Excel
+      </button>
+      <button class="btn btn-sm btn-outline-danger ripple text-nowrap" id="btnExportarInventarioPdf">
+        <i class="fas fa-file-pdf me-1"></i> PDF
+      </button>
+    </div>
+  </div>
+
+  <div class="modal fade" id="costoSucursalModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered modal-sm">
+      <div class="modal-content border-0 shadow">
+        <div class="modal-header border-0">
+          <h5 class="modal-title fw-bold">Costo por Sucursal</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body" id="costoSucursalBody">
+          <div class="text-center py-3"><i class="fas fa-spinner fa-spin"></i></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="panel-card p-0 overflow-hidden">
+    <div class="productos-tree" id="productosTree">
+      <div class="productos-tree-header">
+        <span class="th-img"></span>
+        <span class="th-sku">SKU</span>
+        <span class="th-nombre">Nombre</span>
+        <span class="th-unidad">Unidad</span>
+        <span class="th-stock">Stock</span>
+        <span class="th-precio">Precio</span>
+        <span class="th-estado">Estado</span>
+        <span class="th-acciones"></span>
+      </div>
+      <ul class="producto-tree-root" id="productoTreeRoot">
+        <li class="producto-node empty-tree"><div class="empty-state"><i class="fas fa-box-open"></i><p>Cargando...</p></div></li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="mt-3" id="paginationProductos"></div>
+</div>
+
+<div class="modal fade" id="productoModal" tabindex="-1">
+  <div class="modal-dialog modal-lg modal-dialog-centered">
+    <div class="modal-content border-0 shadow">
+      <div class="modal-header border-0">
+        <h5 class="modal-title fw-bold" id="productoModalTitle">Nuevo Producto</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <form id="formProducto">
+          <input type="hidden" id="productoId">
+          <div class="row g-3">
+            <div class="col-md-4">
+              <label class="form-label">SKU (generado autom&aacute;ticamente)</label>
+              <input type="text" class="form-control" id="productoSku" disabled>
+            </div>
+            <div class="col-md-8">
+              <label class="form-label">Nombre <span class="text-danger">*</span></label>
+              <input type="text" class="form-control" id="productoNombre" required maxlength="200">
+            </div>
+            <div class="col-12">
+              <label class="form-label">Descripci&oacute;n</label>
+              <textarea class="form-control" id="productoDescripcion" rows="2" maxlength="2000"></textarea>
+            </div>
+            <div class="col-md-4">
+              <label class="form-label">Precio base <span class="text-danger">*</span></label>
+              <input type="number" class="form-control" id="productoPrecioBase" step="0.01" min="0" required>
+            </div>
+            <div class="col-md-4">
+              <label class="form-label">Costo</label>
+              <input type="number" class="form-control" id="productoCosto" step="0.01" min="0">
+            </div>
+            <div class="col-md-4">
+              <label class="form-label">Categor&iacute;a <span class="text-danger">*</span></label>
+              <select class="form-select" id="productoCategoria" required>
+                <option value="">Seleccionar categor&iacute;a</option>
+              </select>
+            </div>
+            <div class="col-md-4">
+              <label class="form-label">Unidad de medida</label>
+              <select class="form-select" id="productoUnidadMedida">
+                <option value="PIEZA">PIEZA</option>
+                <option value="COMBO">COMBO</option>
+                <option value="KG">KG</option>
+              </select>
+            </div>
+            <div class="col-md-4 d-flex align-items-end">
+              <div class="form-check">
+                <input type="checkbox" class="form-check-input" id="productoActivo" checked>
+                <label class="form-check-label" for="productoActivo">Producto activo</label>
+              </div>
+            </div>
+            <div class="col-12" id="stockSucursalSection">
+              <label class="form-label fw-semibold">Stock por Sucursal</label>
+              <div id="stockSucursalInputs"></div>
+            </div>
+          </div>
+        </form>
+      </div>
+      <div class="modal-footer border-0">
+        <button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancelar</button>
+        <button type="button" class="btn btn-primary px-4 ripple" id="btnGuardarProducto">Guardar</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="modal fade" id="productoDetalleModal" tabindex="-1">
+  <div class="modal-dialog modal-lg modal-dialog-centered">
+    <div class="modal-content border-0 shadow">
+      <div class="modal-header border-0">
+        <h5 class="modal-title fw-bold"><i class="fas fa-eye me-2" style="color:var(--primary)"></i>Detalle del Producto</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body" id="productoDetalleBody">
+        <div class="text-center py-4"><i class="fas fa-spinner fa-spin"></i></div>
+      </div>
+      <div class="modal-footer border-0">
+        <button type="button" class="btn btn-light" data-bs-dismiss="modal">Cerrar</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="modal fade" id="movimientoModal" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content border-0 shadow">
+      <div class="modal-header border-0">
+        <h5 class="modal-title fw-bold">Registrar Movimiento</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <form id="movimientoForm">
+          <input type="hidden" id="movimientoProductoId">
+          <div class="mb-3">
+            <label class="form-label">Tipo de Movimiento</label>
+            <select class="form-select" id="movimientoTipo">
+              <option value="ENTRADA">Entrada</option>
+              <option value="SALIDA">Salida</option>
+            </select>
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Cantidad</label>
+            <input type="number" class="form-control" id="movimientoCantidad" min="1" required>
+          </div>
+          <div id="movimientoSucursalGroup" class="mb-3">
+            <label class="form-label">Sucursal</label>
+            <select class="form-select sucursal-stock-select" id="movimientoSucursal">
+              <option value="">Global</option>
+            </select>
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Referencia</label>
+            <input type="text" class="form-control" id="movimientoReferencia" placeholder="Factura, nota, etc.">
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Observaci&oacute;n</label>
+            <textarea class="form-control" id="movimientoObservacion" rows="2"></textarea>
+          </div>
+        </form>
+      </div>
+      <div class="modal-footer border-0">
+        <button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancelar</button>
+        <button type="button" class="btn btn-primary px-4 ripple" id="btnGuardarMovimiento">Registrar</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="modal fade" id="movimientosFullModal" tabindex="-1">
+  <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
+    <div class="modal-content border-0 shadow">
+      <div class="modal-header border-0">
+        <h5 class="modal-title fw-bold mb-0 flex-grow-1"><i class="fas fa-history me-2" style="color:var(--primary)"></i>Kardex del Producto <span id="movimientosFullProducto" class="text-muted fs-6"></span></h5>
+        <button class="btn btn-sm btn-outline-primary" id="btnRegistrarMovimientoFull">
+          <i class="fas fa-plus me-1"></i> Movimiento
+        </button>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <div class="d-flex gap-2 mb-2 flex-wrap">
+          <input type="date" class="form-control form-control-sm" id="movFullFechaInicio" style="width:auto">
+          <input type="date" class="form-control form-control-sm" id="movFullFechaFin" style="width:auto">
+          <button class="btn btn-sm btn-outline-primary" id="btnMovFullFiltrar">Filtrar</button>
+          <button class="btn btn-sm btn-outline-secondary" id="btnMovFullLimpiar">Limpiar</button>
+        </div>
+        <div class="table-responsive">
+          <table class="table table-sm table-bordered mb-0">
+            <thead>
+              <tr>
+                <th>Fecha</th><th>Tipo</th><th>Producto</th><th>Cantidad</th><th>Stock</th><th>Sucursal</th><th>Referencia</th><th>Usuario</th>
+              </tr>
+            </thead>
+            <tbody id="movimientosFullBody">
+              <tr><td colspan="8" class="text-center text-muted">Cargando...</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="mt-2" id="paginationMovimientosFull"></div>
+      </div>
+    </div>
+  </div>
+</div>

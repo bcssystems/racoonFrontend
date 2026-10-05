@@ -1,0 +1,241 @@
+<div class="page-content">
+  <div class="page-header">
+    <div>
+      <h4><i class="fas fa-file-invoice me-2" style="color:var(--primary)"></i>Cotizaciones</h4>
+      <small class="text-muted">Gesti&oacute;n de cotizaciones para clientes</small>
+    </div>
+    <div>
+      <button class="btn btn-primary ripple" id="btnNuevaCotizacion">
+        <i class="fas fa-plus me-1"></i> Nueva Cotizaci&oacute;n
+      </button>
+    </div>
+  </div>
+
+  <div class="filter-bar">
+    <div class="btn-group" role="group">
+      <input type="radio" class="btn-check" name="filtroCotizacion" id="filtroCotVigentes" value="vigentes" checked>
+      <label class="btn btn-outline-success btn-sm" for="filtroCotVigentes"><i class="fas fa-clock me-1"></i> Vigentes</label>
+      <input type="radio" class="btn-check" name="filtroCotizacion" id="filtroCotExpiradas" value="expiradas">
+      <label class="btn btn-outline-warning btn-sm" for="filtroCotExpiradas"><i class="fas fa-hourglass-end me-1"></i> Expiradas</label>
+      <input type="radio" class="btn-check" name="filtroCotizacion" id="filtroCotConvertidas" value="convertidas">
+      <label class="btn btn-outline-info btn-sm" for="filtroCotConvertidas"><i class="fas fa-exchange-alt me-1"></i> Convertidas</label>
+      <input type="radio" class="btn-check" name="filtroCotizacion" id="filtroCotCanceladas" value="canceladas">
+      <label class="btn btn-outline-danger btn-sm" for="filtroCotCanceladas"><i class="fas fa-ban me-1"></i> Canceladas</label>
+      <input type="radio" class="btn-check" name="filtroCotizacion" id="filtroCotTodas" value="todas">
+      <label class="btn btn-outline-secondary btn-sm" for="filtroCotTodas"><i class="fas fa-list me-1"></i> Todas</label>
+    </div>
+  </div>
+
+  <div class="panel-card overflow-hidden">
+    <div class="table-responsive">
+      <table class="table table-custom mb-0">
+        <thead>
+          <tr>
+            <th>Folio</th>
+            <th>Cliente</th>
+            <th>Paqueter&iacute;a</th>
+            <th>Env&iacute;o</th>
+            <th>Total</th>
+            <th>Estado</th>
+            <th>Expira</th>
+            <th>Creada</th>
+            <th style="width:160px"></th>
+          </tr>
+        </thead>
+        <tbody id="tableCotizacionesBody">
+          <tr><td colspan="9"><div class="empty-state"><i class="fas fa-file-invoice"></i><p>Cargando...</p></div></td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- Modal Nueva Cotizacion -->
+<div class="modal fade" id="cotizacionModal" tabindex="-1">
+  <div class="modal-dialog modal-xl modal-dialog-scrollable">
+    <div class="modal-content border-0 shadow">
+      <div class="modal-header border-0">
+        <h5 class="modal-title fw-bold" id="cotizacionModalTitle">Nueva Cotizaci&oacute;n</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <div class="row g-3">
+          <div class="col-md-4">
+            <label class="form-label fw-semibold">Cliente</label>
+            <select class="form-select" id="cotCliente">
+              <option value="">Seleccionar cliente...</option>
+            </select>
+          </div>
+          <div class="col-md-3">
+            <label class="form-label fw-semibold">Sucursal <span class="text-danger">*</span></label>
+            <select class="form-select form-select-sm" id="cotSucursal">
+              <option value="">Seleccionar sucursal...</option>
+            </select>
+          </div>
+          <div class="col-md-2">
+            <label class="form-label fw-semibold">D&iacute;as Vigencia</label>
+            <input type="number" class="form-control form-control-sm" id="cotDiasVigencia" value="15" min="1">
+          </div>
+          <div class="col-md-3">
+            <label class="form-label fw-semibold">Paqueter&iacute;a</label>
+            <input type="text" class="form-control form-control-sm" id="cotPaqueteria" placeholder="Ej: DHL, Estafeta...">
+          </div>
+          <div class="col-md-12">
+            <div class="form-check form-switch">
+              <input class="form-check-input" type="checkbox" id="cotCobraEnvio">
+              <label class="form-check-label" for="cotCobraEnvio">Cobrar Env&iacute;o</label>
+            </div>
+          </div>
+          <div class="col-md-3 d-none" id="cotMontoEnvioWrapper">
+            <label class="form-label fw-semibold">Monto Env&iacute;o</label>
+            <input type="number" class="form-control form-control-sm" id="cotMontoEnvio" value="0" min="0" step="0.01">
+          </div>
+          <div class="col-12">
+            <label class="form-label fw-semibold">Nota</label>
+            <textarea class="form-control form-control-sm" id="cotNota" rows="2" maxlength="500" placeholder="Nota u observaciones que se mostrar&aacute;n y se imprimir&aacute;n en la cotizaci&oacute;n..."></textarea>
+          </div>
+        </div>
+
+        <hr>
+
+        <div class="row g-3">
+          <div class="col-md-6">
+            <label class="form-label fw-semibold">Buscar Productos</label>
+            <div class="d-flex gap-2">
+              <select class="form-select form-select-sm" id="cotFilterCategoria" style="width:auto;min-width:150px;max-width:200px" title="Filtrar por categor&iacute;a">
+                <option value="">Todas</option>
+              </select>
+              <div class="input-group input-group-sm flex-grow-1">
+                <span class="input-group-text"><i class="fas fa-search"></i></span>
+                <input type="text" class="form-control" id="cotProductSearch" placeholder="Buscar por SKU, nombre...">
+              </div>
+              <button class="btn btn-outline-secondary btn-sm ripple" id="btnCotVerInventario" title="Ver inventario">
+                <i class="fas fa-boxes"></i>
+              </button>
+            </div>
+            <div id="cotProductResults" class="pos-product-results mt-1 d-none" style="max-height:250px;overflow-y:auto">
+              <div class="list-group list-group-flush" id="cotProductList"></div>
+            </div>
+          </div>
+          <div class="col-md-6">
+            <label class="form-label fw-semibold">Tipo de Venta</label>
+            <div class="btn-group btn-group-sm w-100" role="group">
+              <input type="radio" class="btn-check" name="cotTipoVenta" id="cotTipoContado" value="CONTADO" checked>
+              <label class="btn btn-outline-success" for="cotTipoContado"><i class="fas fa-money-bill me-1"></i> Contado</label>
+              <input type="radio" class="btn-check" name="cotTipoVenta" id="cotTipoCredito" value="CREDITO">
+              <label class="btn btn-outline-info" for="cotTipoCredito"><i class="fas fa-credit-card me-1"></i> Cr&eacute;dito</label>
+            </div>
+          </div>
+          <div class="col-md-2 d-none" id="cotCreditoPlazoWrapper">
+            <label class="form-label fw-semibold">Plazo (meses)</label>
+            <select class="form-select form-select-sm" id="cotCreditoPlazo">
+              <option value="1">1 mes</option>
+              <option value="2">2 meses</option>
+              <option value="3" selected>3 meses</option>
+              <option value="4">4 meses</option>
+              <option value="6">6 meses</option>
+              <option value="12">12 meses</option>
+            </select>
+          </div>
+          <div class="col-md-2 d-none" id="cotCreditoInteresWrapper">
+            <label class="form-label fw-semibold">Inter&eacute;s (%)</label>
+            <input type="number" class="form-control form-control-sm" id="cotCreditoInteres" step="0.1" min="0" value="0">
+          </div>
+          <div class="col-md-3 d-none" id="cotCreditoResumenWrapper">
+            <label class="form-label fw-semibold">Resumen Cr&eacute;dito</label>
+            <div class="p-2 bg-light rounded small">
+              <div>Total c/inter&eacute;s: <strong id="cotCreditoMontoTotal">$0.00</strong></div>
+              <div>Pago mensual: <strong id="cotCreditoPagoMensual">$0.00 x 3 meses</strong></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="mt-3">
+          <label class="form-label fw-semibold">Carrito</label>
+          <div class="table-responsive" style="max-height:300px;overflow-y:auto">
+            <table class="table table-custom mb-0 table-sm">
+              <thead>
+                <tr>
+                  <th>Producto</th>
+                  <th style="width:90px">Cant</th>
+                  <th style="width:70px">Stock</th>
+                  <th style="width:100px">Precio</th>
+                  <th style="width:100px">Subtotal</th>
+                  <th style="width:30px"></th>
+                </tr>
+              </thead>
+              <tbody id="cotCartBody">
+                <tr><td colspan="6"><div class="empty-state py-3"><i class="fas fa-cart-plus"></i><p>Agrega productos a la cotizaci&oacute;n</p></div></td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <hr>
+
+        <div class="row g-2 align-items-center">
+          <div class="col-4">
+            <small class="text-muted">Subtotal Productos</small>
+            <div class="fw-bold" id="cotSubtotal">$0.00</div>
+          </div>
+          <div class="col-4">
+            <small class="text-muted">Env&iacute;o</small>
+            <div class="fw-bold text-info" id="cotEnvioTotal">$0.00</div>
+          </div>
+          <div class="col-4">
+            <small class="text-muted">Total</small>
+            <div class="fw-bold fs-5" style="color:var(--primary)" id="cotTotal">$0.00</div>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer border-0">
+        <button type="button" class="btn btn-secondary ripple" data-bs-dismiss="modal">Cancelar</button>
+        <button type="button" class="btn btn-primary ripple" id="btnGuardarCotizacion">
+          <i class="fas fa-save me-1"></i> Guardar Cotizaci&oacute;n
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal Ver Detalle Cotizacion -->
+<div class="modal fade" id="cotizacionDetalleModal" tabindex="-1">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content border-0 shadow">
+      <div class="modal-header border-0">
+        <h5 class="modal-title fw-bold" id="cotDetalleTitle">Detalle Cotizaci&oacute;n</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body" id="cotDetalleBody">
+        <p class="text-muted">Cargando...</p>
+      </div>
+      <div class="modal-footer border-0">
+        <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Cerrar</button>
+        <button type="button" class="btn btn-outline-primary btn-sm ripple" id="btnImprimirCotizacion"><i class="fas fa-print me-1"></i> Imprimir / PDF</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal Confirmar Cancelar Cotizacion -->
+<div class="modal fade" id="cotCancelarModal" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content border-0 shadow">
+      <div class="modal-header border-0">
+        <h5 class="modal-title fw-bold">Cancelar Cotizaci&oacute;n</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body text-center">
+        <i class="fas fa-exclamation-triangle fa-3x mb-3" style="color:var(--danger)"></i>
+        <p class="mb-1">Est&aacute;s a punto de cancelar la cotizaci&oacute;n <strong id="cotCancelarFolio"></strong></p>
+        <p class="text-muted">Esta acci&oacute;n no se puede deshacer.</p>
+      </div>
+      <div class="modal-footer border-0 justify-content-center">
+        <button type="button" class="btn btn-secondary ripple" data-bs-dismiss="modal">No, mantener</button>
+        <button type="button" class="btn btn-danger ripple" id="btnConfirmarCancelarCot">
+          <i class="fas fa-ban me-1"></i> S&iacute;, cancelar
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
