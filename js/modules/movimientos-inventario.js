@@ -257,7 +257,8 @@ async function registrarMovimiento() {
     const idProducto = parseInt(fila.querySelector('.mov-producto-linea').value);
     const tipoMovimiento = fila.querySelector('.mov-tipo-linea').value;
     const cantidad = parseInt(fila.querySelector('.mov-cantidad-linea').value);
-    const costo = parseFloat(fila.querySelector('.mov-costo-linea').value);
+    const producto = state.productos.find(p => p.idProducto === idProducto);
+    const costo = Number(producto?.costoPromedio) || 0;
     if (!idProducto) { Utils.showToast('Selecciona un producto en cada línea', 'warning'); return; }
     if (!cantidad || cantidad <= 0) { Utils.showToast('Indica una cantidad válida en cada línea', 'warning'); return; }
     if (!Number.isFinite(costo) || costo < 0) { Utils.showToast('Indica un costo válido en cada línea', 'warning'); return; }
@@ -298,15 +299,11 @@ function agregarLineaMovimiento() {
     '<td><select id="' + uid + '" class="form-select form-select-sm mov-producto-linea"><option value="">Selecciona...</option>' + productos + '</select></td>' +
     '<td><select class="form-select form-select-sm mov-tipo-linea"><option value="ENTRADA">Entrada</option><option value="SALIDA">Salida</option><option value="RECAMBIO">Recambio</option><option value="MERMA">Merma</option><option value="DEVOLUCION">Devolución</option></select></td>' +
     '<td><input type="number" class="form-control form-control-sm mov-cantidad-linea" min="1" step="1" placeholder="Cantidad"></td>' +
-    '<td><input type="number" class="form-control form-control-sm mov-costo-linea" min="0" step="0.01" value="0" placeholder="$"></td>' +
-    '<td class="mov-subtotal-linea text-end fw-semibold">$0.00</td>' +
     '<td><button type="button" class="btn-action" style="color:var(--danger)" data-action="quitar"><i class="fas fa-times"></i></button></td>';
   tbody.appendChild(fila);
   Utils.makeSearchableSelect(uid);
   const recalcular = () => {
     const cantidad = parseFloat(fila.querySelector('.mov-cantidad-linea').value) || 0;
-    const costo = parseFloat(fila.querySelector('.mov-costo-linea').value) || 0;
-    fila.querySelector('.mov-subtotal-linea').textContent = Utils.formatMonto(cantidad * costo);
     actualizarTotalesMovimiento();
   };
   fila.querySelectorAll('input, select').forEach(el => el.addEventListener('input', recalcular));
@@ -316,15 +313,11 @@ function agregarLineaMovimiento() {
 
 function actualizarTotalesMovimiento() {
   let cantidad = 0;
-  let costo = 0;
   document.querySelectorAll('#tableDetallesMovimiento tr').forEach(fila => {
     const qty = parseFloat(fila.querySelector('.mov-cantidad-linea')?.value) || 0;
-    const unit = parseFloat(fila.querySelector('.mov-costo-linea')?.value) || 0;
     cantidad += qty;
-    costo += qty * unit;
   });
   document.getElementById('movTotalCantidad').textContent = cantidad;
-  document.getElementById('movTotalCosto').textContent = Utils.formatMonto(costo);
 }
 
 function buildRows() {
