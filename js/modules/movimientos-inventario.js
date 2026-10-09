@@ -261,6 +261,14 @@ async function registrarMovimiento() {
     const costo = Number(producto?.costoPromedio) || 0;
     if (!idProducto) { Utils.showToast('Selecciona un producto en cada línea', 'warning'); return; }
     if (!cantidad || cantidad <= 0) { Utils.showToast('Indica una cantidad válida en cada línea', 'warning'); return; }
+    if (tipoMovimiento === 'SALIDA') {
+      const inventario = (producto?.inventarioSucursales || []).find(i => String(i.idSucursal) === String(idSucursal));
+      const stock = inventario ? Number(inventario.stock) || 0 : 0;
+      if (cantidad > stock) {
+        Utils.showToast('Stock insuficiente en la sucursal. Disponible: ' + stock, 'warning');
+        return;
+      }
+    }
     if (!Number.isFinite(costo) || costo < 0) { Utils.showToast('Indica un costo válido en cada línea', 'warning'); return; }
     lineas.push({ idProducto, tipoMovimiento, cantidad, costo });
   }
@@ -297,7 +305,7 @@ function agregarLineaMovimiento() {
   const fila = document.createElement('tr');
   fila.innerHTML =
     '<td><select id="' + uid + '" class="form-select form-select-sm mov-producto-linea"><option value="">Selecciona...</option>' + productos + '</select></td>' +
-    '<td><select class="form-select form-select-sm mov-tipo-linea"><option value="ENTRADA">Entrada</option><option value="SALIDA">Salida</option><option value="RECAMBIO">Recambio</option><option value="MERMA">Merma</option><option value="DEVOLUCION">Devolución</option></select></td>' +
+    '<td><select class="form-select form-select-sm mov-tipo-linea"><option value="ENTRADA">Entrada</option><option value="SALIDA">Salida</option><option value="MERMA">Merma</option><option value="DEVOLUCION">Devolución</option></select></td>' +
     '<td><input type="number" class="form-control form-control-sm mov-cantidad-linea" min="1" step="1" placeholder="Cantidad"></td>' +
     '<td class="mov-subtotal-linea text-end fw-semibold">$0.00</td>' +
     '<td><button type="button" class="btn-action" style="color:var(--danger)" data-action="quitar"><i class="fas fa-times"></i></button></td>';
