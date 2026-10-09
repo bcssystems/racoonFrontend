@@ -180,7 +180,7 @@ function renderTable() {
        <td>${stockDisplay}</td>
       <td>${Utils.esc(r.sucursalNombre || 'Global')}</td>
        <td>${Utils.esc(r.usuario)}</td>
-       <td class="acciones-cell">${r.estado === 'PENDIENTE' && Utils.hasPermiso('PRODUCTOS_MOVIMIENTO_AUTORIZAR') ? '<button type="button" class="btn-kebab-toggle movimiento-kebab" data-id="' + r.idMovimiento + '" title="Autorizar"><i class="fas fa-ellipsis-v"></i></button>' : (r.estado ? '<span class="small text-muted">' + Utils.esc(r.estado) + '</span>' : '')}</td>
+        <td class="acciones-cell">${r.estado === 'PENDIENTE' && (Utils.hasPermiso('PRODUCTOS_MOVIMIENTO_AUTORIZAR') || Utils.hasPermiso('PRODUCTOS_MOVIMIENTO')) ? '<button type="button" class="btn-kebab-toggle movimiento-kebab" data-id="' + r.idMovimiento + '" title="Acciones"><i class="fas fa-ellipsis-v"></i></button>' : (r.estado ? '<span class="small text-muted">' + Utils.esc(r.estado) + '</span>' : '')}</td>
     </tr>`;
   }).join('');
 }
@@ -189,17 +189,26 @@ function handleTableClick(e) {
   const btn = e.target.closest('.movimiento-kebab');
   if (!btn) return;
   const id = parseInt(btn.dataset.id);
-  Utils.abrirMenuKebab(btn, [
-    { icon: 'fa-key', text: 'Generar código y aprobar', color: 'var(--primary)', onClick: () => aprobarMovimiento(id) },
-    { danger: true, icon: 'fa-times', text: 'Rechazar', onClick: () => rechazarMovimiento(id) },
-  ]);
+  const items = [];
+  if (Utils.hasPermiso('PRODUCTOS_MOVIMIENTO_AUTORIZAR')) {
+    items.push({ icon: 'fa-key', text: 'Generar código', color: 'var(--primary)', onClick: () => generarCodigoMovimiento(id) });
+    items.push({ danger: true, icon: 'fa-times', text: 'Rechazar', onClick: () => rechazarMovimiento(id) });
+  } else if (Utils.hasPermiso('PRODUCTOS_MOVIMIENTO')) {
+    items.push({ icon: 'fa-key', text: 'Autorizar con código', color: 'var(--primary)', onClick: () => autorizarMovimiento(id) });
+  }
+  Utils.abrirMenuKebab(btn, items);
 }
 
-async function aprobarMovimiento(id) {
+async function generarCodigoMovimiento(id) {
   try {
     const codigo = await API.post('/productos/movimientos/' + id + '/generar-codigo');
     Utils.showDialog('Código de autorización', '<p class="mb-1">Movimiento #' + id + '</p><div class="display-6 fw-bold text-center" style="letter-spacing:6px">' + Utils.esc(codigo.codigo) + '</div><small class="text-muted">Válido hasta ' + new Date(codigo.expiraEn).toLocaleTimeString() + '</small>');
-    const ingresado = await Utils.promptInput('Autorizar movimiento #' + id, 'Ingresa el código generado:', codigo.codigo);
+  } catch (err) { Utils.showToast(err.message, 'error'); }
+}
+
+async function autorizarMovimiento(id) {
+  try {
+    const ingresado = await Utils.promptInput('Autorizar movimiento #' + id, 'Ingresa el código generado por el administrador:');
     if (!ingresado) return;
     await API.post('/productos/movimientos/' + id + '/aprobar', { codigoAutorizacion: ingresado.trim() });
     Utils.showToast('Movimiento aprobado', 'success');
