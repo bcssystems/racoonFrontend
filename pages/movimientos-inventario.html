@@ -2,6 +2,7 @@
   .movimientos-detalle-table { min-width: 760px; }
   .movimientos-detalle-table .searchable-wrapper { width: 100%; min-width: 360px; }
   .movimientos-detalle-table .searchable-input { width: 100%; min-width: 360px; }
+  .movimientos-detalle-table .mov-tipo-linea { min-width: 210px; }
 </style>
 <div class="page-content">
   <div class="page-header">
@@ -121,8 +122,9 @@
               <thead>
                 <tr>
                   <th style="min-width:390px">Producto o variante</th>
-                  <th style="width:145px">Tipo</th>
+                  <th style="width:220px">Tipo</th>
                   <th style="width:100px">Cantidad</th>
+                  <th style="width:125px">Subtotal</th>
                   <th style="width:50px"></th>
                 </tr>
               </thead>
@@ -132,6 +134,7 @@
 
           <div class="d-flex justify-content-end gap-4 mt-3 pe-2">
             <div><small class="text-muted">Total cantidad</small><div class="fw-bold fs-5" id="movTotalCantidad">0</div></div>
+            <div><small class="text-muted">Costo total</small><div class="fw-bold fs-5" style="color:var(--primary)" id="movTotalCosto">$0.00</div></div>
           </div>
         </form>
       </div>

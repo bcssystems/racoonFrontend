@@ -299,25 +299,37 @@ function agregarLineaMovimiento() {
     '<td><select id="' + uid + '" class="form-select form-select-sm mov-producto-linea"><option value="">Selecciona...</option>' + productos + '</select></td>' +
     '<td><select class="form-select form-select-sm mov-tipo-linea"><option value="ENTRADA">Entrada</option><option value="SALIDA">Salida</option><option value="RECAMBIO">Recambio</option><option value="MERMA">Merma</option><option value="DEVOLUCION">Devolución</option></select></td>' +
     '<td><input type="number" class="form-control form-control-sm mov-cantidad-linea" min="1" step="1" placeholder="Cantidad"></td>' +
+    '<td class="mov-subtotal-linea text-end fw-semibold">$0.00</td>' +
     '<td><button type="button" class="btn-action" style="color:var(--danger)" data-action="quitar"><i class="fas fa-times"></i></button></td>';
   tbody.appendChild(fila);
   Utils.makeSearchableSelect(uid);
   const recalcular = () => {
     const cantidad = parseFloat(fila.querySelector('.mov-cantidad-linea').value) || 0;
+    const idProducto = parseInt(fila.querySelector('.mov-producto-linea').value);
+    const producto = state.productos.find(p => p.idProducto === idProducto);
+    const costo = Number(producto?.costoPromedio) || 0;
+    fila.querySelector('.mov-subtotal-linea').textContent = Utils.formatMonto(cantidad * costo);
     actualizarTotalesMovimiento();
   };
   fila.querySelectorAll('input, select').forEach(el => el.addEventListener('input', recalcular));
   fila.querySelector('.searchable-original')?.addEventListener('change', recalcular);
   fila.querySelector('[data-action="quitar"]').addEventListener('click', () => { fila.remove(); actualizarTotalesMovimiento(); });
+  recalcular();
 }
 
 function actualizarTotalesMovimiento() {
   let cantidad = 0;
+  let costoTotal = 0;
   document.querySelectorAll('#tableDetallesMovimiento tr').forEach(fila => {
     const qty = parseFloat(fila.querySelector('.mov-cantidad-linea')?.value) || 0;
+    const idProducto = parseInt(fila.querySelector('.mov-producto-linea')?.value);
+    const producto = state.productos.find(p => p.idProducto === idProducto);
+    const costo = Number(producto?.costoPromedio) || 0;
     cantidad += qty;
+    costoTotal += qty * costo;
   });
   document.getElementById('movTotalCantidad').textContent = cantidad;
+  document.getElementById('movTotalCosto').textContent = Utils.formatMonto(costoTotal);
 }
 
 function buildRows() {
