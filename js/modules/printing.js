@@ -282,6 +282,53 @@ const TICKET_CSS = `
     }
   `;
 
+const TICKET_80MM_CSS = `
+    @page { size: 80mm auto; margin: 0; }
+    html, body { width: 80mm; max-width: 80mm; }
+    body { font-size: 8pt; line-height: 1.25; }
+    .print-copy {
+      width: 80mm;
+      min-height: 0;
+      padding: 3mm;
+      display: block;
+      page-break-after: always;
+    }
+    .print-copy:last-child { page-break-after: avoid; }
+    .header { padding-bottom: 5px; border-bottom-width: 2px; margin-bottom: 6px; }
+    .header .logo { max-width: 100%; max-height: 28mm; }
+    .header .sub { font-size: 7pt; }
+    .header .folio { font-size: 10pt; }
+    .info-grid td { padding: 1px 2px; font-size: 6.5pt; }
+    .info-grid .label { width: 35px; font-size: 5.5pt; }
+    table.detalles th { padding: 3px 2px; font-size: 5.5pt; letter-spacing: 0; }
+    table.detalles td { padding: 3px 2px; font-size: 7pt; }
+    table.detalles th:nth-child(3), table.detalles td:nth-child(3) { display: none; }
+    table.detalles th:nth-child(1) { width: 48% !important; }
+    table.detalles th:nth-child(2) { width: 12% !important; }
+    table.detalles th:nth-child(4) { width: 20% !important; }
+    table.detalles th:nth-child(5) { width: 20% !important; }
+    .totals td { padding: 2px; font-size: 7pt; }
+    .totals .total-row td { font-size: 10pt; padding-top: 4px; }
+    .section-title { font-size: 6.5pt; }
+    .nota { padding: 4px; font-size: 6.5pt; }
+    .firmas { margin-top: 18px; font-size: 6.5pt; }
+    .bottom-section { position: static; left: auto; right: auto; bottom: auto; }
+    .pagare-footer { margin-top: 8px; page-break-inside: avoid; }
+    .pagare { margin-top: 5px; }
+    .pagare-h2 { font-size: 7pt; letter-spacing: 2px; margin: 5px 0 1px; }
+    .pagare-doc-no, .pagare-lugar-fecha { font-size: 4.5pt; }
+    .pagare-bueno-por { padding: 2px 3px; margin: 3px 0; font-size: 5pt; }
+    .pagare-bueno-por-monto { font-size: 6pt; }
+    .pagare-leyenda { font-size: 4.6pt; line-height: 1.3; margin-bottom: 2px; }
+    .pagare-pie { gap: 4px; margin-top: 5px; }
+    .pagare-caja { width: 60%; padding: 2px; }
+    .pagare-caja-titulo { font-size: 3.2pt; letter-spacing: .4px; }
+    .pagare-caja-tabla td { font-size: 3.7pt; padding: .5px; }
+    .pagare-firma-rol { font-size: 3.2pt; letter-spacing: .4px; }
+    .pagare-firma-nombre { font-size: 3.5pt; }
+    .ticket-config-footer { font-size: 5pt; margin-top: 4px; }
+  `;
+
 const STATE_CUENTA_CSS = `
     @page { size: letter; margin: 0.35in; }
     * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -494,7 +541,8 @@ export function printRemisionVenta(venta, opts) {
 
     const pieHtml = `<div class="bottom-section pagare-footer">${pagareHtml}</div>`;
 
-    const cuerpoTotales = '<div class="page-totals">' + totalesHtml + '\n  ' + pieHtml + '</div>';
+    const configFooter = footer ? '<div class="ticket-config-footer footer">' + Utils.esc(footer) + '</div>' : '';
+    const cuerpoTotales = '<div class="page-totals">' + totalesHtml + '\n  ' + pieHtml + configFooter + '</div>';
 
     return `
   ${numCopies > 1 ? '<div class="copy-label">--- COPIA ' + (copyIndex + 1) + ' DE ' + numCopies + ' ---</div>' : ''}
@@ -531,13 +579,12 @@ export function printRemisionVenta(venta, opts) {
   const win = abrirVentana('Remisi\u00f3n - Venta #' + venta.idVenta, 600, 800);
   if (!win) return;
 
-  const printCss = TICKET_CSS.replace('size: letter', formato === '80mm' ? 'size: 80mm auto' : 'size: letter');
+  const printCss = formato === '80mm' ? TICKET_CSS + TICKET_80MM_CSS : TICKET_CSS;
   let fullHtml = '<!DOCTYPE html>\n<html lang="es">\n<head>\n  <meta charset="UTF-8">\n  <title>Remisi\u00f3n - Venta #' + venta.idVenta + '</title>\n  <style>' + printCss + '</style>\n</head>\n<body>';
   for (let i = 0; i < numCopies; i++) {
     fullHtml += '<div class="print-copy">' + buildBodyHtml(i) + '</div>';
   }
-  fullHtml = fullHtml.replace('<body>', '<body><div class="print-options" style="text-align:right;padding:8px;font:12px Arial">Formato: <select id="printFormat"><option value="carta">Carta</option><option value="80mm">80 mm</option></select></div>');
-  fullHtml += '<div class="footer">' + Utils.esc(footer) + '</div><script>document.getElementById("printFormat").value="' + formato + '";document.getElementById("printFormat").onchange=function(){document.querySelector("style").textContent=document.querySelector("style").textContent.replace(/size:[^;]+;/,"size:"+(this.value === "80mm" ? "80mm auto" : "letter")+";");};</script>\n</body>\n</html>';
+  fullHtml += '\n</body>\n</html>';
   win.document.write(fullHtml);
   win.document.close();
   win.focus();

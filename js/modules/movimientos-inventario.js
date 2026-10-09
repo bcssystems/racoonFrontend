@@ -57,13 +57,10 @@ function bindEvents() {
   document.getElementById('btnNuevoMovimiento')?.addEventListener('click', abrirModal);
   document.getElementById('btnConfirmarMovimiento')?.addEventListener('click', registrarMovimiento);
   document.getElementById('btnAgregarLineaMovimiento')?.addEventListener('click', agregarLineaMovimiento);
-  document.getElementById('movCantidad')?.addEventListener('input', actualizarCostoMovimiento);
-  document.getElementById('movCosto')?.addEventListener('input', actualizarCostoMovimiento);
   document.getElementById('btnExportMovExcel')?.addEventListener('click', exportarExcel);
   document.getElementById('btnExportMovPdf')?.addEventListener('click', exportarPDF);
   document.getElementById('tableMovBody')?.addEventListener('click', handleTableClick);
 
-  document.getElementById('movProducto')?.addEventListener('change', actualizarStockInfo);
   document.getElementById('movSucursal')?.addEventListener('change', actualizarStockInfo);
   document.getElementById('paginationMov')?.addEventListener('click', e => {
     const el = e.target.closest('[data-page]');
@@ -101,7 +98,6 @@ async function cargarSucursales() {
 
 async function cargarProductos() {
   const sel = document.getElementById('filterMovProducto');
-  const modalSel = document.getElementById('movProducto');
   try {
     const result = await API.get('/productos?activo=true&page=0&size=500');
     state.productos = result.content || [];
@@ -109,36 +105,17 @@ async function cargarProductos() {
       '<option value="' + p.idProducto + '">' + Utils.esc(p.sku + ' - ' + p.nombre) + '</option>'
     ).join('');
     sel.innerHTML = '<option value="">Todos</option>' + opts;
-    modalSel.innerHTML = '<option value="">Selecciona un producto...</option>' + opts;
-    Utils.makeSearchableSelect('movProducto');
   } catch (err) {
     sel.innerHTML = '<option value="">Todos</option>';
-    modalSel.innerHTML = '<option value="">Selecciona un producto...</option>';
     Utils.showToast(err.message, 'error');
   }
 }
 
 async function actualizarStockInfo() {
   const info = document.getElementById('movStockInfo');
-  const idProducto = document.getElementById('movProducto').value;
   const idSucursal = document.getElementById('movSucursal').value;
   if (!info) return;
-  if (!idProducto) { info.textContent = ''; return; }
-
-  try {
-    const p = await API.get('/productos/' + idProducto);
-    if (!p) { info.textContent = ''; return; }
-    let stockSuc = null;
-    if (idSucursal) {
-      const inv = (p.inventarioSucursales || []).find(i => i.idSucursal === parseInt(idSucursal));
-      stockSuc = inv ? inv.stock : null;
-    }
-    let txt = 'Stock actual: <strong>' + (p.stockActual != null ? p.stockActual : 0) + '</strong>';
-    if (idSucursal) {
-      txt += ' | En sucursal: <strong>' + (stockSuc != null ? stockSuc : 0) + '</strong>';
-    }
-    info.innerHTML = txt;
-  } catch (_) {}
+  info.textContent = idSucursal ? 'El stock disponible se valida al registrar cada línea.' : '';
 }
 
 async function cargarMovimientos(page) {
@@ -260,52 +237,47 @@ function renderPagination() {
 function abrirModal() {
   const form = document.getElementById('formMovimiento');
   if (form) form.reset();
-  document.querySelectorAll('.mov-linea-extra').forEach(el => el.remove());
-  document.getElementById('movProducto').value = '';
+  document.getElementById('tableDetallesMovimiento').innerHTML = '';
   document.getElementById('movSucursal').value = state.sucursales.length === 1 ? String(state.sucursales[0].idSucursal) : '';
-  document.getElementById('movTipo').value = 'ENTRADA';
-  Utils.updateSearchableOptions('movProducto');
   Utils.updateSearchableOptions('movSucursal');
+  agregarLineaMovimiento();
   actualizarStockInfo();
   new bootstrap.Modal(document.getElementById('movimientoModal')).show();
 }
 
 async function registrarMovimiento() {
   if (state.guardando) return;
-  const idProducto = document.getElementById('movProducto').value;
   const idSucursal = document.getElementById('movSucursal').value;
-  const tipoMovimiento = document.getElementById('movTipo').value;
-  const cantidad = parseInt(document.getElementById('movCantidad').value);
-  const costo = parseFloat(document.getElementById('movCosto').value);
-
-  if (!idProducto) { Utils.showToast('Selecciona un producto', 'warning'); return; }
   if (!idSucursal) { Utils.showToast('Selecciona una sucursal', 'warning'); return; }
-  if (!cantidad || cantidad <= 0) { Utils.showToast('Ingresa una cantidad v\u00e1lida', 'warning'); return; }
-  if (!Number.isFinite(costo) || costo < 0) { Utils.showToast('Ingresa un costo v\u00e1lido', 'warning'); return; }
+  const filas = Array.from(document.querySelectorAll('#tableDetallesMovimiento tr'));
+  if (filas.length === 0) { Utils.showToast('Agrega al menos un producto', 'warning'); return; }
 
-  const payload = {
-    tipoMovimiento,
-    cantidad,
-    idSucursal: parseInt(idSucursal),
-    referencia: document.getElementById('movReferencia').value.trim() || undefined,
-    observacion: document.getElementById('movObservacion').value.trim() || undefined,
-    costoUnitario: costo,
-    costoTotal: cantidad * costo,
-  };
+  const lineas = [];
+  for (const fila of filas) {
+    const idProducto = parseInt(fila.querySelector('.mov-producto-linea').value);
+    const tipoMovimiento = fila.querySelector('.mov-tipo-linea').value;
+    const cantidad = parseInt(fila.querySelector('.mov-cantidad-linea').value);
+    const costo = parseFloat(fila.querySelector('.mov-costo-linea').value);
+    if (!idProducto) { Utils.showToast('Selecciona un producto en cada línea', 'warning'); return; }
+    if (!cantidad || cantidad <= 0) { Utils.showToast('Indica una cantidad válida en cada línea', 'warning'); return; }
+    if (!Number.isFinite(costo) || costo < 0) { Utils.showToast('Indica un costo válido en cada línea', 'warning'); return; }
+    lineas.push({ idProducto, tipoMovimiento, cantidad, costo });
+  }
 
   state.guardando = true;
   const btn = document.getElementById('btnConfirmarMovimiento');
   if (btn) { btn.disabled = true; btn.dataset.originalText = btn.innerHTML; btn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Procesando...'; }
   try {
-    await API.post('/productos/' + idProducto + '/movimiento-stock', payload);
-    const extras = Array.from(document.querySelectorAll('.mov-linea-extra'));
-    for (const extra of extras) {
-      const producto = extra.querySelector('.mov-producto-extra').value;
-      const sucursal = extra.querySelector('.mov-sucursal-extra').value;
-      const qty = parseFloat(extra.querySelector('.mov-cantidad-extra').value);
-      const costo = parseFloat(extra.querySelector('.mov-costo-extra').value) || 0;
-      if (!producto || !sucursal || !qty || qty <= 0) throw new Error('Completa todas las líneas del movimiento');
-      await API.post('/productos/' + producto + '/movimiento-stock', { ...payload, idSucursal: parseInt(sucursal), cantidad: qty, costoUnitario: costo, costoTotal: qty * costo });
+    for (const linea of lineas) {
+      await API.post('/productos/' + linea.idProducto + '/movimiento-stock', {
+        tipoMovimiento: linea.tipoMovimiento,
+        cantidad: linea.cantidad,
+        idSucursal: parseInt(idSucursal),
+        referencia: document.getElementById('movReferencia').value.trim() || undefined,
+        observacion: document.getElementById('movObservacion').value.trim() || undefined,
+        costoUnitario: linea.costo,
+        costoTotal: linea.cantidad * linea.costo,
+      });
     }
     Utils.showToast('Movimiento registrado', 'success');
     bootstrap.Modal.getInstance(document.getElementById('movimientoModal'))?.hide();
@@ -317,24 +289,42 @@ async function registrarMovimiento() {
   }
 }
 
-function actualizarCostoMovimiento() {
-  const cantidad = parseFloat(document.getElementById('movCantidad')?.value) || 0;
-  const costo = parseFloat(document.getElementById('movCosto')?.value) || 0;
-  const total = document.getElementById('movCostoTotal');
-  if (total) total.value = Utils.formatMonto(cantidad * costo);
-}
-
 function agregarLineaMovimiento() {
   const productos = state.productos.map(p => '<option value="' + p.idProducto + '">' + Utils.esc(p.sku + ' - ' + p.nombre) + '</option>').join('');
-  const sucursales = state.sucursales.map(s => '<option value="' + s.idSucursal + '">' + Utils.esc(s.nombre) + '</option>').join('');
-  const html = '<div class="row g-2 border-top pt-2 mt-2 mov-linea-extra">' +
-    '<div class="col-md-6"><label class="form-label small">Producto</label><select class="form-select mov-producto-extra"><option value="">Producto...</option>' + productos + '</select></div>' +
-    '<div class="col-md-6"><label class="form-label small">Sucursal</label><select class="form-select mov-sucursal-extra"><option value="">Sucursal...</option>' + sucursales + '</select></div>' +
-    '<div class="col-md-4"><label class="form-label small">Cantidad</label><input type="number" class="form-control mov-cantidad-extra" min="1" step="1" placeholder="Cantidad"></div>' +
-    '<div class="col-md-4"><label class="form-label small">Costo unitario</label><input type="number" class="form-control mov-costo-extra" min="0" step="0.01" value="0" placeholder="Costo"></div>' +
-    '<div class="col-md-4 d-flex align-items-end"><button type="button" class="btn btn-outline-danger btn-sm quitar-linea">Quitar</button></div></div>';
-  document.getElementById('movTipo').closest('.row').insertAdjacentHTML('afterend', html);
-  document.querySelector('.mov-linea-extra:last-child .quitar-linea').addEventListener('click', e => e.target.closest('.mov-linea-extra').remove());
+  const tbody = document.getElementById('tableDetallesMovimiento');
+  const uid = 'mov-producto-' + Date.now() + Math.floor(Math.random() * 1000);
+  const fila = document.createElement('tr');
+  fila.innerHTML =
+    '<td><select id="' + uid + '" class="form-select form-select-sm mov-producto-linea"><option value="">Selecciona...</option>' + productos + '</select></td>' +
+    '<td><select class="form-select form-select-sm mov-tipo-linea"><option value="ENTRADA">Entrada</option><option value="SALIDA">Salida</option><option value="RECAMBIO">Recambio</option><option value="MERMA">Merma</option><option value="DEVOLUCION">Devolución</option></select></td>' +
+    '<td><input type="number" class="form-control form-control-sm mov-cantidad-linea" min="1" step="1" placeholder="Cantidad"></td>' +
+    '<td><input type="number" class="form-control form-control-sm mov-costo-linea" min="0" step="0.01" value="0" placeholder="$"></td>' +
+    '<td class="mov-subtotal-linea text-end fw-semibold">$0.00</td>' +
+    '<td><button type="button" class="btn-action" style="color:var(--danger)" data-action="quitar"><i class="fas fa-times"></i></button></td>';
+  tbody.appendChild(fila);
+  Utils.makeSearchableSelect(uid);
+  const recalcular = () => {
+    const cantidad = parseFloat(fila.querySelector('.mov-cantidad-linea').value) || 0;
+    const costo = parseFloat(fila.querySelector('.mov-costo-linea').value) || 0;
+    fila.querySelector('.mov-subtotal-linea').textContent = Utils.formatMonto(cantidad * costo);
+    actualizarTotalesMovimiento();
+  };
+  fila.querySelectorAll('input, select').forEach(el => el.addEventListener('input', recalcular));
+  fila.querySelector('.searchable-original')?.addEventListener('change', recalcular);
+  fila.querySelector('[data-action="quitar"]').addEventListener('click', () => { fila.remove(); actualizarTotalesMovimiento(); });
+}
+
+function actualizarTotalesMovimiento() {
+  let cantidad = 0;
+  let costo = 0;
+  document.querySelectorAll('#tableDetallesMovimiento tr').forEach(fila => {
+    const qty = parseFloat(fila.querySelector('.mov-cantidad-linea')?.value) || 0;
+    const unit = parseFloat(fila.querySelector('.mov-costo-linea')?.value) || 0;
+    cantidad += qty;
+    costo += qty * unit;
+  });
+  document.getElementById('movTotalCantidad').textContent = cantidad;
+  document.getElementById('movTotalCosto').textContent = Utils.formatMonto(costo);
 }
 
 function buildRows() {

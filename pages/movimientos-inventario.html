@@ -86,61 +86,50 @@
         <h5 class="modal-title fw-bold" id="movimientoModalTitle">Nuevo Movimiento</h5>
         <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
       </div>
-      <div class="modal-body">
+      <div class="modal-body" style="max-height:70vh;overflow-y:auto">
         <form id="formMovimiento">
-          <div class="row g-3">
-          <div class="col-md-7">
-            <label class="form-label">Producto <span class="text-danger">*</span></label>
-            <select class="form-select mov-producto" id="movProducto" required>
-              <option value="">Selecciona un producto...</option>
-            </select>
-          </div>
-          <div class="col-md-5">
-            <label class="form-label">Sucursal <span class="text-danger">*</span></label>
-            <select class="form-select mov-sucursal" id="movSucursal" required>
-              <option value="">Selecciona una sucursal...</option>
-            </select>
-            <div class="form-text" id="movStockInfo"></div>
-          </div>
-          <div class="col-md-4">
-              <label class="form-label">Tipo de Movimiento <span class="text-danger">*</span></label>
-              <select class="form-select" id="movTipo" required>
-                <option value="ENTRADA">Entrada</option>
-                <option value="SALIDA">Salida</option>
-                <option value="RECAMBIO">Recambio</option>
-                <option value="MERMA">Merma</option>
-                <option value="DEVOLUCION">Devolución</option>
+          <div class="row g-3 mb-3">
+            <div class="col-md-4">
+              <label class="form-label small fw-semibold">Sucursal <span class="text-danger">*</span></label>
+              <select class="form-select" id="movSucursal" required>
+                <option value="">Selecciona una sucursal...</option>
               </select>
-          </div>
-          <div class="col-md-4">
-              <label class="form-label">Cantidad <span class="text-danger">*</span></label>
-              <input type="number" class="form-control mov-cantidad" id="movCantidad" min="1" step="1" required>
-          </div>
-          <div class="col-md-4">
-            <label class="form-label">Costo unitario</label>
-            <input type="number" class="form-control mov-costo" id="movCosto" min="0" step="0.01" value="0">
-          </div>
-          <div class="col-md-5">
-            <label class="form-label">Costo total</label>
-            <input type="text" class="form-control" id="movCostoTotal" value="$0.00" readonly>
-          </div>
-          <div class="col-md-7 d-flex align-items-end">
-            <div class="form-check mb-2">
-              <input class="form-check-input" type="checkbox" id="movSolicitarAutorizacion">
-              <label class="form-check-label" for="movSolicitarAutorizacion">Solicitar autorizaci&oacute;n administrativa</label>
+              <div class="form-text" id="movStockInfo"></div>
+            </div>
+            <div class="col-md-4">
+              <label class="form-label small fw-semibold">Vale / folio</label>
+              <input type="text" class="form-control" id="movReferencia" maxlength="100" placeholder="Ej. R-0001">
+            </div>
+            <div class="col-md-4">
+              <label class="form-label small fw-semibold">Observaciones</label>
+              <input type="text" class="form-control" id="movObservacion" maxlength="500" placeholder="Observación opcional">
             </div>
           </div>
-          <div class="col-12">
-            <button type="button" class="btn btn-outline-secondary btn-sm mb-2" id="btnAgregarLineaMovimiento"><i class="fas fa-plus me-1"></i>Agregar l&iacute;nea</button>
+
+          <div class="d-flex justify-content-between align-items-center mb-2">
+            <label class="form-label fw-semibold mb-0">Productos o variantes</label>
+            <button type="button" class="btn btn-outline-primary btn-sm" id="btnAgregarLineaMovimiento"><i class="fas fa-plus me-1"></i>Agregar producto</button>
           </div>
-          <div class="col-12">
-            <label class="form-label">Referencia</label>
-            <input type="text" class="form-control" id="movReferencia" maxlength="100" placeholder="Ej. R-0001, devoluci&oacute;n, merma...">
+
+          <div class="table-responsive">
+            <table class="table table-custom mb-0">
+              <thead>
+                <tr>
+                  <th style="min-width:260px">Producto o variante</th>
+                  <th style="width:145px">Tipo</th>
+                  <th style="width:100px">Cantidad</th>
+                  <th style="width:125px">Precio de compra</th>
+                  <th style="width:125px">Subtotal</th>
+                  <th style="width:50px"></th>
+                </tr>
+              </thead>
+              <tbody id="tableDetallesMovimiento"></tbody>
+            </table>
           </div>
-          <div class="col-12">
-            <label class="form-label">Observaciones</label>
-            <textarea class="form-control" id="movObservacion" rows="2" maxlength="500"></textarea>
-          </div>
+
+          <div class="d-flex justify-content-end gap-4 mt-3 pe-2">
+            <div><small class="text-muted">Total cantidad</small><div class="fw-bold fs-5" id="movTotalCantidad">0</div></div>
+            <div><small class="text-muted">Costo total</small><div class="fw-bold fs-5" style="color:var(--primary)" id="movTotalCosto">$0.00</div></div>
           </div>
         </form>
       </div>
