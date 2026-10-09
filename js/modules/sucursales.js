@@ -6,6 +6,10 @@ export function init() {
 }
 
 function bindEvents() {
+  const crear = Utils.hasPermiso('SUCURSALES_CREAR');
+  const btnNuevo = document.getElementById('btnNuevaSucursal');
+  if (btnNuevo && !crear) btnNuevo.style.display = 'none';
+  btnNuevo?.addEventListener('click', () => abrirModal(null));
   document.getElementById('btnGuardarSucursal')?.addEventListener('click', guardarSucursal);
   document.getElementById('tableSucursalesBody')?.addEventListener('click', handleTableClick);
 }

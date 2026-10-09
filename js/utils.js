@@ -350,8 +350,10 @@ const Utils = {
         div.className = 'searchable-option';
         div.textContent = opt.text;
         div.dataset.value = opt.value;
-        div.addEventListener('click', function () {
-          select.value = opt.value;
+         div.addEventListener('click', function () {
+           if (div.dataset.selected === 'true') return;
+           div.dataset.selected = 'true';
+           select.value = opt.value;
           input.value = opt.text;
           dropdown.classList.remove('show');
           wrapper.classList.remove('show');
@@ -429,9 +431,26 @@ const Utils = {
     const input = wrapper.querySelector('.searchable-input');
     const dropdown = wrapper.querySelector('.searchable-dropdown');
     if (!input || !dropdown) return;
-const opt = select.options[select.selectedIndex];
-    if (opt && opt.value) select.value = '';
-    input.value = '';
+    const opt = select.options[select.selectedIndex];
+    input.value = opt && opt.value ? opt.text : '';
+    dropdown.innerHTML = '';
+    Array.from(select.options).forEach(function (option) {
+      if (!option.value) return;
+      const div = document.createElement('div');
+      div.className = 'searchable-option' + (option.value === select.value ? ' active' : '');
+      div.textContent = option.text;
+      div.dataset.value = option.value;
+      div.addEventListener('click', function () {
+        if (div.dataset.selected === 'true') return;
+        div.dataset.selected = 'true';
+        select.value = option.value;
+        input.value = option.text;
+        dropdown.classList.remove('show');
+        wrapper.classList.remove('show');
+        select.dispatchEvent(new Event('change', { bubbles: true }));
+      });
+      dropdown.appendChild(div);
+    });
   },
 
   async cargarOpcionesCategoria(selectId, placeholder) {

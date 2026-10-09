@@ -1,4 +1,4 @@
-let state = { compras: [], productos: [], sucursales: [], proveedores: [], detalles: [] };
+let state = { compras: [], productos: [], sucursales: [], proveedores: [], detalles: [], guardando: false };
 let productoModal = null;
 
 export function init() {
@@ -224,13 +224,13 @@ async function eliminarCompra(id) {
   } catch (err) { Utils.showToast(err.message, 'error'); }
 }
 
-const modal = document.getElementById('modalCompra');
-
 function abrirModal() {
   state.detalles = [];
   document.getElementById('tableDetallesCompra').innerHTML = '';
   document.getElementById('cmpNota').value = '';
   actualizarTotales();
+  const modal = document.getElementById('modalCompra');
+  if (!modal) return;
   if (!productoModal) productoModal = new bootstrap.Modal(modal, { backdrop: 'static' });
   productoModal.show();
 }
@@ -286,14 +286,20 @@ function recalcularFila(fila) {
 
 function actualizarTotales() {
   const filas = document.querySelectorAll('#tableDetallesCompra tr');
-   let cantidad = 0;
+  let cantidad = 0;
+  let total = 0;
   filas.forEach(f => {
-     cantidad += parseFloat(f.querySelector('.det-cantidad')?.value) || 0;
+    const qty = parseFloat(f.querySelector('.det-cantidad')?.value) || 0;
+    const precio = parseFloat(f.querySelector('.det-precio')?.value) || 0;
+    cantidad += qty;
+    total += qty * precio;
   });
-   document.getElementById('cmpTotalCantidad').textContent = cantidad;
+  document.getElementById('cmpTotalCantidad').textContent = cantidad;
+  document.getElementById('cmpTotalCompra').textContent = Utils.formatMonto(total);
 }
 
 async function guardar() {
+  if (state.guardando) return;
   const idSucursal = document.getElementById('cmpSucursal').value;
   const idProveedor = document.getElementById('cmpProveedor').value;
   const nota = document.getElementById('cmpNota').value;
@@ -307,11 +313,14 @@ async function guardar() {
     const idProducto = parseInt(f.querySelector('.det-producto').value);
      const cantidad = parseInt(f.querySelector('.det-cantidad').value);
     const precio = parseFloat(f.querySelector('.det-precio').value);
-     if (!cantidad || cantidad <= 0) { Utils.showToast('Indica la cantidad de cada producto', 'warning'); return; }
-    if (precio < 0) { Utils.showToast('Precio de compra inv&aacute;lido', 'warning'); return; }
+    if (!cantidad || cantidad <= 0) { Utils.showToast('Indica la cantidad de cada producto', 'warning'); return; }
+    if (!Number.isFinite(precio) || precio < 0) { Utils.showToast('Precio de compra inv&aacute;lido', 'warning'); return; }
      detalles.push({ idProducto, cantidad, precioCompra: precio });
   }
 
+  state.guardando = true;
+  const btn = document.getElementById('btnGuardarCompra');
+  if (btn) { btn.disabled = true; btn.dataset.originalText = btn.innerHTML; btn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Guardando...'; }
   try {
     await API.post('/recepciones', { idSucursal: parseInt(idSucursal), idProveedor: idProveedor ? parseInt(idProveedor) : null, nota, detalles });
     Utils.showToast('Compra registrada', 'success');
@@ -319,4 +328,8 @@ async function guardar() {
     cargarStats();
     cargarCompras();
   } catch (err) { Utils.showToast(err.message, 'error'); }
+  finally {
+    state.guardando = false;
+    if (btn) { btn.disabled = false; if (btn.dataset.originalText) btn.innerHTML = btn.dataset.originalText; }
+  }
 }

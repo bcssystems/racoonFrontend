@@ -358,6 +358,10 @@ function abrirVentana(titulo, alto, ancho) {
 
 export function printRemisionVenta(venta, opts) {
   const options = opts || {};
+  if (!options._confirmed) {
+    seleccionarFormatoTicket(venta, options);
+    return;
+  }
   const esCredito = options.esCredito || venta.tipoVenta === 'CREDITO';
   const porcentajeInteres = options.porcentajeInteres != null ? options.porcentajeInteres : (venta.porcentajeInteres || 0);
   const plazoMeses = options.plazoMeses != null ? options.plazoMeses : venta.plazoMeses;
@@ -365,6 +369,11 @@ export function printRemisionVenta(venta, opts) {
   const autoPrint = options.autoPrint !== false;
   const configs = options.configs || {};
   const clienteInfo = options.clienteInfo || null;
+  const formato = options.formato || 'carta';
+  const logo = configs.logoTicket || configs.logoUrl || configs.logoEmpresa || '';
+  const logoHtml = logo ? '<img src="' + Utils.esc(logo) + '" class="logo" alt="" onerror="this.remove()">' : '';
+  const empresa = configs.descripcionEmpresa || 'Racoon';
+  const footer = configs.pieTicket || configs.footerTicket || '';
 
   const now = new Date();
   const fechaStr = now.toLocaleDateString('es-MX', { year: 'numeric', month: 'long', day: 'numeric' });
@@ -490,7 +499,8 @@ export function printRemisionVenta(venta, opts) {
     return `
   ${numCopies > 1 ? '<div class="copy-label">--- COPIA ' + (copyIndex + 1) + ' DE ' + numCopies + ' ---</div>' : ''}
   <div class="header">
-    <img src="assets/imgs/logotex.png" class="logo" alt="Logotex">
+     ${logoHtml}
+    <div class="sub">${Utils.esc(empresa)}</div>
     <div class="folio">REMISI\u00d3N #${venta.idVenta}</div>
   </div>
   <table class="info-grid">
@@ -521,11 +531,13 @@ export function printRemisionVenta(venta, opts) {
   const win = abrirVentana('Remisi\u00f3n - Venta #' + venta.idVenta, 600, 800);
   if (!win) return;
 
-  let fullHtml = '<!DOCTYPE html>\n<html lang="es">\n<head>\n  <meta charset="UTF-8">\n  <title>Remisi\u00f3n - Venta #' + venta.idVenta + '</title>\n  <style>' + TICKET_CSS + '</style>\n</head>\n<body>';
+  const printCss = TICKET_CSS.replace('size: letter', formato === '80mm' ? 'size: 80mm auto' : 'size: letter');
+  let fullHtml = '<!DOCTYPE html>\n<html lang="es">\n<head>\n  <meta charset="UTF-8">\n  <title>Remisi\u00f3n - Venta #' + venta.idVenta + '</title>\n  <style>' + printCss + '</style>\n</head>\n<body>';
   for (let i = 0; i < numCopies; i++) {
     fullHtml += '<div class="print-copy">' + buildBodyHtml(i) + '</div>';
   }
-  fullHtml += '\n</body>\n</html>';
+  fullHtml = fullHtml.replace('<body>', '<body><div class="print-options" style="text-align:right;padding:8px;font:12px Arial">Formato: <select id="printFormat"><option value="carta">Carta</option><option value="80mm">80 mm</option></select></div>');
+  fullHtml += '<div class="footer">' + Utils.esc(footer) + '</div><script>document.getElementById("printFormat").value="' + formato + '";document.getElementById("printFormat").onchange=function(){document.querySelector("style").textContent=document.querySelector("style").textContent.replace(/size:[^;]+;/,"size:"+(this.value === "80mm" ? "80mm auto" : "letter")+";");};</script>\n</body>\n</html>';
   win.document.write(fullHtml);
   win.document.close();
   win.focus();
@@ -534,12 +546,48 @@ export function printRemisionVenta(venta, opts) {
   }
 }
 
+function seleccionarFormatoTicket(venta, options) {
+  const existente = document.getElementById('selectorFormatoTicket');
+  if (existente) existente.remove();
+  const modal = document.createElement('div');
+  modal.id = 'selectorFormatoTicket';
+  modal.className = 'modal fade';
+  modal.tabIndex = -1;
+  modal.innerHTML = `
+    <div class="modal-dialog modal-dialog-centered modal-sm">
+      <div class="modal-content border-0 shadow">
+        <div class="modal-header border-0">
+          <h5 class="modal-title fw-bold"><i class="fas fa-print me-2" style="color:var(--primary)"></i>Imprimir ticket</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body">
+          <p class="small text-muted mb-3">Selecciona el formato para conservar toda la información de la venta #${Utils.esc(venta.idVenta)}</p>
+          <div class="d-grid gap-2">
+            <button type="button" class="btn btn-primary formato-ticket" data-formato="carta"><i class="fas fa-file-alt me-2"></i>Carta</button>
+            <button type="button" class="btn btn-outline-primary formato-ticket" data-formato="80mm"><i class="fas fa-receipt me-2"></i>80 mm</button>
+          </div>
+        </div>
+      </div>
+    </div>`;
+  document.body.appendChild(modal);
+  const instancia = new bootstrap.Modal(modal);
+  modal.querySelectorAll('.formato-ticket').forEach(btn => btn.addEventListener('click', () => {
+    instancia.hide();
+    printRemisionVenta(venta, { ...options, formato: btn.dataset.formato, _confirmed: true });
+    modal.addEventListener('hidden.bs.modal', () => modal.remove(), { once: true });
+  }));
+  modal.addEventListener('hidden.bs.modal', () => modal.remove(), { once: true });
+  instancia.show();
+}
+
 export function printCotizacion(cotizacion, opts) {
   const options = opts || {};
   const esCredito = options.esCredito != null ? options.esCredito : cotizacion.tipoVenta === 'CREDITO';
   const porcentajeInteres = options.porcentajeInteres != null ? options.porcentajeInteres : (cotizacion.porcentajeInteres || 0);
   const plazoMeses = options.plazoMeses != null ? options.plazoMeses : cotizacion.plazoMeses;
   const configs = options.configs || {};
+  const logo = configs.logoTicket || configs.logoUrl || configs.logoEmpresa || '';
+  const logoHtml = logo ? '<img src="' + Utils.esc(logo) + '" class="logo" alt="" onerror="this.remove()">' : '';
 
   const now = new Date();
   const fechaStr = now.toLocaleDateString('es-MX', { year: 'numeric', month: 'long', day: 'numeric' });
@@ -603,7 +651,7 @@ export function printCotizacion(cotizacion, opts) {
 <body>
 <div class="print-copy">
   <div class="header">
-    <img src="assets/imgs/logotex.png" class="logo" alt="Logotex">
+     ${logoHtml}
     <div class="folio">COTIZACI\u00d3N #${cotizacion.idCotizacion}</div>
   </div>
   <table class="info-grid">
@@ -695,7 +743,7 @@ function buildEstadoCuentaHtml(payload) {
   return `<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8"><title>Estado de Cuenta</title>
   <style>${STATE_CUENTA_CSS}</style></head><body>
     <div class="header">
-      <img src="assets/imgs/logotex.png" class="logo" alt="Logotex">
+       ${(configs.logoTicket || configs.logoUrl || configs.logoEmpresa) ? '<img src="' + Utils.esc(configs.logoTicket || configs.logoUrl || configs.logoEmpresa) + '" class="logo" alt="" onerror="this.remove()">' : ''}
       <div class="sub">${Utils.esc(configs['descripcionEmpresa'] || '')} &mdash; ${Utils.esc(configs['direccionEmpresa'] || '')}</div>
       <div class="title">Estado de Cuenta</div>
     </div>

@@ -85,7 +85,7 @@ function limpiar() {
   document.getElementById('filterDesde').value = '';
   document.getElementById('filterHasta').value = '';
   document.getElementById('statsRow').classList.add('d-none');
-  document.getElementById('tableBody').innerHTML = '<tr><td colspan="8"><div class="empty-state"><i class="fas fa-receipt"></i><p>Selecciona filtros y presiona Buscar</p></div></td></tr>';
+   document.getElementById('tableBody').innerHTML = '<tr><td colspan="9"><div class="empty-state"><i class="fas fa-receipt"></i><p>Selecciona filtros y presiona Buscar</p></div></td></tr>';
   document.getElementById('pagination').innerHTML = '';
 }
 
@@ -110,7 +110,7 @@ async function buscar(page) {
   if (desde) params.set('fechaInicio', desde + 'T00:00:00');
   if (hasta) params.set('fechaFin', hasta + 'T23:59:59');
 
-  body.innerHTML = '<tr><td colspan="8"><div class="empty-state"><i class="fas fa-spinner fa-spin"></i><p>Buscando...</p></div></td></tr>';
+   body.innerHTML = '<tr><td colspan="9"><div class="empty-state"><i class="fas fa-spinner fa-spin"></i><p>Buscando...</p></div></td></tr>';
 
   try {
     const result = await API.get('/ventas?' + params.toString());
@@ -118,7 +118,7 @@ async function buscar(page) {
     state.totalPages = result.totalPages;
 
     if (ventas.length === 0) {
-      body.innerHTML = '<tr><td colspan="8"><div class="empty-state"><i class="fas fa-receipt"></i><p>Sin resultados</p></div></td></tr>';
+       body.innerHTML = '<tr><td colspan="9"><div class="empty-state"><i class="fas fa-receipt"></i><p>Sin resultados</p></div></td></tr>';
       document.getElementById('statsRow').classList.add('d-none');
     } else {
       let totalMonto = 0, completadas = 0, canceladas = 0, pendientes = 0;
@@ -136,12 +136,14 @@ async function buscar(page) {
         let acciones = `
           <button type="button" class="btn-kebab-toggle kebab-trigger" data-venta="${v.idVenta}" data-estado="${v.estado}" title="Acciones"><i class="fas fa-ellipsis-v"></i></button>`;
 
+        const costo = (v.costoTotal != null ? v.costoTotal : (v.detalles || []).reduce((s, d) => s + (d.costoVenta || d.precioCompra || 0) * (d.cantidad || 0), 0));
         return `<tr class="${v.estado === 'CANCELADA' ? 'text-muted' : ''}">
           <td>${v.idVenta}</td>
           <td>${Utils.esc(v.sucursalNombre || '')}</td>
           <td>${Utils.esc(v.cajaNombre || '')}</td>
           <td>${v.clienteNombre ? Utils.esc(v.clienteNombre) : 'Mostrador'}</td>
-          <td class="fw-semibold">${Utils.formatMonto(v.total || 0)}</td>
+           <td class="fw-semibold">${Utils.formatMonto(v.total || 0)}</td>
+           <td>${Utils.formatMonto(costo)}</td>
           <td><span class="badge ${estadoBadge}">${v.estado}</span></td>
           <td>${Utils.formatDateTime(v.fecha)}</td>
           <td class="acciones-cell">${acciones}</td>
@@ -157,7 +159,7 @@ async function buscar(page) {
 
     renderPagination();
   } catch (_) {
-    body.innerHTML = '<tr><td colspan="8"><div class="empty-state"><i class="fas fa-exclamation-triangle"></i><p>Error al consultar</p></div></td></tr>';
+     body.innerHTML = '<tr><td colspan="9"><div class="empty-state"><i class="fas fa-exclamation-triangle"></i><p>Error al consultar</p></div></td></tr>';
   }
 }
 
@@ -248,13 +250,13 @@ function imprimirTicket(venta) {
 async function verDetalle(id) {
   try {
     const venta = await API.get('/ventas/' + id);
-    const detallesHtml = (venta.detalles || []).map(d => {
+      const detallesHtml = (venta.detalles || []).map(d => {
       const unidad = (d.unidadMedida || 'UNIDAD').toLowerCase();
       return `<tr>
         <td>${d.productoNombre ? Utils.esc(d.productoNombre) : Utils.esc(d.descripcion || '')}</td>
         <td class="center">${d.cantidad} ${Utils.esc(unidad)}</td>
         <td class="right">${Utils.formatMonto(d.precioUnitario || 0)}</td>
-        <td class="right">${Utils.formatMonto(d.subtotal || 0)}</td>
+        <td class="right">${Utils.formatMonto(d.subtotal || 0)}</td><td class="right">${Utils.formatMonto((d.costoVenta || d.precioCompra || 0) * (d.cantidad || 0))}</td>
       </tr>`;
     }).join('');
 
@@ -286,8 +288,8 @@ async function verDetalle(id) {
             : ''}
           ${motivoHtml}
       <table class="table table-sm table-custom mb-0">
-        <thead><tr><th>Producto</th><th>Cant</th><th>P/U</th><th>Subtotal</th></tr></thead>
-        <tbody>${detallesHtml || '<tr><td colspan="4" class="text-muted">Sin detalles</td></tr>'}</tbody>
+         <thead><tr><th>Producto</th><th>Cant</th><th>P/U</th><th>Subtotal</th><th>Costo</th></tr></thead>
+         <tbody>${detallesHtml || '<tr><td colspan="5" class="text-muted">Sin detalles</td></tr>'}</tbody>
       </table>`;
 
     new bootstrap.Modal(document.getElementById('detalleModal')).show();

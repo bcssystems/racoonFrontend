@@ -12,6 +12,7 @@ let state = {
   },
   sucursales: [],
   productos: [],
+  guardando: false,
 };
 
 export function init() {
@@ -55,8 +56,12 @@ function bindEvents() {
   }
   document.getElementById('btnNuevoMovimiento')?.addEventListener('click', abrirModal);
   document.getElementById('btnConfirmarMovimiento')?.addEventListener('click', registrarMovimiento);
+  document.getElementById('btnAgregarLineaMovimiento')?.addEventListener('click', agregarLineaMovimiento);
+  document.getElementById('movCantidad')?.addEventListener('input', actualizarCostoMovimiento);
+  document.getElementById('movCosto')?.addEventListener('input', actualizarCostoMovimiento);
   document.getElementById('btnExportMovExcel')?.addEventListener('click', exportarExcel);
   document.getElementById('btnExportMovPdf')?.addEventListener('click', exportarPDF);
+  document.getElementById('tableMovBody')?.addEventListener('click', handleTableClick);
 
   document.getElementById('movProducto')?.addEventListener('change', actualizarStockInfo);
   document.getElementById('movSucursal')?.addEventListener('change', actualizarStockInfo);
@@ -164,7 +169,7 @@ function renderTable() {
   if (!tbody) return;
 
   if (!state.data || state.data.length === 0) {
-    tbody.innerHTML = '<tr><td colspan="8"><div class="empty-state"><i class="fas fa-arrows-rotate"></i><p>No hay movimientos</p></div></td></tr>';
+    tbody.innerHTML = '<tr><td colspan="10"><div class="empty-state"><i class="fas fa-arrows-rotate"></i><p>No hay movimientos</p></div></td></tr>';
     return;
   }
 
@@ -193,11 +198,44 @@ function renderTable() {
       <td><span class="fw-semibold">${Utils.esc(r.productoNombre || '')}</span><br><small class="text-muted">${Utils.esc(r.productoSku || '')}</small></td>
       <td>${Utils.esc(detalle)}</td>
       <td class="fw-semibold">${r.cantidad != null ? r.cantidad : '-'}</td>
-      <td>${stockDisplay}</td>
+       <td>${Utils.formatMonto(r.costoTotal != null ? r.costoTotal : (r.costoUnitario || 0) * (r.cantidad || 0))}</td>
+       <td>${stockDisplay}</td>
       <td>${Utils.esc(r.sucursalNombre || 'Global')}</td>
-      <td>${Utils.esc(r.usuario)}</td>
+       <td>${Utils.esc(r.usuario)}</td>
+       <td class="acciones-cell">${r.estado === 'PENDIENTE' && Utils.hasPermiso('PRODUCTOS_MOVIMIENTO_AUTORIZAR') ? '<button type="button" class="btn-kebab-toggle movimiento-kebab" data-id="' + r.idMovimiento + '" title="Autorizar"><i class="fas fa-ellipsis-v"></i></button>' : (r.estado ? '<span class="small text-muted">' + Utils.esc(r.estado) + '</span>' : '')}</td>
     </tr>`;
   }).join('');
+}
+
+function handleTableClick(e) {
+  const btn = e.target.closest('.movimiento-kebab');
+  if (!btn) return;
+  const id = parseInt(btn.dataset.id);
+  Utils.abrirMenuKebab(btn, [
+    { icon: 'fa-key', text: 'Generar código y aprobar', color: 'var(--primary)', onClick: () => aprobarMovimiento(id) },
+    { danger: true, icon: 'fa-times', text: 'Rechazar', onClick: () => rechazarMovimiento(id) },
+  ]);
+}
+
+async function aprobarMovimiento(id) {
+  try {
+    const codigo = await API.post('/productos/movimientos/' + id + '/generar-codigo');
+    Utils.showDialog('Código de autorización', '<p class="mb-1">Movimiento #' + id + '</p><div class="display-6 fw-bold text-center" style="letter-spacing:6px">' + Utils.esc(codigo.codigo) + '</div><small class="text-muted">Válido hasta ' + new Date(codigo.expiraEn).toLocaleTimeString() + '</small>');
+    const ingresado = await Utils.promptInput('Autorizar movimiento #' + id, 'Ingresa el código generado:', codigo.codigo);
+    if (!ingresado) return;
+    await API.post('/productos/movimientos/' + id + '/aprobar', { codigoAutorizacion: ingresado.trim() });
+    Utils.showToast('Movimiento aprobado', 'success');
+    cargarMovimientos(state.currentPage);
+  } catch (err) { Utils.showToast(err.message, 'error'); }
+}
+
+async function rechazarMovimiento(id) {
+  if (!await Utils.confirm('¿Rechazar el movimiento #' + id + '?', 'Rechazar movimiento')) return;
+  try {
+    await API.post('/productos/movimientos/' + id + '/rechazar', {});
+    Utils.showToast('Movimiento rechazado', 'success');
+    cargarMovimientos(state.currentPage);
+  } catch (err) { Utils.showToast(err.message, 'error'); }
 }
 
 function renderPagination() {
@@ -222,6 +260,7 @@ function renderPagination() {
 function abrirModal() {
   const form = document.getElementById('formMovimiento');
   if (form) form.reset();
+  document.querySelectorAll('.mov-linea-extra').forEach(el => el.remove());
   document.getElementById('movProducto').value = '';
   document.getElementById('movSucursal').value = state.sucursales.length === 1 ? String(state.sucursales[0].idSucursal) : '';
   document.getElementById('movTipo').value = 'ENTRADA';
@@ -232,14 +271,17 @@ function abrirModal() {
 }
 
 async function registrarMovimiento() {
+  if (state.guardando) return;
   const idProducto = document.getElementById('movProducto').value;
   const idSucursal = document.getElementById('movSucursal').value;
   const tipoMovimiento = document.getElementById('movTipo').value;
   const cantidad = parseInt(document.getElementById('movCantidad').value);
+  const costo = parseFloat(document.getElementById('movCosto').value);
 
   if (!idProducto) { Utils.showToast('Selecciona un producto', 'warning'); return; }
   if (!idSucursal) { Utils.showToast('Selecciona una sucursal', 'warning'); return; }
   if (!cantidad || cantidad <= 0) { Utils.showToast('Ingresa una cantidad v\u00e1lida', 'warning'); return; }
+  if (!Number.isFinite(costo) || costo < 0) { Utils.showToast('Ingresa un costo v\u00e1lido', 'warning'); return; }
 
   const payload = {
     tipoMovimiento,
@@ -247,14 +289,52 @@ async function registrarMovimiento() {
     idSucursal: parseInt(idSucursal),
     referencia: document.getElementById('movReferencia').value.trim() || undefined,
     observacion: document.getElementById('movObservacion').value.trim() || undefined,
+    costoUnitario: costo,
+    costoTotal: cantidad * costo,
   };
 
+  state.guardando = true;
+  const btn = document.getElementById('btnConfirmarMovimiento');
+  if (btn) { btn.disabled = true; btn.dataset.originalText = btn.innerHTML; btn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Procesando...'; }
   try {
     await API.post('/productos/' + idProducto + '/movimiento-stock', payload);
+    const extras = Array.from(document.querySelectorAll('.mov-linea-extra'));
+    for (const extra of extras) {
+      const producto = extra.querySelector('.mov-producto-extra').value;
+      const sucursal = extra.querySelector('.mov-sucursal-extra').value;
+      const qty = parseFloat(extra.querySelector('.mov-cantidad-extra').value);
+      const costo = parseFloat(extra.querySelector('.mov-costo-extra').value) || 0;
+      if (!producto || !sucursal || !qty || qty <= 0) throw new Error('Completa todas las líneas del movimiento');
+      await API.post('/productos/' + producto + '/movimiento-stock', { ...payload, idSucursal: parseInt(sucursal), cantidad: qty, costoUnitario: costo, costoTotal: qty * costo });
+    }
     Utils.showToast('Movimiento registrado', 'success');
     bootstrap.Modal.getInstance(document.getElementById('movimientoModal'))?.hide();
     cargarMovimientos(0);
   } catch (err) { Utils.showToast(err.message, 'error'); }
+  finally {
+    state.guardando = false;
+    if (btn) { btn.disabled = false; if (btn.dataset.originalText) btn.innerHTML = btn.dataset.originalText; }
+  }
+}
+
+function actualizarCostoMovimiento() {
+  const cantidad = parseFloat(document.getElementById('movCantidad')?.value) || 0;
+  const costo = parseFloat(document.getElementById('movCosto')?.value) || 0;
+  const total = document.getElementById('movCostoTotal');
+  if (total) total.value = Utils.formatMonto(cantidad * costo);
+}
+
+function agregarLineaMovimiento() {
+  const productos = state.productos.map(p => '<option value="' + p.idProducto + '">' + Utils.esc(p.sku + ' - ' + p.nombre) + '</option>').join('');
+  const sucursales = state.sucursales.map(s => '<option value="' + s.idSucursal + '">' + Utils.esc(s.nombre) + '</option>').join('');
+  const html = '<div class="row g-2 border-top pt-2 mt-2 mov-linea-extra">' +
+    '<div class="col-md-6"><label class="form-label small">Producto</label><select class="form-select mov-producto-extra"><option value="">Producto...</option>' + productos + '</select></div>' +
+    '<div class="col-md-6"><label class="form-label small">Sucursal</label><select class="form-select mov-sucursal-extra"><option value="">Sucursal...</option>' + sucursales + '</select></div>' +
+    '<div class="col-md-4"><label class="form-label small">Cantidad</label><input type="number" class="form-control mov-cantidad-extra" min="1" step="1" placeholder="Cantidad"></div>' +
+    '<div class="col-md-4"><label class="form-label small">Costo unitario</label><input type="number" class="form-control mov-costo-extra" min="0" step="0.01" value="0" placeholder="Costo"></div>' +
+    '<div class="col-md-4 d-flex align-items-end"><button type="button" class="btn btn-outline-danger btn-sm quitar-linea">Quitar</button></div></div>';
+  document.getElementById('movTipo').closest('.row').insertAdjacentHTML('afterend', html);
+  document.querySelector('.mov-linea-extra:last-child .quitar-linea').addEventListener('click', e => e.target.closest('.mov-linea-extra').remove());
 }
 
 function buildRows() {

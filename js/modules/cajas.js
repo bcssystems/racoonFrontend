@@ -7,6 +7,10 @@ export function init() {
 }
 
 function bindEvents() {
+  const crear = Utils.hasPermiso('CAJAS_CREAR');
+  const btnNuevo = document.getElementById('btnNuevaCaja');
+  if (btnNuevo && !crear) btnNuevo.style.display = 'none';
+  btnNuevo?.addEventListener('click', () => abrirModal(null));
   document.getElementById('btnGuardarCaja')?.addEventListener('click', guardarCaja);
   document.getElementById('tableCajasBody')?.addEventListener('click', handleTableClick);
   document.getElementById('filtroSucursal')?.addEventListener('change', cargarCajas);

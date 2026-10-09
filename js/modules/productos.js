@@ -409,8 +409,9 @@ async function abrirModal(id) {
     title.textContent = 'Nuevo Producto';
     document.getElementById('productoActivo').checked = true;
     if (skuField) {
-      skuField.value = '';
-      skuField.disabled = true;
+      skuField.value = '7502025' + String(Math.floor(100000 + Math.random() * 900000));
+      skuField.disabled = false;
+      skuField.readOnly = true;
     }
   }
 

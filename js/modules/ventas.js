@@ -24,6 +24,7 @@ let state = {
   configs: {},
   abonoPOSClienteId: null,
   posProductPanelOpen: false,
+  cobrando: false,
 };
 
 const REGIMENES_FISCALES = [
@@ -371,6 +372,8 @@ async function sincronizarCarritoDesdeServidor() {
       sku: 'VR',
       cantidad: r.cantidad,
       precioUnitario: r.precioVenta,
+      precioCompra: r.precioCompra || null,
+      costoVenta: r.precioCompra || null,
       stockActual: 999999,
       _idRapido: r.idItemRapido,
     }));
@@ -421,6 +424,8 @@ function iniciarPollingCaja() {
           sku: 'VR',
           cantidad: existente ? existente.cantidad : r.cantidad,
           precioUnitario: r.precioVenta,
+          precioCompra: r.precioCompra || null,
+          costoVenta: r.precioCompra || null,
           stockActual: 999999,
           _idRapido: r.idItemRapido,
         };
@@ -981,7 +986,7 @@ async function cargarFormasPagoCobro() {
         </div>
       </div>`;
 
-    container.addEventListener('input', recalcularSumaCobro);
+    container.oninput = recalcularSumaCobro;
 
     recalcularSumaCobro();
   } catch (err) {
@@ -998,7 +1003,9 @@ function recalcularSumaCobro() {
   const el = document.getElementById('posCobroSuma');
   const cambioEl = document.getElementById('posCobroCambio');
   const cambioVal = document.getElementById('posCobroCambioValor');
+  const restanteEl = document.getElementById('posCobroRestante');
   el.textContent = Utils.formatMonto(suma);
+  if (restanteEl) restanteEl.textContent = Utils.formatMonto(Math.max(0, total - suma));
 
   if (suma + 0.01 < total) {
     el.style.color = 'var(--danger)';
@@ -1015,6 +1022,7 @@ function recalcularSumaCobro() {
 }
 
 async function confirmarCobro() {
+  if (state.cobrando) return;
   if (!state.caja) { Utils.showToast('No hay caja activa', 'error'); return; }
 
 
@@ -1038,7 +1046,7 @@ async function confirmarCobro() {
     pagos.push({ idTipoPago, monto, referencia });
   });
 
-  if (montoCredito > 0) {
+  if (montoCredito >= total - 0.01) {
     if (!clienteId) {
       Utils.showToast('Selecciona un cliente en el POS para venta a cr\u00e9dito', 'warning');
       return;
@@ -1077,7 +1085,7 @@ async function confirmarCobro() {
   const request = {
     idCaja: state.caja.idCaja,
     idCliente: clienteId || null,
-    tipoVenta: 'CONTADO',
+    tipoVenta: montoCredito > 0 ? 'CREDITO' : 'CONTADO',
     precioSeleccionado: 1,
     subtotal: subtotal,
     descuento: subtotal - total,
@@ -1085,18 +1093,30 @@ async function confirmarCobro() {
     nota: nota,
     detalles: state.cart.map(d => ({
       idProducto: d.sku === 'ENVIO' ? null : d.idProducto,
-      descripcion: d.sku === 'ENVIO' ? (d.descripcion || d.nombre) : null,
+      descripcion: d.sku === 'ENVIO' || d.sku === 'VR' ? (d.descripcion || d.nombre) : null,
       cantidad: d.cantidad,
       precioUnitario: d.precioUnitario,
       subtotal: d.cantidad * d.precioUnitario,
       atributosText: null,
+      costoUnitario: d.costoVenta || d.precioCompra || null,
     })),
     pagos: pagos,
+    montoCredito: montoCredito || null,
   };
 
+  state.cobrando = true;
+  const btn = document.getElementById('btnConfirmarCobroPOS');
+  if (btn) { btn.disabled = true; btn.dataset.originalText = btn.innerHTML; btn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i> Procesando...'; }
+
   try {
-    await finalizarEsperaActiva();
-    const ventaCreada = await API.post('/ventas', request);
+    let ventaCreada;
+    if (state.activeEsperaId) {
+      const idVenta = state.activeEsperaId;
+      await guardarEsperaActiva();
+      ventaCreada = await API.post('/ventas/' + idVenta + '/pagar', pagos);
+    } else {
+      ventaCreada = await API.post('/ventas', request);
+    }
     Utils.showToast('Venta registrada exitosamente', 'success');
     bootstrap.Modal.getInstance(document.getElementById('posCobroModal'))?.hide();
     await limpiarCart();
@@ -1109,7 +1129,14 @@ async function confirmarCobro() {
       } catch (_) {}
       state.idCotizacionActiva = null;
     }
-  } catch (err) { Utils.showToast(err.message, 'error'); }
+  } catch (err) {
+    Utils.showToast(err.message, 'error');
+    await cargarEsperas();
+  } finally {
+    state.cobrando = false;
+    const btn = document.getElementById('btnConfirmarCobroPOS');
+    if (btn) { btn.disabled = false; if (btn.dataset.originalText) btn.innerHTML = btn.dataset.originalText; }
+  }
 }
 
 async function pedirConfirmarCredito(total, subtotal, clienteId, nota) {
@@ -1122,7 +1149,12 @@ async function pedirConfirmarCredito(total, subtotal, clienteId, nota) {
 }
 
 async function confirmarCreditoPOS() {
+  if (state.cobrando) return;
   if (!state.caja) { Utils.showToast('No hay caja activa', 'error'); return; }
+  if (state.activeEsperaId) {
+    Utils.showToast('Una venta en espera es de contado y debe cobrarse desde el formulario de pago', 'warning');
+    return;
+  }
 
   const total = Utils.parseMonto(document.getElementById('posCreditoTotal').textContent);
   const subtotal = Utils.parseMonto(document.getElementById('posSubtotal').textContent);
@@ -1144,16 +1176,19 @@ async function confirmarCreditoPOS() {
     porcentajeInteres: porcentajeInteres,
     detalles: state.cart.map(d => ({
       idProducto: d.sku === 'ENVIO' ? null : d.idProducto,
-      descripcion: d.sku === 'ENVIO' ? (d.descripcion || d.nombre) : null,
+      descripcion: d.sku === 'ENVIO' || d.sku === 'VR' ? (d.descripcion || d.nombre) : null,
       cantidad: d.cantidad,
       precioUnitario: d.precioUnitario,
       subtotal: d.cantidad * d.precioUnitario,
       atributosText: null,
+      costoUnitario: d.costoVenta || d.precioCompra || null,
     })),
     pagos: [],
   };
+  state.cobrando = true;
+  const btn = document.getElementById('btnConfirmarCreditoPOS');
+  if (btn) btn.disabled = true;
   try {
-    await finalizarEsperaActiva();
     const ventaCreada = await API.post('/ventas', request);
     Utils.showToast('Venta a cr\u00e9dito registrada', 'success');
     bootstrap.Modal.getInstance(document.getElementById('posCreditoModal'))?.hide();
@@ -1169,6 +1204,10 @@ async function confirmarCreditoPOS() {
       state.idCotizacionActiva = null;
     }
   } catch (err) { Utils.showToast(err.message, 'error'); }
+  finally {
+    state.cobrando = false;
+    if (btn) btn.disabled = false;
+  }
 }
 
 function imprimirTicketVenta(venta, copies, esCredito, plazoMeses, porcentajeInteres, clienteInfo) {
@@ -1321,13 +1360,6 @@ async function guardarEsperaActiva() {
     detalles: construirDetallesEspera(),
   };
   await API.put('/ventas/' + state.activeEsperaId + '/espera', request);
-}
-
-async function finalizarEsperaActiva() {
-  if (!state.activeEsperaId) return;
-  await guardarEsperaActiva();
-  await API.post('/ventas/' + state.activeEsperaId + '/cancelar-espera', {});
-  state.activeEsperaId = null;
 }
 
 async function ponerEnEspera() {
@@ -1664,6 +1696,10 @@ async function cargarEsperas() {
   if (!state.caja) return;
   try {
     state.esperaVentas = await API.get('/ventas/caja/' + state.caja.idCaja + '/espera');
+    if (state.activeEsperaId && !state.esperaVentas.some(v => v.idVenta === state.activeEsperaId)) {
+      await limpiarCart();
+      Utils.showToast('La venta en espera cambió de estado y se recargó el carrito', 'warning');
+    }
     renderEsperas();
   } catch (_) {}
 }
@@ -1967,6 +2003,8 @@ async function realizarVentaRapida() {
       precioUnitario: precioVenta,
       stockActual: 999999,
       _idRapido: resp.idItemRapido,
+      precioCompra: precioCompra,
+      costoVenta: precioCompra,
     });
 
     renderCart();

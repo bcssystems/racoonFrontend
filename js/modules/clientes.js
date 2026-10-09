@@ -436,21 +436,33 @@ async function toggleListaNegra(id, enListaNegra, nombre) {
 function abrirModalIne(id) {
   state.ineClienteId = id;
   detenerCamaraIne(false);
-  ['Frontal', 'Trasera'].forEach(resetIneUiSide);
-  document.getElementById('ineFrontal').value = '';
-  document.getElementById('ineTrasera').value = '';
+  ['Frontal', 'Trasera'].forEach(side => {
+    const low = side.toLowerCase();
+    const input = document.getElementById('ine' + side);
+    if (input) input.value = '';
+    document.getElementById('ine' + side + 'Preview').innerHTML = '<span class="text-muted small">Cargando...</span>';
+    resetIneUiSide(side);
+    document.getElementById('ine' + low + 'Retake')?.classList.add('d-none');
+  });
   document.getElementById('ineCodigoLector').value = '';
-  document.getElementById('ineFrontalPreview').innerHTML = '';
-  document.getElementById('ineTraseraPreview').innerHTML = '';
   const c = state.data.find(x => x.idCliente === id);
   document.getElementById('clienteIneTitle').textContent = 'INE - ' + (c ? c.nombre + ' ' + (c.apellidoPaterno || '') : '') ;
   API.get('/clientes/' + id + '/ine').then(ine => {
     if (ine && (ine.urlFotoFrontal || ine.urlFotoTrasera)) {
-      if (ine.urlFotoFrontal) document.getElementById('ineFrontalPreview').innerHTML = '<img src="' + API.mediaBaseUrl + ine.urlFotoFrontal + '" class="img-fluid border rounded" style="max-height:140px">';
-      if (ine.urlFotoTrasera) document.getElementById('ineTraseraPreview').innerHTML = '<img src="' + API.mediaBaseUrl + ine.urlFotoTrasera + '" class="img-fluid border rounded" style="max-height:140px">';
+      if (ine.urlFotoFrontal) renderIneStored('Frontal', ine.urlFotoFrontal);
+      if (ine.urlFotoTrasera) renderIneStored('Trasera', ine.urlFotoTrasera);
+      if (ine.codigoLector) document.getElementById('ineCodigoLector').value = ine.codigoLector;
     }
   }).catch(() => {});
   new bootstrap.Modal(document.getElementById('clienteIneModal')).show();
+}
+
+function renderIneStored(side, url) {
+  const preview = document.getElementById('ine' + side + 'Preview');
+  if (!preview) return;
+  const src = (url || '').match(/^https?:\/\//) ? url : API.mediaBaseUrl + url;
+  preview.innerHTML = '<img src="' + Utils.esc(src) + '" class="img-fluid border rounded" style="max-height:140px" alt="INE ' + side + '">' +
+    '<div class="small mt-1"><a target="_blank" rel="noopener" href="' + Utils.esc(src) + '">Ver</a> · <a download="ine-' + side.toLowerCase() + '.jpg" href="' + Utils.esc(src) + '">Descargar</a> · <span class="text-muted">Reemplaza usando cámara o archivo</span></div>';
 }
 
 function previewIne(e) {
@@ -798,6 +810,8 @@ async function subirIne() {
   const formData = new FormData();
   if (frontal) formData.append('frontal', frontal);
   if (trasera) formData.append('trasera', trasera);
+  const codigo = document.getElementById('ineCodigoLector')?.value.trim();
+  if (codigo) formData.append('codigoLector', codigo);
   try {
     await API.requestUpload('/clientes/' + id + '/ine', formData);
     Utils.showToast('INE guardado', 'success');

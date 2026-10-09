@@ -43,7 +43,11 @@
       <select class="form-select" id="filterMovTipo">
         <option value="">Todos</option>
         <option value="ENTRADA">Entrada</option>
-        <option value="SALIDA">Salida</option>
+         <option value="SALIDA">Salida</option>
+         <option value="RECAMBIO">Recambio</option>
+         <option value="TRANSFERENCIA">Transferencia</option>
+         <option value="MERMA">Merma</option>
+         <option value="DEVOLUCION">Devoluci&oacute;n</option>
       </select>
     </div>
   </div>
@@ -57,14 +61,16 @@
             <th>Tipo</th>
             <th>Producto</th>
             <th>Detalle</th>
-            <th>Cantidad</th>
+             <th>Cantidad</th>
+             <th>Costo total</th>
             <th>Stock</th>
             <th>Sucursal</th>
             <th>Responsable</th>
+            <th style="width:60px"></th>
           </tr>
         </thead>
         <tbody id="tableMovBody">
-          <tr><td colspan="8"><div class="empty-state"><i class="fas fa-arrows-rotate"></i><p>Cargando...</p></div></td></tr>
+           <tr><td colspan="10"><div class="empty-state"><i class="fas fa-arrows-rotate"></i><p>Cargando...</p></div></td></tr>
         </tbody>
       </table>
     </div>
@@ -74,7 +80,7 @@
 </div>
 
 <div class="modal fade" id="movimientoModal" tabindex="-1">
-  <div class="modal-dialog modal-dialog-centered">
+  <div class="modal-dialog modal-dialog-centered modal-lg modal-dialog-scrollable">
     <div class="modal-content border-0 shadow">
       <div class="modal-header border-0">
         <h5 class="modal-title fw-bold" id="movimientoModalTitle">Nuevo Movimiento</h5>
@@ -82,39 +88,59 @@
       </div>
       <div class="modal-body">
         <form id="formMovimiento">
-          <div class="mb-3">
+          <div class="row g-3">
+          <div class="col-md-7">
             <label class="form-label">Producto <span class="text-danger">*</span></label>
-            <select class="form-select" id="movProducto" required>
+            <select class="form-select mov-producto" id="movProducto" required>
               <option value="">Selecciona un producto...</option>
             </select>
           </div>
-          <div class="mb-3">
+          <div class="col-md-5">
             <label class="form-label">Sucursal <span class="text-danger">*</span></label>
-            <select class="form-select" id="movSucursal" required>
+            <select class="form-select mov-sucursal" id="movSucursal" required>
               <option value="">Selecciona una sucursal...</option>
             </select>
             <div class="form-text" id="movStockInfo"></div>
           </div>
-          <div class="row g-3">
-            <div class="col-md-6">
+          <div class="col-md-4">
               <label class="form-label">Tipo de Movimiento <span class="text-danger">*</span></label>
               <select class="form-select" id="movTipo" required>
                 <option value="ENTRADA">Entrada</option>
                 <option value="SALIDA">Salida</option>
+                <option value="RECAMBIO">Recambio</option>
+                <option value="MERMA">Merma</option>
+                <option value="DEVOLUCION">Devolución</option>
               </select>
-            </div>
-            <div class="col-md-6">
+          </div>
+          <div class="col-md-4">
               <label class="form-label">Cantidad <span class="text-danger">*</span></label>
-              <input type="number" class="form-control" id="movCantidad" min="1" step="1" required>
+              <input type="number" class="form-control mov-cantidad" id="movCantidad" min="1" step="1" required>
+          </div>
+          <div class="col-md-4">
+            <label class="form-label">Costo unitario</label>
+            <input type="number" class="form-control mov-costo" id="movCosto" min="0" step="0.01" value="0">
+          </div>
+          <div class="col-md-5">
+            <label class="form-label">Costo total</label>
+            <input type="text" class="form-control" id="movCostoTotal" value="$0.00" readonly>
+          </div>
+          <div class="col-md-7 d-flex align-items-end">
+            <div class="form-check mb-2">
+              <input class="form-check-input" type="checkbox" id="movSolicitarAutorizacion">
+              <label class="form-check-label" for="movSolicitarAutorizacion">Solicitar autorizaci&oacute;n administrativa</label>
             </div>
           </div>
-          <div class="mb-3 mt-3">
+          <div class="col-12">
+            <button type="button" class="btn btn-outline-secondary btn-sm mb-2" id="btnAgregarLineaMovimiento"><i class="fas fa-plus me-1"></i>Agregar l&iacute;nea</button>
+          </div>
+          <div class="col-12">
             <label class="form-label">Referencia</label>
             <input type="text" class="form-control" id="movReferencia" maxlength="100" placeholder="Ej. R-0001, devoluci&oacute;n, merma...">
           </div>
-          <div class="mb-2">
+          <div class="col-12">
             <label class="form-label">Observaciones</label>
             <textarea class="form-control" id="movObservacion" rows="2" maxlength="500"></textarea>
+          </div>
           </div>
         </form>
       </div>
