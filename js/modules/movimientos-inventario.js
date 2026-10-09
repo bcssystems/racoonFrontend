@@ -62,6 +62,7 @@ function bindEvents() {
   document.getElementById('tableMovBody')?.addEventListener('click', handleTableClick);
 
   document.getElementById('movSucursal')?.addEventListener('change', actualizarStockInfo);
+  document.getElementById('movSucursal')?.addEventListener('change', actualizarLimitesSalidas);
   document.getElementById('paginationMov')?.addEventListener('click', e => {
     const el = e.target.closest('[data-page]');
     if (!el) return;
@@ -253,6 +254,7 @@ async function registrarMovimiento() {
   if (filas.length === 0) { Utils.showToast('Agrega al menos un producto', 'warning'); return; }
 
   const lineas = [];
+  const salidasPorProducto = new Map();
   for (const fila of filas) {
     const idProducto = parseInt(fila.querySelector('.mov-producto-linea').value);
     const tipoMovimiento = fila.querySelector('.mov-tipo-linea').value;
@@ -264,7 +266,9 @@ async function registrarMovimiento() {
     if (tipoMovimiento === 'SALIDA') {
       const inventario = (producto?.inventarioSucursales || []).find(i => String(i.idSucursal) === String(idSucursal));
       const stock = inventario ? Number(inventario.stock) || 0 : 0;
-      if (cantidad > stock) {
+      const salidaAcumulada = (salidasPorProducto.get(idProducto) || 0) + cantidad;
+      salidasPorProducto.set(idProducto, salidaAcumulada);
+      if (salidaAcumulada > stock) {
         Utils.showToast('Stock insuficiente en la sucursal. Disponible: ' + stock, 'warning');
         return;
       }
@@ -312,6 +316,7 @@ function agregarLineaMovimiento() {
   tbody.appendChild(fila);
   Utils.makeSearchableSelect(uid);
   const recalcular = () => {
+    actualizarLimiteSalida(fila);
     const cantidad = parseFloat(fila.querySelector('.mov-cantidad-linea').value) || 0;
     const idProducto = parseInt(fila.querySelector('.mov-producto-linea').value);
     const producto = state.productos.find(p => p.idProducto === idProducto);
@@ -323,6 +328,37 @@ function agregarLineaMovimiento() {
   fila.querySelector('.searchable-original')?.addEventListener('change', recalcular);
   fila.querySelector('[data-action="quitar"]').addEventListener('click', () => { fila.remove(); actualizarTotalesMovimiento(); });
   recalcular();
+}
+
+function actualizarLimiteSalida(fila) {
+  const tipo = fila.querySelector('.mov-tipo-linea')?.value;
+  const idProducto = parseInt(fila.querySelector('.mov-producto-linea')?.value);
+  const cantidad = fila.querySelector('.mov-cantidad-linea');
+  const idSucursal = document.getElementById('movSucursal')?.value;
+  if (!cantidad) return;
+
+  if (tipo !== 'SALIDA' || !idProducto || !idSucursal) {
+    cantidad.removeAttribute('max');
+    cantidad.disabled = false;
+    return;
+  }
+
+  const producto = state.productos.find(p => p.idProducto === idProducto);
+  const inventario = (producto?.inventarioSucursales || []).find(i => String(i.idSucursal) === String(idSucursal));
+  const stock = inventario ? Number(inventario.stock) || 0 : 0;
+  cantidad.max = String(stock);
+  cantidad.title = 'Máximo disponible: ' + stock;
+  cantidad.disabled = stock === 0;
+  if (stock === 0) {
+    cantidad.value = '';
+  } else if (Number(cantidad.value) > stock) {
+    cantidad.value = String(stock);
+  }
+}
+
+function actualizarLimitesSalidas() {
+  document.querySelectorAll('#tableDetallesMovimiento tr').forEach(actualizarLimiteSalida);
+  actualizarTotalesMovimiento();
 }
 
 function actualizarTotalesMovimiento() {
