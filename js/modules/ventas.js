@@ -1147,7 +1147,7 @@ async function pedirConfirmarCredito(total, subtotal, clienteId, nota, pagos, mo
   state.posCreditoContext = { pagos, montoCredito };
   document.getElementById('posCreditoTotal').textContent = Utils.formatMonto(montoCredito);
   document.getElementById('posCreditoClienteName').textContent = (cliente ? (cliente.nombre || '') + ' ' + (cliente.apellidoPaterno || '') : '');
-  document.getElementById('posCreditoMontoOriginal').textContent = Utils.formatMonto(total);
+  document.getElementById('posCreditoMontoOriginal').textContent = Utils.formatMonto(montoCredito);
   bootstrap.Modal.getInstance(document.getElementById('posCobroModal'))?.hide();
   new bootstrap.Modal(document.getElementById('posCreditoModal')).show();
 }
