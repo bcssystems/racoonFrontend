@@ -24,6 +24,7 @@ let state = {
   configs: {},
   abonoPOSClienteId: null,
   posProductPanelOpen: false,
+  posCreditoContext: null,
   cobrando: false,
 };
 
@@ -923,6 +924,7 @@ async function cobrarVenta() {
 
   const total = Utils.parseMonto(document.getElementById('posTotal').textContent);
 
+  state.posCreditoContext = null;
   document.getElementById('posCobroTotal').textContent = Utils.formatMonto(total);
   document.getElementById('posCobroNota').value = '';
   await cargarFormasPagoCobro();
@@ -1046,7 +1048,7 @@ async function confirmarCobro() {
     pagos.push({ idTipoPago, monto, referencia });
   });
 
-  if (montoCredito >= total - 0.01) {
+  if (montoCredito > 0.01) {
     if (!clienteId) {
       Utils.showToast('Selecciona un cliente en el POS para venta a cr\u00e9dito', 'warning');
       return;
@@ -1058,16 +1060,17 @@ async function confirmarCobro() {
     }
     if (cliente.limiteCredito != null) {
       const disp = cliente.limiteCredito - (cliente.saldoActual || 0);
-      if (total > disp) {
+      if (montoCredito > disp) {
         Utils.showToast('El total excede el l\u00edmite de cr\u00e9dito disponible (' + Utils.formatMonto(disp) + ')', 'warning');
         return;
       }
     }
-    if (pagos.length > 0 && (pagos.reduce((s, p) => s + p.monto, 0) + montoCredito + 0.01) < total) {
-      Utils.showToast('La suma de los pagos debe ser al menos igual al total', 'warning');
+    const sumaPagos = pagos.reduce((s, p) => s + p.monto, 0);
+    if (Math.abs((sumaPagos + montoCredito) - total) > 0.01) {
+      Utils.showToast('Los pagos y el monto a cr\u00e9dito deben cubrir exactamente el total', 'warning');
       return;
     }
-    await pedirConfirmarCredito(total, subtotal, clienteId, nota);
+    await pedirConfirmarCredito(total, subtotal, clienteId, nota, pagos, montoCredito);
     return;
   }
 
@@ -1139,9 +1142,10 @@ async function confirmarCobro() {
   }
 }
 
-async function pedirConfirmarCredito(total, subtotal, clienteId, nota) {
+async function pedirConfirmarCredito(total, subtotal, clienteId, nota, pagos, montoCredito) {
   const cliente = state.clientes.find(c => c.idCliente === clienteId);
-  document.getElementById('posCreditoTotal').textContent = Utils.formatMonto(total);
+  state.posCreditoContext = { pagos, montoCredito };
+  document.getElementById('posCreditoTotal').textContent = Utils.formatMonto(montoCredito);
   document.getElementById('posCreditoClienteName').textContent = (cliente ? (cliente.nombre || '') + ' ' + (cliente.apellidoPaterno || '') : '');
   document.getElementById('posCreditoMontoOriginal').textContent = Utils.formatMonto(total);
   bootstrap.Modal.getInstance(document.getElementById('posCobroModal'))?.hide();
@@ -1156,7 +1160,8 @@ async function confirmarCreditoPOS() {
     return;
   }
 
-  const total = Utils.parseMonto(document.getElementById('posCreditoTotal').textContent);
+  const total = Utils.parseMonto(document.getElementById('posCobroTotal').textContent);
+  const credito = state.posCreditoContext || { pagos: [], montoCredito: total };
   const subtotal = Utils.parseMonto(document.getElementById('posSubtotal').textContent);
   const clienteId = parseInt(document.getElementById('posCliente').value) || null;
   const nota = document.getElementById('posCobroNota').value.trim() || null;
@@ -1183,7 +1188,8 @@ async function confirmarCreditoPOS() {
       atributosText: null,
       costoUnitario: d.costoVenta || d.precioCompra || null,
     })),
-    pagos: [],
+    pagos: credito.pagos,
+    montoCredito: credito.montoCredito,
   };
   state.cobrando = true;
   const btn = document.getElementById('btnConfirmarCreditoPOS');
@@ -1201,8 +1207,9 @@ async function confirmarCreditoPOS() {
       try {
         await API.post('/cotizaciones/' + state.idCotizacionActiva + '/convertir');
       } catch (_) {}
-      state.idCotizacionActiva = null;
-    }
+        state.idCotizacionActiva = null;
+      }
+      state.posCreditoContext = null;
   } catch (err) { Utils.showToast(err.message, 'error'); }
   finally {
     state.cobrando = false;
