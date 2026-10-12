@@ -63,6 +63,7 @@ function bindEvents() {
 
   document.getElementById('movSucursal')?.addEventListener('change', actualizarStockInfo);
   document.getElementById('movSucursal')?.addEventListener('change', actualizarLimitesSalidas);
+  document.getElementById('movTipoMovimiento')?.addEventListener('change', actualizarLimitesSalidas);
   document.getElementById('paginationMov')?.addEventListener('click', e => {
     const el = e.target.closest('[data-page]');
     if (!el) return;
@@ -258,7 +259,9 @@ function abrirModal() {
 async function registrarMovimiento() {
   if (state.guardando) return;
   const idSucursal = document.getElementById('movSucursal').value;
+  const tipoMovimiento = document.getElementById('movTipoMovimiento').value;
   if (!idSucursal) { Utils.showToast('Selecciona una sucursal', 'warning'); return; }
+  if (!tipoMovimiento) { Utils.showToast('Selecciona un tipo de movimiento', 'warning'); return; }
   const filas = Array.from(document.querySelectorAll('#tableDetallesMovimiento tr'));
   if (filas.length === 0) { Utils.showToast('Agrega al menos un producto', 'warning'); return; }
 
@@ -266,7 +269,6 @@ async function registrarMovimiento() {
   const salidasPorProducto = new Map();
   for (const fila of filas) {
     const idProducto = parseInt(fila.querySelector('.mov-producto-linea').value);
-    const tipoMovimiento = fila.querySelector('.mov-tipo-linea').value;
     const cantidad = parseInt(fila.querySelector('.mov-cantidad-linea').value);
     const producto = state.productos.find(p => p.idProducto === idProducto);
     const costo = Number(producto?.costoPromedio) || 0;
@@ -318,7 +320,6 @@ function agregarLineaMovimiento() {
   const fila = document.createElement('tr');
   fila.innerHTML =
     '<td><select id="' + uid + '" class="form-select form-select-sm mov-producto-linea"><option value="">Selecciona...</option>' + productos + '</select></td>' +
-    '<td><select class="form-select form-select-sm mov-tipo-linea"><option value="ENTRADA">Entrada</option><option value="SALIDA">Salida</option><option value="MERMA">Merma</option><option value="DEVOLUCION">Devolución</option></select></td>' +
     '<td><input type="number" class="form-control form-control-sm mov-cantidad-linea" min="1" step="1" placeholder="Cantidad"></td>' +
     '<td class="mov-subtotal-linea text-end fw-semibold">$0.00</td>' +
     '<td><button type="button" class="btn-action" style="color:var(--danger)" data-action="quitar"><i class="fas fa-times"></i></button></td>';
@@ -340,7 +341,7 @@ function agregarLineaMovimiento() {
 }
 
 function actualizarLimiteSalida(fila) {
-  const tipo = fila.querySelector('.mov-tipo-linea')?.value;
+  const tipo = document.getElementById('movTipoMovimiento')?.value;
   const idProducto = parseInt(fila.querySelector('.mov-producto-linea')?.value);
   const cantidad = fila.querySelector('.mov-cantidad-linea');
   const idSucursal = document.getElementById('movSucursal')?.value;

@@ -2,7 +2,6 @@
   .movimientos-detalle-table { min-width: 760px; }
   .movimientos-detalle-table .searchable-wrapper { width: 100%; min-width: 360px; }
   .movimientos-detalle-table .searchable-input { width: 100%; min-width: 360px; }
-  .movimientos-detalle-table .mov-tipo-linea { min-width: 210px; }
 </style>
 <div class="page-content">
   <div class="page-header">
@@ -102,6 +101,15 @@
               <div class="form-text" id="movStockInfo"></div>
             </div>
             <div class="col-md-4">
+              <label class="form-label small fw-semibold">Tipo de movimiento <span class="text-danger">*</span></label>
+              <select class="form-select" id="movTipoMovimiento" required>
+                <option value="ENTRADA">Entrada</option>
+                <option value="SALIDA">Salida</option>
+                <option value="MERMA">Merma</option>
+                <option value="DEVOLUCION">Devolución</option>
+              </select>
+            </div>
+            <div class="col-md-4">
               <label class="form-label small fw-semibold">Vale / folio</label>
               <input type="text" class="form-control" id="movReferencia" maxlength="100" placeholder="Ej. R-0001">
             </div>
@@ -121,7 +129,6 @@
               <thead>
                 <tr>
                   <th style="min-width:390px">Producto o variante</th>
-                  <th style="width:220px">Tipo</th>
                   <th style="width:100px">Cantidad</th>
                   <th style="width:125px">Subtotal</th>
                   <th style="width:50px"></th>
