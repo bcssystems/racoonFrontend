@@ -6,6 +6,7 @@ let state = {
   pageSize: 15,
   searchTerm: '',
   filterCategoria: '',
+  filterSucursal: '',
   sortField: 'idProducto',
   sortDir: 'DESC',
   editingId: null,
@@ -47,6 +48,13 @@ function bindEvents() {
     state.filterCategoria = e.target.value;
     state.currentPage = 0;
     cargarProductos(0);
+    cargarStats();
+  });
+  document.getElementById('filterSucursal')?.addEventListener('change', e => {
+    state.filterSucursal = e.target.value;
+    state.currentPage = 0;
+    cargarProductos(0);
+    cargarStats();
   });
   document.getElementById('productoTreeRoot')?.addEventListener('click', handleTableClick);
   if (!Utils.hasPermiso('PRODUCTOS_MOVIMIENTO')) {
@@ -95,7 +103,10 @@ async function cargarCategorias() {
 
 async function cargarStats() {
   try {
-    const stats = await API.get('/productos/stats');
+    const params = new URLSearchParams();
+    if (state.filterCategoria) params.set('idCategoria', state.filterCategoria);
+    if (state.filterSucursal) params.set('idSucursal', state.filterSucursal);
+    const stats = await API.get('/productos/stats' + (params.toString() ? '?' + params.toString() : ''));
     document.getElementById('statsStock').textContent = stats.stockGlobal || 0;
     document.getElementById('statsActivos').textContent = stats.activos || 0;
     const costoTotal = stats.costoTotalInventario || 0;
@@ -132,6 +143,7 @@ async function cargarProductos(page) {
   params.set('sort', state.sortField + ',' + state.sortDir);
   if (state.searchTerm) params.set('search', state.searchTerm);
   if (state.filterCategoria) params.set('idCategoria', state.filterCategoria);
+  if (state.filterSucursal) params.set('idSucursal', state.filterSucursal);
   params.set('activo', state.showInactive ? 'false' : 'true');
 
   try {
