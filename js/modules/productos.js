@@ -3,7 +3,7 @@ let state = {
   currentPage: 0,
   totalPages: 0,
   totalElements: 0,
-  pageSize: 50,
+  pageSize: 15,
   searchTerm: '',
   filterCategoria: '',
   sortField: 'idProducto',
