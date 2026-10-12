@@ -221,6 +221,17 @@ const TICKET_CSS = `
       min-width: 40%;
       text-align: right;
     }
+    .pagare-desglose {
+      width: 100%;
+      margin: 5px 0;
+      border-collapse: collapse;
+    }
+    .pagare-desglose td {
+      padding: 2px 3px;
+      font-size: 4pt;
+      border-bottom: 1px solid #cbd5e1;
+    }
+    .pagare-desglose td:last-child { text-align: right; font-weight: 700; }
     .pagare-leyenda {
       font-size: 4pt;
       text-align: justify;
@@ -319,6 +330,7 @@ const TICKET_80MM_CSS = `
     .pagare-doc-no, .pagare-lugar-fecha { font-size: 4.5pt; }
     .pagare-bueno-por { padding: 2px 3px; margin: 3px 0; font-size: 5pt; }
     .pagare-bueno-por-monto { font-size: 6pt; }
+    .pagare-desglose td { font-size: 4.2pt; padding: 1px 2px; }
     .pagare-leyenda { font-size: 4.6pt; line-height: 1.3; margin-bottom: 2px; }
     .pagare-pie { gap: 4px; margin-top: 5px; }
     .pagare-caja { width: 60%; padding: 2px; }
@@ -328,6 +340,31 @@ const TICKET_80MM_CSS = `
     .pagare-firma-nombre { font-size: 3.5pt; }
     .ticket-config-footer { font-size: 5pt; margin-top: 4px; }
   `;
+
+export function getDesglosePagos(venta) {
+  const pagos = (venta?.pagos || []).filter(p => {
+    const nombre = (p.tipoPagoNombre || '').toLowerCase();
+    return nombre !== 'credito' && nombre !== 'crédito';
+  }).map(p => ({
+    label: p.tipoPagoNombre || 'Pago',
+    monto: Number(p.monto) || 0,
+    referencia: p.referencia || '',
+    credito: false,
+  }));
+  const pagado = pagos.reduce((suma, pago) => suma + pago.monto, 0);
+  const montoCredito = venta?.tipoVenta === 'CREDITO'
+    ? Math.max(0, (Number(venta.total) || 0) - pagado)
+    : 0;
+  if (montoCredito > 0.005) {
+    pagos.push({
+      label: 'Crédito' + (venta.folioPagare ? ' / Pagaré #' + venta.folioPagare : ''),
+      monto: montoCredito,
+      referencia: '',
+      credito: true,
+    });
+  }
+  return { pagos, montoCredito, pagado };
+}
 
 const STATE_CUENTA_CSS = `
     @page { size: letter; margin: 0.35in; }
@@ -425,9 +462,10 @@ export function printRemisionVenta(venta, opts) {
   const now = new Date();
   const fechaStr = now.toLocaleDateString('es-MX', { year: 'numeric', month: 'long', day: 'numeric' });
   const horaStr = now.toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' });
+  const desglosePagos = getDesglosePagos(venta);
 
   const totalConInteres = esCredito
-    ? (venta.total || 0) + ((venta.total || 0) * porcentajeInteres / 100)
+    ? desglosePagos.montoCredito + (desglosePagos.montoCredito * porcentajeInteres / 100)
     : (venta.total || 0);
 
   const detalleRows = (venta.detalles || []).map(d => {
@@ -445,16 +483,21 @@ export function printRemisionVenta(venta, opts) {
     </tr>`;
   }).join('');
 
-  const pagoRows = esCredito
-    ? `<tr><td>Cr\u00e9dito &mdash; Pagar\u00e9 #${Utils.esc(venta.folioPagare || '—')}</td><td class="right">${Utils.formatMonto(totalConInteres)}</td></tr>
-       <tr><td class="small">Inter\u00e9s ${(porcentajeInteres || 0)}% / Plazo: ${plazoMeses != null ? plazoMeses + ' meses' : '—'}</td><td class="right">${Utils.formatMonto((venta.total || 0) * porcentajeInteres / 100)}</td></tr>`
-    : (venta.pagos || []).length > 0
-      ? (venta.pagos || []).map(p => `
-    <tr>
-      <td>${Utils.esc(p.tipoPagoNombre || '')}${p.referencia ? ' (' + Utils.esc(p.referencia) + ')' : ''}</td>
-      <td class="right">${Utils.formatMonto(p.monto || 0)}</td>
-    </tr>`).join('')
-      : `<tr><td>Enviando pedido</td><td class="right small">Pendiente de pago</td></tr>`;
+  const pagoRows = desglosePagos.pagos.length > 0
+       ? desglosePagos.pagos.map(p => `
+     <tr>
+       <td>${Utils.esc(p.label)}${p.referencia ? ' (' + Utils.esc(p.referencia) + ')' : ''}</td>
+       <td class="right">${Utils.formatMonto(p.monto)}</td>
+     </tr>`).join('')
+       + (esCredito && porcentajeInteres > 0
+         ? `<tr><td>Interés ${(porcentajeInteres || 0)}% / Plazo: ${plazoMeses != null ? plazoMeses + ' meses' : '—'}</td><td class="right">${Utils.formatMonto(desglosePagos.montoCredito * porcentajeInteres / 100)}</td></tr>`
+         : '')
+       : `<tr><td>Enviando pedido</td><td class="right small">Pendiente de pago</td></tr>`;
+  const pagareDesgloseHtml = desglosePagos.pagos.map(p =>
+    `<tr><td>${Utils.esc(p.label)}</td><td>${Utils.formatMonto(p.monto)}</td></tr>`).join('')
+    + (porcentajeInteres > 0
+      ? `<tr><td>Interés ${(porcentajeInteres || 0)}%</td><td>${Utils.formatMonto(desglosePagos.montoCredito * porcentajeInteres / 100)}</td></tr>`
+      : '');
 
   const titularPagare = configs['titularPagare'] || (venta.folioPagare ? 'Logotex' : '');
   const lugarPagare = configs['direccionEmpresa'] || 'San Luis Potos\u00ed, S.L.P.';
@@ -490,6 +533,9 @@ export function printRemisionVenta(venta, opts) {
       <span class="pagare-bueno-por-label">BUENO POR</span>
       <span class="pagare-bueno-por-monto">${Utils.formatMonto(totalConInteres)}</span>
     </div>
+    <table class="pagare-desglose">
+      ${pagareDesgloseHtml}
+    </table>
     <p class="pagare-leyenda">
       Debemos y pagar\u00e9(mos) incondicionalmente en esta ciudad o en cualquier otra que se me requiera, este Pagar\u00e9 a la orden de:
       <strong>${Utils.esc(titularPagare)}</strong>, el d\u00eda ${diaExpedicion} de ${Utils.esc(mesExpedicion)} de ${anioExpedicion}.

@@ -1,4 +1,4 @@
-import { printRemisionVenta } from './printing.js';
+import { getDesglosePagos, printRemisionVenta } from './printing.js';
 
 let state = {
   page: 0,
@@ -7,7 +7,7 @@ let state = {
 };
 
 export function init() {
-  const today = new Date().toISOString().slice(0, 10);
+  const today = fechaLocalHoy();
   const desdeEl = document.getElementById('filterDesde');
   const hastaEl = document.getElementById('filterHasta');
   if (desdeEl) desdeEl.value = today;
@@ -15,6 +15,11 @@ export function init() {
   bindEvents();
   cargarSucursales();
   buscar(0);
+}
+
+function fechaLocalHoy() {
+  const ahora = new Date();
+  return ahora.getFullYear() + '-' + String(ahora.getMonth() + 1).padStart(2, '0') + '-' + String(ahora.getDate()).padStart(2, '0');
 }
 
 function bindEvents() {
@@ -82,11 +87,13 @@ function limpiar() {
   document.getElementById('filterSucursal').value = '';
   document.getElementById('filterCaja').innerHTML = '<option value="">Todas</option>';
   document.getElementById('filterEstado').value = '';
-  document.getElementById('filterDesde').value = '';
-  document.getElementById('filterHasta').value = '';
+  const today = fechaLocalHoy();
+  document.getElementById('filterDesde').value = today;
+  document.getElementById('filterHasta').value = today;
   document.getElementById('statsRow').classList.add('d-none');
    document.getElementById('tableBody').innerHTML = '<tr><td colspan="9"><div class="empty-state"><i class="fas fa-receipt"></i><p>Selecciona filtros y presiona Buscar</p></div></td></tr>';
   document.getElementById('pagination').innerHTML = '';
+  buscar(0);
 }
 
 async function buscar(page) {
@@ -264,6 +271,13 @@ async function verDetalle(id) {
         : venta.estado === 'CANCELADA' ? 'bg-danger'
         : venta.estado === 'SOLICITADA_CANCELACION' ? 'bg-warning text-dark'
         : 'bg-secondary';
+    const desglosePagos = getDesglosePagos(venta);
+    const desglosePagosHtml = desglosePagos.pagos.length
+      ? desglosePagos.pagos.map(p => `<tr><td>${Utils.esc(p.label)}${p.referencia ? ' (' + Utils.esc(p.referencia) + ')' : ''}</td><td class="text-end">${Utils.formatMonto(p.monto)}</td></tr>`).join('')
+        + (venta.tipoVenta === 'CREDITO' && (venta.porcentajeInteres || 0) > 0
+          ? `<tr><td>Interés ${(venta.porcentajeInteres || 0)}%</td><td class="text-end">${Utils.formatMonto(desglosePagos.montoCredito * (venta.porcentajeInteres || 0) / 100)}</td></tr>`
+          : '')
+      : '<tr><td colspan="2" class="text-muted">Sin pagos registrados</td></tr>';
 
     const motivoHtml = (venta.motivoCancelacion && (venta.estado === 'SOLICITADA_CANCELACION' || venta.estado === 'CANCELADA'))
       ? `<div class="col-12"><strong>Motivo de cancelaci\u00f3n:</strong> ${Utils.esc(venta.motivoCancelacion)}${venta.solicitanteCancelacion ? ' <small class="text-muted">(solicitado por ' + Utils.esc(venta.solicitanteCancelacion) + ')</small>' : ''}</div>`
@@ -283,9 +297,9 @@ async function verDetalle(id) {
                <div class="col-4"><strong>Inter\u00e9s:</strong> ${venta.porcentajeInteres || 0}%</div>
                <div class="col-4"><strong>Plazo:</strong> ${venta.plazoMeses != null ? venta.plazoMeses + ' meses' : '—'}</div>`
             : ''}
-          ${(venta.pagos || []).length
-            ? `<div class="col-12"><strong>Forma de pago:</strong> ${venta.pagos.map(p => Utils.esc(p.tipoPagoNombre || '') + ' ' + Utils.formatMonto(p.monto || 0) + (p.referencia ? ' (' + Utils.esc(p.referencia) + ')' : '')).join(' &middot; ')}</div>`
-            : ''}
+          <div class="col-12 mt-2"><strong>Desglose de pagos:</strong>
+            <table class="table table-sm table-custom mb-0 mt-1"><tbody>${desglosePagosHtml}</tbody></table>
+          </div>
           ${motivoHtml}
       <table class="table table-sm table-custom mb-0">
          <thead><tr><th>Producto</th><th>Cant</th><th>P/U</th><th>Subtotal</th><th>Costo</th></tr></thead>
