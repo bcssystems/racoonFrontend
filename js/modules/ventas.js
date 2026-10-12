@@ -1,4 +1,4 @@
-import { printRemisionVenta } from './printing.js';
+import { printRemisionVenta, printComprobanteAbono } from './printing.js';
 
 let state = {
   caja: null,
@@ -86,6 +86,10 @@ function bindEvents() {
   document.getElementById('posCobroModal')?.addEventListener('hidden.bs.modal', () => {
   });
   document.getElementById('btnConfirmarCreditoPOS')?.addEventListener('click', confirmarCreditoPOS);
+  ['posCreditoPeriodicidad', 'posCreditoParcialidades', 'posCreditoInteres', 'posCreditoFechaPrimerPago'].forEach(id => {
+    document.getElementById(id)?.addEventListener('input', actualizarResumenCreditoPOS);
+    document.getElementById(id)?.addEventListener('change', actualizarResumenCreditoPOS);
+  });
   document.getElementById('btnEsperaPOS')?.addEventListener('click', ponerEnEspera);
   document.getElementById('btnNuevoClientePOS')?.addEventListener('click', () => abrirClienteModal());
   document.getElementById('btnGuardarPosCliente')?.addEventListener('click', guardarClienteDesdePOS);
@@ -152,8 +156,26 @@ function bindEvents() {
   }
 
   document.getElementById('posFilterCategoria')?.addEventListener('change', () => buscarProductos());
+  document.getElementById('precioSelector')?.addEventListener('change', () => {
+    actualizarPreciosSeleccionados();
+    buscarProductos(true);
+  });
 
   document.getElementById('posCliente')?.addEventListener('change', onPosClienteChange);
+}
+
+function getPrecioProducto(producto) {
+  const index = parseInt(document.getElementById('precioSelector')?.value) || 1;
+  const precio = index === 1 ? producto?.precioBase : producto?.['precio' + index];
+  return precio != null ? precio : 0;
+}
+
+function actualizarPreciosSeleccionados() {
+  state.cart.forEach(d => {
+    const producto = state.productos.find(p => p.idProducto === d.idProducto);
+    if (producto && d.sku !== 'VR' && d.sku !== 'ENVIO') d.precioUnitario = getPrecioProducto(producto);
+  });
+  renderCart();
 }
 
 async function mostrarSelectorCaja() {
@@ -233,6 +255,7 @@ async function cargarProductosParaVenta() {
   try {
     const data = await API.get('/productos/para-venta?page=0&size=500&sort=sku,ASC&idSucursal=' + state.caja.idSucursal);
     state.productos = data.content || [];
+    actualizarOpcionesPrecio();
   } catch (_) { state.productos = []; }
 }
 
@@ -243,6 +266,8 @@ async function cargarCotizacionDesdeLocalStorage() {
     const quote = JSON.parse(raw);
     localStorage.removeItem('cotizacionParaVenta');
     state.idCotizacionActiva = quote.idCotizacion || null;
+    const precioSelector = document.getElementById('precioSelector');
+    if (precioSelector) precioSelector.value = String(quote.precioSeleccionado || 1);
 
     if (state.cart.length > 0) {
       await ponerEnEspera();
@@ -414,7 +439,7 @@ async function sincronizarCarritoDesdeServidor() {
       nombre: r.productoNombre || (prod ? prod.nombre : 'Producto'),
       sku: r.productoSku || (prod ? prod.sku : ''),
       cantidad: r.cantidad,
-      precioUnitario: prod ? (prod.precioBase || 0) : 0,
+       precioUnitario: prod ? getPrecioProducto(prod) : 0,
     };
   });
 
@@ -461,7 +486,7 @@ function iniciarPollingCaja() {
           nombre: r.productoNombre || (prod ? prod.nombre : 'Producto'),
           sku: r.productoSku || (prod ? prod.sku : ''),
           cantidad: r.cantidad,
-          precioUnitario: prod ? (prod.precioBase || 0) : 0,
+           precioUnitario: prod ? getPrecioProducto(prod) : 0,
         };
       });
       state.cart = [...envioItems, ...nuevosCart];
@@ -563,8 +588,8 @@ function cargarRegimenes(selectId) {
 function actualizarPreciosCart() {
   state.cart.forEach(d => {
     const p = state.productos.find(x => x.idProducto === d.idProducto);
-    if (p && p.precioBase > 0) {
-      d.precioUnitario = p.precioBase;
+    if (p && getPrecioProducto(p) > 0) {
+      d.precioUnitario = getPrecioProducto(p);
     }
   });
   renderCart();
@@ -595,6 +620,7 @@ async function buscarProductos(showAll) {
       : '/productos/para-venta?page=0&size=50&sort=sku,ASC' + filtroStr;
     const data = await API.get(url);
     state.productos = data.content || [];
+    actualizarOpcionesPrecio();
     if (state.productos.length === 0) {
       list.innerHTML = '<div class="pos-product-result-item text-muted">Sin resultados</div>';
     } else {
@@ -608,8 +634,9 @@ async function buscarProductos(showAll) {
         const stock = getStockSucursal(p);
         const sinStock = stock <= 0;
         const reservado = isReservadoPorOtraCaja(p.idProducto);
-        const disabled = reservado || sinStock;
-        const precioMostrar = p.precioBase || 0;
+        const precioMostrar = getPrecioProducto(p);
+        const sinPrecio = precioMostrar <= 0;
+        const disabled = reservado || sinStock || sinPrecio;
         const unidad = (p.unidadMedida || 'UNIDAD').toLowerCase();
         return `<div class="pos-product-result-item ${disabled ? 'text-muted opacity-50' : ''}" data-id="${p.idProducto}" data-sin-stock="${sinStock}">
           <div>
@@ -617,6 +644,7 @@ async function buscarProductos(showAll) {
             <small class="text-muted">SKU: ${Utils.esc(p.sku || '-')}</small>
             ${sinStock ? '<br><small class="badge bg-secondary mt-1"><i class="fas fa-times-circle me-1"></i>Sin stock</small>' : ''}
             ${reservado ? '<br><small class="badge bg-warning text-dark mt-1"><i class="fas fa-lock me-1"></i>En uso en otra caja</small>' : ''}
+            ${sinPrecio ? '<br><small class="badge bg-secondary mt-1"><i class="fas fa-tag me-1"></i>Precio no configurado</small>' : ''}
           </div>
           <div class="text-end">
             <small class="text-muted">${Utils.esc(unidad)} | Stock: ${stock}</small>
@@ -659,7 +687,11 @@ async function agregarAlCart(prodId) {
   const p = state.productos.find(x => x.idProducto === prodId);
   if (!p) return;
 
-  const precio = p.precioBase || 0;
+  const precio = getPrecioProducto(p);
+  if (precio <= 0) {
+    Utils.showToast('El precio seleccionado no está configurado para este producto', 'warning');
+    return;
+  }
 
   const stockSuc = getStockSucursal(p);
   if (stockSuc <= 0) {
@@ -1148,8 +1180,10 @@ async function confirmarCobro() {
     total: total,
     nota: nota,
     detalles: state.cart.map(d => ({
-      idProducto: d.sku === 'ENVIO' ? null : d.idProducto,
+      idProducto: d.sku === 'ENVIO' || d.sku === 'VR' ? null : d.idProducto,
       descripcion: d.sku === 'ENVIO' || d.sku === 'VR' ? (d.descripcion || d.nombre) : null,
+      tipoDetalle: d.sku === 'VR' ? 'RAPIDO' : (d.sku === 'ENVIO' ? 'ENVIO' : 'PRODUCTO'),
+      idItemRapido: d.sku === 'VR' ? d._idRapido : null,
       cantidad: d.cantidad,
       precioUnitario: d.precioUnitario,
       subtotal: d.cantidad * d.precioUnitario,
@@ -1201,8 +1235,31 @@ async function pedirConfirmarCredito(total, subtotal, clienteId, nota, pagos, mo
   document.getElementById('posCreditoTotal').textContent = Utils.formatMonto(montoCredito);
   document.getElementById('posCreditoClienteName').textContent = (cliente ? (cliente.nombre || '') + ' ' + (cliente.apellidoPaterno || '') : '');
   document.getElementById('posCreditoMontoOriginal').textContent = Utils.formatMonto(montoCredito);
+  document.getElementById('posCreditoPeriodicidad').value = 'MENSUAL';
+  document.getElementById('posCreditoParcialidades').value = '1';
+  document.getElementById('posCreditoInteres').value = '0';
+  const fecha = new Date();
+  fecha.setMonth(fecha.getMonth() + 1);
+  document.getElementById('posCreditoFechaPrimerPago').value = fecha.toISOString().slice(0, 10);
+  actualizarResumenCreditoPOS();
   bootstrap.Modal.getInstance(document.getElementById('posCobroModal'))?.hide();
   new bootstrap.Modal(document.getElementById('posCreditoModal')).show();
+}
+
+function actualizarResumenCreditoPOS() {
+  const monto = Utils.parseMonto(document.getElementById('posCreditoMontoOriginal')?.textContent || '0');
+  const periodicidad = document.getElementById('posCreditoPeriodicidad')?.value || 'MENSUAL';
+  const cantidad = parseInt(document.getElementById('posCreditoParcialidades')?.value) || 1;
+  const tasa = parseFloat(document.getElementById('posCreditoInteres')?.value) || 0;
+  const meses = periodicidad === 'QUINCENAL' ? cantidad / 2 : periodicidad === 'SEMANAL' ? cantidad / 4 : cantidad;
+  const interes = monto * tasa / 100 * meses;
+  const total = monto + interes;
+  const parcialidad = total / cantidad;
+  const el = document.getElementById('posCreditoResumenPlan');
+  if (el) el.innerHTML = '<div><strong>Capital:</strong> ' + Utils.formatMonto(monto) + '</div>' +
+    '<div><strong>Inter&eacute;s total:</strong> ' + Utils.formatMonto(interes) + '</div>' +
+    '<div><strong>Total a pagar:</strong> ' + Utils.formatMonto(total) + '</div>' +
+    '<div><strong>Parcialidad:</strong> ' + Utils.formatMonto(parcialidad) + ' x ' + cantidad + '</div>';
 }
 
 async function confirmarCreditoPOS() {
@@ -1218,8 +1275,12 @@ async function confirmarCreditoPOS() {
   const subtotal = Utils.parseMonto(document.getElementById('posSubtotal').textContent);
   const clienteId = parseInt(document.getElementById('posCliente').value) || null;
   const nota = document.getElementById('posCobroNota').value.trim() || null;
-  const plazoMeses = 1;
-  const porcentajeInteres = 0;
+  const periodicidad = document.getElementById('posCreditoPeriodicidad').value || 'MENSUAL';
+  const numeroParcialidades = parseInt(document.getElementById('posCreditoParcialidades').value) || 1;
+  const porcentajeInteres = parseFloat(document.getElementById('posCreditoInteres').value) || 0;
+  const fechaPrimerPago = document.getElementById('posCreditoFechaPrimerPago').value || null;
+  const plazoMeses = periodicidad === 'QUINCENAL' ? Math.ceil(numeroParcialidades / 2)
+    : periodicidad === 'SEMANAL' ? Math.ceil(numeroParcialidades / 4) : numeroParcialidades;
 
   const request = {
     idCaja: state.caja.idCaja,
@@ -1232,9 +1293,14 @@ async function confirmarCreditoPOS() {
     nota: nota,
     plazoMeses: plazoMeses,
     porcentajeInteres: porcentajeInteres,
+    periodicidad: periodicidad,
+    numeroParcialidades: numeroParcialidades,
+    fechaPrimerPago: fechaPrimerPago,
     detalles: state.cart.map(d => ({
-      idProducto: d.sku === 'ENVIO' ? null : d.idProducto,
+      idProducto: d.sku === 'ENVIO' || d.sku === 'VR' ? null : d.idProducto,
       descripcion: d.sku === 'ENVIO' || d.sku === 'VR' ? (d.descripcion || d.nombre) : null,
+      tipoDetalle: d.sku === 'VR' ? 'RAPIDO' : (d.sku === 'ENVIO' ? 'ENVIO' : 'PRODUCTO'),
+      idItemRapido: d.sku === 'VR' ? d._idRapido : null,
       cantidad: d.cantidad,
       precioUnitario: d.precioUnitario,
       subtotal: d.cantidad * d.precioUnitario,
@@ -1546,15 +1612,20 @@ async function confirmarAbonoPOS() {
   if (pagos.length === 0 || monto <= 0) { Utils.showToast('Registra al menos una forma de pago con monto', 'warning'); return; }
 
   try {
+    let resultadoAbono;
     if (idCredito === -1 || idCredito === 0) {
-      await API.post('/creditos/abonos/general', { idCliente: idCliente, monto: monto, pagos: pagos, idCaja: state.caja.idCaja });
+      resultadoAbono = await API.post('/creditos/abonos/general', { idCliente: idCliente, monto: monto, pagos: pagos, idCaja: state.caja.idCaja });
     } else {
-      await API.post('/creditos/abonos', { idCredito: idCredito, monto: monto, tipo: 'PARCIAL', pagos: pagos, idCaja: state.caja.idCaja });
+      resultadoAbono = await API.post('/creditos/abonos', { idCredito: idCredito, monto: monto, tipo: 'PARCIAL', pagos: pagos, idCaja: state.caja.idCaja });
     }
     Utils.showToast('Abono registrado e ingreso a caja', 'success');
     bootstrap.Modal.getInstance(document.getElementById('abonoPOSModal'))?.hide();
     await refreshCaja();
     await cargarClientesSelect('posCliente');
+    printComprobanteAbono(resultadoAbono, {
+      clienteNombre: document.getElementById('abonoPOSClienteName')?.textContent || 'Cliente',
+      cajaNombre: state.caja?.nombre || '',
+    });
   } catch (err) { Utils.showToast(err.message, 'error'); }
 }
 
@@ -2103,6 +2174,16 @@ async function abandonarCaja() {
   state.reanudandoVentaId = null;
   state.esperaVentas = [];
   mostrarSelectorCaja();
+}
+
+function actualizarOpcionesPrecio() {
+  const selector = document.getElementById('precioSelector');
+  if (!selector) return;
+  [...selector.options].forEach(option => {
+    const index = parseInt(option.value);
+    option.disabled = index > 1 && !state.productos.some(p => p['precio' + index] != null && p['precio' + index] > 0);
+  });
+  if (selector.selectedOptions[0]?.disabled) selector.value = '1';
 }
 
 function abrirClienteModal() {

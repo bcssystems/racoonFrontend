@@ -35,6 +35,10 @@ function bindEvents() {
     buscarProductos(true);
   });
   document.getElementById('cotFilterCategoria')?.addEventListener('change', () => buscarProductos());
+  document.getElementById('cotPrecioSelector')?.addEventListener('change', () => {
+    actualizarPreciosCart();
+    buscarProductos(true);
+  });
   document.getElementById('cotCobraEnvio')?.addEventListener('change', (e) => {
     document.getElementById('cotMontoEnvioWrapper')?.classList.toggle('d-none', !e.target.checked);
     actualizarTotalesCotizacion();
@@ -55,6 +59,8 @@ function bindEvents() {
   });
   document.getElementById('cotCreditoPlazo')?.addEventListener('change', actualizarResumenCredito);
   document.getElementById('cotCreditoInteres')?.addEventListener('input', actualizarResumenCredito);
+  document.getElementById('cotCreditoPlazo')?.addEventListener('input', actualizarResumenCredito);
+  document.getElementById('cotCreditoPeriodicidad')?.addEventListener('change', actualizarResumenCredito);
   document.addEventListener('click', (e) => {
     const results = document.getElementById('cotProductResults');
     if (results && !e.target.closest('.cot-product-search-area')) {
@@ -63,11 +69,29 @@ function bindEvents() {
   });
 }
 
+function getPrecioSeleccionado(producto) {
+  const index = parseInt(document.getElementById('cotPrecioSelector')?.value) || 1;
+  const precio = index === 1 ? producto?.precioBase : producto?.['precio' + index];
+  return precio != null ? precio : 0;
+}
+
+function actualizarOpcionesPrecio() {
+  const selector = document.getElementById('cotPrecioSelector');
+  if (!selector) return;
+  [...selector.options].forEach(option => {
+    const index = parseInt(option.value);
+    option.disabled = index > 1 && !state.productos.some(p => p['precio' + index] != null && p['precio' + index] > 0);
+  });
+  if (selector.selectedOptions[0]?.disabled) selector.value = '1';
+}
+
 function toggleCreditoFields() {
   const tipo = document.querySelector('input[name="cotTipoVenta"]:checked')?.value || 'CONTADO';
   const isCredito = tipo === 'CREDITO';
   document.getElementById('cotCreditoPlazoWrapper')?.classList.toggle('d-none', !isCredito);
   document.getElementById('cotCreditoInteresWrapper')?.classList.toggle('d-none', !isCredito);
+  document.getElementById('cotCreditoPeriodicidadWrapper')?.classList.toggle('d-none', !isCredito);
+  document.getElementById('cotCreditoFechaWrapper')?.classList.toggle('d-none', !isCredito);
   document.getElementById('cotCreditoResumenWrapper')?.classList.toggle('d-none', !isCredito);
   if (isCredito) actualizarResumenCredito();
 }
@@ -79,12 +103,16 @@ function actualizarResumenCredito() {
   const base = subtotal + montoEnvio;
   const interes = parseFloat(document.getElementById('cotCreditoInteres')?.value) || 0;
   const plazo = parseInt(document.getElementById('cotCreditoPlazo')?.value) || 1;
-  const totalConInteres = base + (base * interes / 100);
-  const pagoMensual = totalConInteres / plazo;
+  const periodicidad = document.getElementById('cotCreditoPeriodicidad')?.value || 'MENSUAL';
+  const meses = periodicidad === 'QUINCENAL' ? plazo / 2 : periodicidad === 'SEMANAL' ? plazo / 4 : plazo;
+  const interesTotal = subtotal * interes / 100 * meses;
+  const interesSobreTotal = base * interes / 100 * meses;
+  const totalPlano = base + interesSobreTotal;
+  const pagoMensual = totalPlano / plazo;
   const montoEl = document.getElementById('cotCreditoMontoTotal');
   const pagoEl = document.getElementById('cotCreditoPagoMensual');
-  if (montoEl) montoEl.textContent = Utils.formatMonto(totalConInteres);
-  if (pagoEl) pagoEl.textContent = Utils.formatMonto(pagoMensual) + ' x ' + plazo + ' meses';
+  if (montoEl) montoEl.textContent = Utils.formatMonto(totalPlano);
+  if (pagoEl) pagoEl.textContent = Utils.formatMonto(pagoMensual) + ' x ' + plazo + ' ' + periodicidad.toLowerCase();
 }
 
 function getStockSucursal(producto) {
@@ -226,6 +254,7 @@ async function abrirModalNueva() {
   document.getElementById('cotizacionModalTitle').textContent = 'Nueva Cotizaci\u00f3n';
   document.getElementById('cotDiasVigencia').value = '15';
   document.getElementById('cotPaqueteria').value = '';
+  document.getElementById('cotPrecioSelector').value = '1';
   document.getElementById('cotCobraEnvio').checked = false;
   document.getElementById('cotMontoEnvio').value = '0';
   document.getElementById('cotMontoEnvioWrapper')?.classList.add('d-none');
@@ -235,6 +264,10 @@ async function abrirModalNueva() {
   document.getElementById('cotTipoContado').checked = true;
   document.getElementById('cotTipoCredito').checked = false;
   document.getElementById('cotCreditoPlazo').value = '3';
+  document.getElementById('cotCreditoPeriodicidad').value = 'MENSUAL';
+  const fechaNueva = new Date();
+  fechaNueva.setMonth(fechaNueva.getMonth() + 1);
+  document.getElementById('cotCreditoFechaPrimerPago').value = fechaNueva.toISOString().slice(0, 10);
   document.getElementById('cotCreditoInteres').value = '0';
   toggleCreditoFields();
   renderCart();
@@ -255,6 +288,7 @@ async function abrirModalEditar(id) {
     if (sucSel) sucSel.value = '';
     document.getElementById('cotDiasVigencia').value = c.diasVigencia != null ? c.diasVigencia : '15';
     document.getElementById('cotPaqueteria').value = c.paqueteria || '';
+    document.getElementById('cotPrecioSelector').value = String(c.precioSeleccionado || 1);
     document.getElementById('cotCobraEnvio').checked = !!c.cobraEnvio;
     document.getElementById('cotMontoEnvio').value = c.montoEnvio != null ? c.montoEnvio : '0';
     document.getElementById('cotMontoEnvioWrapper')?.classList.toggle('d-none', !c.cobraEnvio);
@@ -267,6 +301,8 @@ async function abrirModalEditar(id) {
     document.getElementById('cotTipoContado').checked = !isCredito;
     document.getElementById('cotTipoCredito').checked = isCredito;
     document.getElementById('cotCreditoPlazo').value = c.plazoMeses != null ? c.plazoMeses : '3';
+    document.getElementById('cotCreditoPeriodicidad').value = c.periodicidad || 'MENSUAL';
+    document.getElementById('cotCreditoFechaPrimerPago').value = c.fechaPrimerPago || '';
     document.getElementById('cotCreditoInteres').value = c.porcentajeInteres != null ? c.porcentajeInteres : '0';
     toggleCreditoFields();
 
@@ -309,6 +345,7 @@ async function buscarProductos(showAll) {
       : '/productos/para-venta?page=0&size=50&sort=sku,ASC' + filtroStr;
     const data = await API.get(url);
     state.productos = data.content || [];
+    actualizarOpcionesPrecio();
     if (state.productos.length === 0) {
       list.innerHTML = '<div class="pos-product-result-item text-muted">Sin resultados</div>';
     } else {
@@ -319,15 +356,17 @@ async function buscarProductos(showAll) {
       });
 
       list.innerHTML = sorted.map(p => {
-        const precio = p.precioBase || 0;
+        const precio = getPrecioSeleccionado(p);
         const stock = getStockSucursal(p);
         const sinStock = stock <= 0;
-        const disabled = sinStock;
+        const sinPrecio = precio <= 0;
+        const disabled = sinStock || sinPrecio;
         return '<div class="pos-product-result-item ' + (disabled ? 'text-muted opacity-50' : '') + '" data-id="' + p.idProducto + '">' +
           '<div>' +
             '<div class="fw-semibold small">' + Utils.esc(p.nombre) + '</div>' +
             '<small class="text-muted">SKU: ' + Utils.esc(p.sku || '-') + ' | ' + Utils.formatMonto(precio) + ' | Stock: ' + stock + '</small>' +
-            (sinStock ? '<br><small class="badge bg-secondary mt-1"><i class="fas fa-times-circle me-1"></i>Sin stock</small>' : '') +
+             (sinStock ? '<br><small class="badge bg-secondary mt-1"><i class="fas fa-times-circle me-1"></i>Sin stock</small>' : '') +
+             (sinPrecio ? '<br><small class="badge bg-secondary mt-1"><i class="fas fa-tag me-1"></i>Precio no configurado</small>' : '') +
           '</div>' +
           '<div class="text-end">' +
             '<button class="btn btn-sm ' + (disabled ? 'btn-secondary' : 'btn-success') + ' pos-add-cart" data-id="' + p.idProducto + '" style="font-size:0.7rem" ' + (disabled ? 'disabled' : '') + '>' +
@@ -369,7 +408,11 @@ function agregarAlCart(prodId) {
     return;
   }
 
-  const precio = p.precioBase || 0;
+  const precio = getPrecioSeleccionado(p);
+  if (precio <= 0) {
+    Utils.showToast('El precio seleccionado no está configurado para este producto', 'warning');
+    return;
+  }
 
   const existente = state.cart.find(d => d.idProducto === prodId);
   if (existente) {
@@ -461,8 +504,8 @@ function renderCart() {
 function actualizarPreciosCart() {
   state.cart.forEach(d => {
     const p = state.productos.find(x => x.idProducto === d.idProducto);
-    if (p && p.precioBase > 0) {
-      d.precioUnitario = p.precioBase;
+    if (p && getPrecioSeleccionado(p) > 0) {
+      d.precioUnitario = getPrecioSeleccionado(p);
     }
   });
   renderCart();
@@ -503,10 +546,13 @@ async function guardarCotizacion() {
   const paqueteria = document.getElementById('cotPaqueteria')?.value?.trim() || null;
   const cobraEnvio = document.getElementById('cotCobraEnvio')?.checked || false;
   const montoEnvio = cobraEnvio ? (parseFloat(document.getElementById('cotMontoEnvio')?.value) || 0) : null;
-  const precioSeleccionado = 1;
+  const precioSeleccionado = parseInt(document.getElementById('cotPrecioSelector')?.value) || 1;
   const tipoVenta = document.querySelector('input[name="cotTipoVenta"]:checked')?.value || 'CONTADO';
   const plazoMeses = tipoVenta === 'CREDITO' ? (parseInt(document.getElementById('cotCreditoPlazo')?.value) || null) : null;
   const porcentajeInteres = tipoVenta === 'CREDITO' ? (parseFloat(document.getElementById('cotCreditoInteres')?.value) || 0) : null;
+  const periodicidad = tipoVenta === 'CREDITO' ? (document.getElementById('cotCreditoPeriodicidad')?.value || 'MENSUAL') : null;
+  const numeroParcialidades = plazoMeses;
+  const fechaPrimerPago = tipoVenta === 'CREDITO' ? (document.getElementById('cotCreditoFechaPrimerPago')?.value || null) : null;
   const nota = document.getElementById('cotNota')?.value?.trim() || null;
 
   const detalles = state.cart.map(d => ({
@@ -525,7 +571,10 @@ async function guardarCotizacion() {
       diasVigencia,
       tipoVenta,
       plazoMeses,
-      porcentajeInteres,
+       porcentajeInteres,
+       periodicidad,
+       numeroParcialidades,
+       fechaPrimerPago,
       nota,
       detalles,
     };
@@ -572,19 +621,22 @@ async function verDetalle(id) {
       envioHtml +
       '<div class="col-md-4"><small class="text-muted">D\u00edas Vigencia</small><div>' + c.diasVigencia + '</div></div>' +
       '<div class="col-md-4"><small class="text-muted">Expira</small><div>' + (c.fechaExpiracion ? new Date(c.fechaExpiracion).toLocaleDateString('es-MX') : '-') + '</div></div>' +
-      '<div class="col-md-4"><small class="text-muted">Precio</small><div>Precio base</div></div>' +
+       '<div class="col-md-4"><small class="text-muted">Precio</small><div>' + (c.precioSeleccionado === 1 ? 'Precio p&uacute;blico' : 'Precio ' + c.precioSeleccionado) + '</div></div>' +
       '<div class="col-md-4"><small class="text-muted">Estado</small><div>' + getEstadoBadge(c.estado) + '</div></div>' +
       '<div class="col-md-4"><small class="text-muted">Tipo Venta</small><div>' + tipoBadge + '</div></div>';
 
     if (tipoVenta === 'CREDITO') {
       const plazo = c.plazoMeses || '-';
       const interes = c.porcentajeInteres || 0;
-      const totalConInteres = c.total + (c.total * interes / 100);
-      const pagoMensual = totalConInteres / (c.plazoMeses || 1);
+      const parcialidades = c.numeroParcialidades || c.plazoMeses || 1;
+      const meses = c.periodicidad === 'QUINCENAL' ? parcialidades / 2 : c.periodicidad === 'SEMANAL' ? parcialidades / 4 : parcialidades;
+      const interesTotal = c.total * interes / 100 * meses;
+      const totalConInteres = c.total + interesTotal;
+      const pagoMensual = totalConInteres / parcialidades;
       html += '<div class="col-md-4"><small class="text-muted">Plazo</small><div>' + plazo + ' meses</div></div>' +
         '<div class="col-md-4"><small class="text-muted">Inter\u00e9s</small><div>' + interes + '%</div></div>' +
         '<div class="col-md-4"><small class="text-muted">Total c/inter\u00e9s</small><div class="fw-bold text-info">' + Utils.formatMonto(totalConInteres) + '</div></div>' +
-        '<div class="col-md-4"><small class="text-muted">Pago mensual</small><div class="fw-bold">' + Utils.formatMonto(pagoMensual) + '</div></div>';
+         '<div class="col-md-4"><small class="text-muted">Pago ' + (c.periodicidad || 'MENSUAL').toLowerCase() + '</small><div class="fw-bold">' + Utils.formatMonto(pagoMensual) + ' x ' + parcialidades + '</div></div>';
     }
 
     html += '</div>';
@@ -632,6 +684,9 @@ function irACaja(id) {
     tipoVenta: cotizacion.tipoVenta || 'CONTADO',
     plazoMeses: cotizacion.plazoMeses || null,
     porcentajeInteres: cotizacion.porcentajeInteres || 0,
+    periodicidad: cotizacion.periodicidad || 'MENSUAL',
+    numeroParcialidades: cotizacion.numeroParcialidades || cotizacion.plazoMeses || 1,
+    fechaPrimerPago: cotizacion.fechaPrimerPago || null,
     detalles: cotizacion.detalles,
   };
 

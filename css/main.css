@@ -943,6 +943,12 @@ body {
   }
 }
 
+@media (max-width: 575.98px) {
+  .productos-filter-selects {
+    flex-direction: column;
+  }
+}
+
 /* ------- Widget captura INE ------- */
 .ine-cam-wrap {
   position: relative;

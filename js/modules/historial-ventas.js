@@ -87,6 +87,7 @@ function limpiar() {
   document.getElementById('filterSucursal').value = '';
   document.getElementById('filterCaja').innerHTML = '<option value="">Todas</option>';
   document.getElementById('filterEstado').value = '';
+  document.getElementById('filterTipoDetalle').value = '';
   const today = fechaLocalHoy();
   document.getElementById('filterDesde').value = today;
   document.getElementById('filterHasta').value = today;
@@ -108,12 +109,14 @@ async function buscar(page) {
   const idSucursal = parseInt(document.getElementById('filterSucursal').value);
   const idCaja = parseInt(document.getElementById('filterCaja').value);
   const estado = document.getElementById('filterEstado').value;
+  const tipoDetalle = document.getElementById('filterTipoDetalle').value;
   const desde = document.getElementById('filterDesde').value;
   const hasta = document.getElementById('filterHasta').value;
 
   if (idSucursal) params.set('idSucursal', idSucursal);
   if (idCaja) params.set('idCaja', idCaja);
   if (estado) params.set('estado', estado);
+  if (tipoDetalle) params.set('tipoDetalle', tipoDetalle);
   if (desde) params.set('fechaInicio', desde + 'T00:00:00');
   if (hasta) params.set('fechaFin', hasta + 'T23:59:59');
 
@@ -144,11 +147,12 @@ async function buscar(page) {
           <button type="button" class="btn-kebab-toggle kebab-trigger" data-venta="${v.idVenta}" data-estado="${v.estado}" title="Acciones"><i class="fas fa-ellipsis-v"></i></button>`;
 
         const costo = (v.costoTotal != null ? v.costoTotal : (v.detalles || []).reduce((s, d) => s + (d.costoVenta || d.precioCompra || 0) * (d.cantidad || 0), 0));
+        const tieneRapidos = (v.detalles || []).some(d => d.tipoDetalle === 'RAPIDO');
         return `<tr class="${v.estado === 'CANCELADA' ? 'text-muted' : ''}">
           <td>${v.idVenta}</td>
           <td>${Utils.esc(v.sucursalNombre || '')}</td>
           <td>${Utils.esc(v.cajaNombre || '')}</td>
-          <td>${v.clienteNombre ? Utils.esc(v.clienteNombre) : 'Mostrador'}</td>
+           <td>${v.clienteNombre ? Utils.esc(v.clienteNombre) : 'Mostrador'}${tieneRapidos ? '<br><span class="badge bg-info text-dark">Producto rápido</span>' : ''}</td>
            <td class="fw-semibold">${Utils.formatMonto(v.total || 0)}</td>
            <td>${Utils.formatMonto(costo)}</td>
           <td><span class="badge ${estadoBadge}">${v.estado}</span></td>
@@ -260,7 +264,7 @@ async function verDetalle(id) {
       const detallesHtml = (venta.detalles || []).map(d => {
       const unidad = (d.unidadMedida || 'UNIDAD').toLowerCase();
       return `<tr>
-        <td>${d.productoNombre ? Utils.esc(d.productoNombre) : Utils.esc(d.descripcion || '')}</td>
+        <td>${d.tipoDetalle === 'RAPIDO' ? '<span class="badge bg-info text-dark me-1">Rápido</span>' : ''}${d.productoNombre ? Utils.esc(d.productoNombre) : Utils.esc(d.descripcion || '')}</td>
         <td class="center">${d.cantidad} ${Utils.esc(unidad)}</td>
         <td class="right">${Utils.formatMonto(d.precioUnitario || 0)}</td>
         <td class="right">${Utils.formatMonto(d.subtotal || 0)}</td><td class="right">${Utils.formatMonto((d.costoVenta || d.precioCompra || 0) * (d.cantidad || 0))}</td>
@@ -275,7 +279,7 @@ async function verDetalle(id) {
     const desglosePagosHtml = desglosePagos.pagos.length
       ? desglosePagos.pagos.map(p => `<tr><td>${Utils.esc(p.label)}${p.referencia ? ' (' + Utils.esc(p.referencia) + ')' : ''}</td><td class="text-end">${Utils.formatMonto(p.monto)}</td></tr>`).join('')
         + (venta.tipoVenta === 'CREDITO' && (venta.porcentajeInteres || 0) > 0
-          ? `<tr><td>Interés ${(venta.porcentajeInteres || 0)}%</td><td class="text-end">${Utils.formatMonto(desglosePagos.montoCredito * (venta.porcentajeInteres || 0) / 100)}</td></tr>`
+           ? `<tr><td>Interés mensual ${(venta.porcentajeInteres || 0)}%</td><td class="text-end">${Utils.formatMonto(venta.interesTotal != null ? venta.interesTotal : desglosePagos.montoCredito * (venta.porcentajeInteres || 0) / 100)}</td></tr>`
           : '')
       : '<tr><td colspan="2" class="text-muted">Sin pagos registrados</td></tr>';
 
@@ -295,7 +299,7 @@ async function verDetalle(id) {
           ${venta.tipoVenta === 'CREDITO'
             ? `<div class="col-4"><strong>Pagar\u00e9:</strong> ${Utils.esc(venta.folioPagare || '—')}</div>
                <div class="col-4"><strong>Inter\u00e9s:</strong> ${venta.porcentajeInteres || 0}%</div>
-               <div class="col-4"><strong>Plazo:</strong> ${venta.plazoMeses != null ? venta.plazoMeses + ' meses' : '—'}</div>`
+                <div class="col-4"><strong>Plan:</strong> ${(venta.periodicidad || 'MENSUAL')} x ${venta.numeroParcialidades || venta.plazoMeses || '—'}</div>
             : ''}
           <div class="col-12 mt-2"><strong>Desglose de pagos:</strong>
             <table class="table table-sm table-custom mb-0 mt-1"><tbody>${desglosePagosHtml}</tbody></table>

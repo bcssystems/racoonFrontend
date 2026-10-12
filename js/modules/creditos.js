@@ -1,4 +1,4 @@
-import { printRemisionVenta, printEstadoCuenta, descargarEstadoCuentaPdf } from './printing.js';
+import { printRemisionVenta, printEstadoCuenta, descargarEstadoCuentaPdf, printComprobanteAbono } from './printing.js';
 
 let state = {
   clientes: [],
@@ -234,14 +234,16 @@ function renderCreditos() {
     return `<tr>
       <td>${c.idCredito}</td>
       <td>#${c.folioVenta || c.idVenta}</td>
-      <td class="text-end">${Utils.formatMonto(c.montoOriginal || 0)}</td>
+      <td class="text-end">${Utils.formatMonto(c.montoOriginal || 0)}<small class="d-block text-muted">Capital: ${Utils.formatMonto(c.capitalFinanciado != null ? c.capitalFinanciado : c.montoOriginal || 0)}<br>Interés: ${Utils.formatMonto(c.interesTotal || 0)}</small></td>
       <td class="text-end fw-semibold">${Utils.formatMonto(c.saldoPendiente || 0)}</td>
       <td style="font-size:0.85rem">${c.fechaVencimiento ? new Date(c.fechaVencimiento).toLocaleDateString() : '-'}</td>
       <td><span class="badge ${estadoBadge}">${c.estado}</span></td>
       <td>
         <button class="btn-action" style="color:var(--primary)" data-id="${c.idCredito}" data-action="reprint" title="Reimprimir venta"><i class="fas fa-print"></i></button>
+        <button class="btn-action" style="color:var(--info)" data-id="${c.idCredito}" data-action="parcialidades" title="Ver parcialidades"><i class="fas fa-calendar-alt"></i></button>
         <button class="btn-action" style="color:var(--info)" data-id="${c.idCredito}" data-action="ver-nota" title="Ver nota de la venta"><i class="fas fa-sticky-note"></i></button>
         ${abonoBtn}
+        ${Utils.hasPermiso('CREDITOS_CONDONAR_INTERES') && (c.saldoInteres || 0) > 0 ? '<button class="btn-action" style="color:var(--warning)" data-id="' + c.idCredito + '" data-action="condonar" title="Condonar intereses"><i class="fas fa-hand-holding-dollar"></i></button>' : ''}
       </td>
     </tr>`;
   }).join('');
@@ -260,7 +262,39 @@ function handleCreditoClick(e) {
   }
   const accion = e.target.closest('[data-action]')?.dataset?.action;
   if (accion === 'reprint') reimprimirVenta(credito.idVenta || credito.folioVenta);
+  else if (accion === 'parcialidades') verParcialidades(credito);
+  else if (accion === 'condonar') condonarIntereses(credito);
   else if (accion === 'ver-nota') verNotaVenta(credito);
+}
+
+async function verParcialidades(credito) {
+  try {
+    const parcialidades = await API.get('/creditos/' + credito.idCredito + '/parcialidades');
+    const filas = (parcialidades || []).map(p => '<tr>' +
+      '<td>' + p.numero + '</td>' +
+      '<td>' + (p.fechaVencimiento ? new Date(p.fechaVencimiento).toLocaleDateString() : '-') + '</td>' +
+      '<td class="text-end">' + Utils.formatMonto(p.capitalProgramado || 0) + '</td>' +
+      '<td class="text-end">' + Utils.formatMonto(p.interesProgramado || 0) + '</td>' +
+      '<td class="text-end">' + Utils.formatMonto((p.capitalProgramado || 0) + (p.interesProgramado || 0)) + '</td>' +
+      '<td><span class="badge ' + (p.estado === 'PAGADA' ? 'bg-success' : 'bg-warning text-dark') + '">' + p.estado + '</span></td>' +
+      '</tr>').join('');
+    Utils.showDialog('Parcialidades del crédito #' + credito.idCredito,
+      '<div class="small mb-2">Interés mensual: <strong>' + (credito.porcentajeInteres || 0) + '%</strong> | Saldo de interés: <strong>' + Utils.formatMonto(credito.saldoInteres || 0) + '</strong></div>' +
+      '<div class="table-responsive"><table class="table table-sm"><thead><tr><th>#</th><th>Fecha</th><th class="text-end">Capital</th><th class="text-end">Interés</th><th class="text-end">Total</th><th>Estado</th></tr></thead><tbody>' + (filas || '<tr><td colspan="6">Sin parcialidades</td></tr>') + '</tbody></table></div>');
+  } catch (err) { Utils.showToast(err.message, 'error'); }
+}
+
+async function condonarIntereses(credito) {
+  const monto = await Utils.promptInput('Condonar intereses', 'Monto máximo: ' + Utils.formatMonto(credito.saldoInteres || 0), '0');
+  if (monto === null) return;
+  const motivo = await Utils.promptInput('Motivo de condonación', 'Escribe el motivo', 'Atención al cliente');
+  if (motivo === null || !motivo.trim()) return;
+  try {
+    await API.post('/creditos/' + credito.idCredito + '/condonar-intereses', { monto: parseFloat(monto), motivo: motivo.trim() });
+    Utils.showToast('Intereses condonados', 'success');
+    await cargarCreditosCliente(state.selectedClienteId);
+    await cargarMovimientosCliente(state.selectedClienteId);
+  } catch (err) { Utils.showToast(err.message, 'error'); }
 }
 
 async function cargarMovimientosCliente(id) {
@@ -310,7 +344,9 @@ function renderMovimientos() {
       <td style="font-size:0.8rem">${Utils.esc(venta)}</td>
       <td style="font-size:0.8rem">${m.fecha ? new Date(m.fecha).toLocaleString() : '-'}</td>
       <td><span class="${tipoClass} fw-semibold">${tipoLabel}</span></td>
-      <td class="text-end ${tipoClass}">${Utils.formatMonto(m.monto || 0)}</td>
+       <td class="text-end ${tipoClass}">${Utils.formatMonto(m.monto || 0)}</td>
+       <td class="text-end">${Utils.formatMonto(m.interesAplicado || 0)}</td>
+       <td class="text-end">${Utils.formatMonto(m.capitalAplicado || 0)}</td>
       <td><span class="badge ${estado.cls}">${estado.text}</span></td>
       <td class="text-end">${Utils.formatMonto(m.saldoNuevo || 0)}</td>
     </tr>`;
@@ -471,7 +507,7 @@ async function confirmarAbono() {
   }
 
   try {
-    await API.post('/creditos/abonos', { idCredito, monto, tipo, idTipoPago });
+    const abono = await API.post('/creditos/abonos', { idCredito, monto, tipo, idTipoPago });
     Utils.showToast('Abono registrado exitosamente', 'success');
     bootstrap.Modal.getInstance(document.getElementById('abonoModal'))?.hide();
     await Promise.all([
@@ -479,6 +515,8 @@ async function confirmarAbono() {
       cargarMovimientosCliente(state.selectedClienteId),
     ]);
     cargarClientesCredito();
+    const cliente = state.clientes.find(c => c.idCliente === state.selectedClienteId);
+    printComprobanteAbono(abono, { clienteNombre: cliente ? [cliente.nombre, cliente.apellidoPaterno].filter(Boolean).join(' ') : null });
   } catch (err) { Utils.showToast(err.message, 'error'); }
 }
 
@@ -510,7 +548,7 @@ async function confirmarAbonoGeneral() {
   }
 
   try {
-    await API.post('/creditos/abonos/general', { idCliente: state.selectedClienteId, monto, idTipoPago });
+    const abonos = await API.post('/creditos/abonos/general', { idCliente: state.selectedClienteId, monto, idTipoPago });
     Utils.showToast('Abono general registrado', 'success');
     bootstrap.Modal.getInstance(document.getElementById('abonoGeneralModal'))?.hide();
     await Promise.all([
@@ -518,5 +556,7 @@ async function confirmarAbonoGeneral() {
       cargarMovimientosCliente(state.selectedClienteId),
     ]);
     cargarClientesCredito();
+    const cliente = state.clientes.find(c => c.idCliente === state.selectedClienteId);
+    printComprobanteAbono(abonos, { clienteNombre: cliente ? [cliente.nombre, cliente.apellidoPaterno].filter(Boolean).join(' ') : null });
   } catch (err) { Utils.showToast(err.message, 'error'); }
 }

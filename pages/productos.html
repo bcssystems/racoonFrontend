@@ -35,13 +35,15 @@
       <span class="input-group-text"><i class="fas fa-search"></i></span>
       <input type="text" class="form-control" id="searchProducto" placeholder="Buscar por SKU o nombre...">
     </div>
-    <div class="d-flex gap-2 flex-wrap align-items-center">
-      <select class="form-select" id="filterCategoria" style="width:auto;min-width:160px;max-width:200px">
+    <div class="productos-filter-selects d-flex gap-2 w-100">
+      <select class="form-select flex-fill" id="filterCategoria">
         <option value="">Todas las categor&iacute;as</option>
       </select>
-      <select class="form-select sucursal-select" id="filterSucursal" style="width:auto;min-width:180px;max-width:220px">
+      <select class="form-select sucursal-select flex-fill" id="filterSucursal">
         <option value="">Todas las sucursales</option>
       </select>
+    </div>
+    <div class="productos-filter-actions d-flex gap-2 flex-wrap align-items-center w-100">
       <button class="btn btn-outline-secondary btn-sm text-nowrap" id="btnToggleInactivos">
         <i class="fas fa-eye me-1"></i> Mostrar inactivos
       </button>
@@ -83,7 +85,7 @@
         <span class="th-nombre">Nombre</span>
         <span class="th-unidad">Unidad</span>
         <span class="th-stock">Stock</span>
-        <span class="th-precio">Precio</span>
+        <span class="th-precio">Precio p&uacute;blico</span>
         <span class="th-estado">Estado</span>
         <span class="th-acciones"></span>
       </div>
@@ -119,15 +121,27 @@
               <label class="form-label">Descripci&oacute;n</label>
               <textarea class="form-control" id="productoDescripcion" rows="2" maxlength="2000"></textarea>
             </div>
-            <div class="col-md-4">
-              <label class="form-label">Precio base <span class="text-danger">*</span></label>
+            <div class="col-md-3">
+              <label class="form-label">Precio p&uacute;blico <span class="text-danger">*</span></label>
               <input type="number" class="form-control" id="productoPrecioBase" step="0.01" min="0" required>
             </div>
-            <div class="col-md-4">
+            <div class="col-md-3">
+              <label class="form-label">Precio 2</label>
+              <input type="number" class="form-control" id="productoPrecio2" step="0.01" min="0">
+            </div>
+            <div class="col-md-3">
+              <label class="form-label">Precio 3</label>
+              <input type="number" class="form-control" id="productoPrecio3" step="0.01" min="0">
+            </div>
+            <div class="col-md-3">
+              <label class="form-label">Precio 4</label>
+              <input type="number" class="form-control" id="productoPrecio4" step="0.01" min="0">
+            </div>
+            <div class="col-md-3">
               <label class="form-label">Costo</label>
               <input type="number" class="form-control" id="productoCosto" step="0.01" min="0">
             </div>
-            <div class="col-md-4">
+            <div class="col-md-3">
               <label class="form-label">Categor&iacute;a <span class="text-danger">*</span></label>
               <select class="form-select" id="productoCategoria" required>
                 <option value="">Seleccionar categor&iacute;a</option>

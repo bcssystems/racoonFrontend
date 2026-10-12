@@ -80,6 +80,15 @@
             <label class="form-label fw-semibold">Paqueter&iacute;a</label>
             <input type="text" class="form-control form-control-sm" id="cotPaqueteria" placeholder="Ej: DHL, Estafeta...">
           </div>
+          <div class="col-md-3">
+            <label class="form-label fw-semibold">Lista de precio</label>
+            <select class="form-select form-select-sm" id="cotPrecioSelector">
+              <option value="1">Precio p&uacute;blico</option>
+              <option value="2">Precio 2</option>
+              <option value="3">Precio 3</option>
+              <option value="4">Precio 4</option>
+            </select>
+          </div>
           <div class="col-md-12">
             <div class="form-check form-switch">
               <input class="form-check-input" type="checkbox" id="cotCobraEnvio">
@@ -127,15 +136,20 @@
             </div>
           </div>
           <div class="col-md-2 d-none" id="cotCreditoPlazoWrapper">
-            <label class="form-label fw-semibold">Plazo (meses)</label>
-            <select class="form-select form-select-sm" id="cotCreditoPlazo">
-              <option value="1">1 mes</option>
-              <option value="2">2 meses</option>
-              <option value="3" selected>3 meses</option>
-              <option value="4">4 meses</option>
-              <option value="6">6 meses</option>
-              <option value="12">12 meses</option>
+            <label class="form-label fw-semibold">Parcialidades</label>
+            <input type="number" class="form-control form-control-sm" id="cotCreditoPlazo" min="1" value="3">
+          </div>
+          <div class="col-md-2 d-none" id="cotCreditoPeriodicidadWrapper">
+            <label class="form-label fw-semibold">Periodicidad</label>
+            <select class="form-select form-select-sm" id="cotCreditoPeriodicidad">
+              <option value="MENSUAL">Mensual</option>
+              <option value="QUINCENAL">Quincenal</option>
+              <option value="SEMANAL">Semanal</option>
             </select>
+          </div>
+          <div class="col-md-2 d-none" id="cotCreditoFechaWrapper">
+            <label class="form-label fw-semibold">Primera fecha</label>
+            <input type="date" class="form-control form-control-sm" id="cotCreditoFechaPrimerPago">
           </div>
           <div class="col-md-2 d-none" id="cotCreditoInteresWrapper">
             <label class="form-label fw-semibold">Inter&eacute;s (%)</label>

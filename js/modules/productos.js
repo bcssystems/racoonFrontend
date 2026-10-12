@@ -341,7 +341,10 @@ async function verDetalle(id) {
               <tr><th>Nombre</th><td>${Utils.esc(p.nombre)}</td></tr>
               <tr><th>Categor&iacute;a</th><td>${Utils.esc(p.categoriaNombre || 'Sin categor&iacute;a')}</td></tr>
               <tr><th>Descripci&oacute;n</th><td>${Utils.esc(p.descripcion || '—')}</td></tr>
-              <tr><th>Precio base</th><td>${Utils.formatMonto(p.precioBase || 0)}</td></tr>
+              <tr><th>Precio p&uacute;blico</th><td>${Utils.formatMonto(p.precioBase || 0)}</td></tr>
+              <tr><th>Precio 2</th><td>${p.precio2 != null ? Utils.formatMonto(p.precio2) : '—'}</td></tr>
+              <tr><th>Precio 3</th><td>${p.precio3 != null ? Utils.formatMonto(p.precio3) : '—'}</td></tr>
+              <tr><th>Precio 4</th><td>${p.precio4 != null ? Utils.formatMonto(p.precio4) : '—'}</td></tr>
               <tr><th>Costo promedio</th><td>${p.costoPromedio != null ? Utils.formatMonto(p.costoPromedio) : '—'}</td></tr>
               <tr><th>Unidad de medida</th><td>${Utils.esc(unidad)}</td></tr>
               <tr><th>Stock global</th><td>${p.stockActual != null ? p.stockActual + ' ' + Utils.esc(unidad) : '—'}</td></tr>
@@ -394,6 +397,9 @@ async function abrirModal(id) {
       document.getElementById('productoNombre').value = p.nombre || '';
       document.getElementById('productoDescripcion').value = p.descripcion || '';
       document.getElementById('productoPrecioBase').value = p.precioBase || '';
+      document.getElementById('productoPrecio2').value = p.precio2 || '';
+      document.getElementById('productoPrecio3').value = p.precio3 || '';
+      document.getElementById('productoPrecio4').value = p.precio4 || '';
       document.getElementById('productoCosto').value = p.costoPromedio || '';
       document.getElementById('productoActivo').checked = p.activo !== false;
        document.getElementById('productoUnidadMedida').value = p.unidadMedida || 'PIEZA';
@@ -480,6 +486,9 @@ async function guardarProducto() {
     nombre: document.getElementById('productoNombre').value.trim(),
     descripcion: document.getElementById('productoDescripcion').value.trim(),
     precioBase: parseFloat(document.getElementById('productoPrecioBase').value) || null,
+    precio2: parseFloat(document.getElementById('productoPrecio2').value) || null,
+    precio3: parseFloat(document.getElementById('productoPrecio3').value) || null,
+    precio4: parseFloat(document.getElementById('productoPrecio4').value) || null,
     costoPromedio: parseFloat(document.getElementById('productoCosto').value) || null,
     idCategoria: parseInt(document.getElementById('productoCategoria').value) || null,
      unidadMedida: document.getElementById('productoUnidadMedida').value || 'PIEZA',
@@ -489,8 +498,11 @@ async function guardarProducto() {
 
   if (!data.nombre) { Utils.showToast('El nombre es obligatorio', 'warning'); return; }
   if (!data.idCategoria) { Utils.showToast('La categor\u00eda es obligatoria', 'warning'); return; }
-  if (data.precioBase != null && data.costoPromedio != null && data.precioBase <= data.costoPromedio) {
-    Utils.showToast('El precio debe ser mayor al costo del producto', 'warning'); return;
+  if (data.precioBase == null) { Utils.showToast('El precio p\u00fablico es obligatorio', 'warning'); return; }
+  for (const precio of [data.precioBase, data.precio2, data.precio3, data.precio4]) {
+    if (precio != null && data.costoPromedio != null && precio <= data.costoPromedio) {
+      Utils.showToast('Todos los precios deben ser mayores al costo del producto', 'warning'); return;
+    }
   }
 
   try {

@@ -5,13 +5,14 @@ const TICKET_CSS = `
     }
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body {
-      font-family: 'Segoe UI', 'Helvetica Neue', Arial, sans-serif;
+      font-family: Arial, Helvetica, sans-serif;
       font-size: 10pt;
       color: #222;
       line-height: 1.35;
     }
     .print-copy {
       page-break-after: always;
+      break-after: page;
       min-height: 100vh;
       position: relative;
       box-sizing: border-box;
@@ -21,7 +22,7 @@ const TICKET_CSS = `
       -webkit-flex-direction: column;
       flex-direction: column;
     }
-    .print-copy:last-child { page-break-after: avoid; }
+    .print-copy:last-child { page-break-after: avoid; break-after: auto; }
     .page-totals {
       margin-top: auto;
       padding-bottom: 0.1in;
@@ -295,24 +296,32 @@ const TICKET_CSS = `
 
 const TICKET_80MM_CSS = `
     @page { size: 80mm auto; margin: 0; }
-    html, body { width: 80mm; max-width: 80mm; }
-    body { font-size: 8pt; line-height: 1.25; }
+    html, body { width: 72mm; max-width: 72mm; min-width: 72mm; overflow-x: hidden; }
+    body { font-family: Arial, Helvetica, sans-serif; font-size: 8pt; line-height: 1.25; }
     .print-copy {
-      width: 80mm;
+      width: 72mm;
+      max-width: 72mm;
       min-height: 0;
-      padding: 3mm;
+      padding: 2.5mm;
+      margin: 0 auto;
       display: block;
       page-break-after: always;
+      break-after: page;
+      break-inside: avoid;
     }
-    .print-copy:last-child { page-break-after: avoid; }
+    .print-copy:last-child { page-break-after: avoid; break-after: auto; }
+    .header, .section, .nota, .bottom-section, .pagare { max-width: 100%; overflow-wrap: anywhere; word-break: break-word; }
+    .info-grid { table-layout: fixed; }
+    .info-grid td { overflow-wrap: anywhere; word-break: break-word; }
     .header { padding-bottom: 5px; border-bottom-width: 2px; margin-bottom: 6px; }
     .header .logo { max-width: 100%; max-height: 28mm; }
     .header .sub { font-size: 7pt; }
     .header .folio { font-size: 10pt; }
     .info-grid td { padding: 1px 2px; font-size: 6.5pt; }
     .info-grid .label { width: 35px; font-size: 5.5pt; }
-    table.detalles th { padding: 3px 2px; font-size: 5.5pt; letter-spacing: 0; }
-    table.detalles td { padding: 3px 2px; font-size: 7pt; }
+    table.detalles { table-layout: fixed; }
+    table.detalles th { padding: 3px 2px; font-size: 5.8pt; letter-spacing: 0; }
+    table.detalles td { padding: 3px 2px; font-size: 7.2pt; overflow-wrap: anywhere; word-break: break-word; }
     table.detalles th:nth-child(3), table.detalles td:nth-child(3) { display: none; }
     table.detalles th:nth-child(1) { width: 48% !important; }
     table.detalles th:nth-child(2) { width: 12% !important; }
@@ -330,15 +339,17 @@ const TICKET_80MM_CSS = `
     .pagare-doc-no, .pagare-lugar-fecha { font-size: 4.5pt; }
     .pagare-bueno-por { padding: 2px 3px; margin: 3px 0; font-size: 5pt; }
     .pagare-bueno-por-monto { font-size: 6pt; }
-    .pagare-desglose td { font-size: 4.2pt; padding: 1px 2px; }
-    .pagare-leyenda { font-size: 4.6pt; line-height: 1.3; margin-bottom: 2px; }
+    .pagare-desglose { table-layout: fixed; }
+    .pagare-desglose td { font-size: 5pt; padding: 1px 2px; overflow-wrap: anywhere; word-break: break-word; }
+    .pagare-leyenda { font-size: 5.2pt; line-height: 1.3; margin-bottom: 2px; overflow-wrap: anywhere; word-break: break-word; }
     .pagare-pie { gap: 4px; margin-top: 5px; }
     .pagare-caja { width: 60%; padding: 2px; }
     .pagare-caja-titulo { font-size: 3.2pt; letter-spacing: .4px; }
-    .pagare-caja-tabla td { font-size: 3.7pt; padding: .5px; }
-    .pagare-firma-rol { font-size: 3.2pt; letter-spacing: .4px; }
-    .pagare-firma-nombre { font-size: 3.5pt; }
-    .ticket-config-footer { font-size: 5pt; margin-top: 4px; }
+    .pagare-caja-tabla { table-layout: fixed; }
+    .pagare-caja-tabla td { font-size: 4.6pt; padding: .5px; overflow-wrap: anywhere; word-break: break-word; }
+    .pagare-firma-rol { font-size: 4.2pt; letter-spacing: .3px; }
+    .pagare-firma-nombre { font-size: 4.5pt; overflow-wrap: anywhere; }
+    .ticket-config-footer { font-size: 5.5pt; margin-top: 4px; overflow-wrap: anywhere; }
   `;
 
 export function getDesglosePagos(venta) {
@@ -431,6 +442,24 @@ const STATE_CUENTA_CSS = `
     .firma-linea { border-top: 1px solid #222; width: 55%; margin: 0 auto 4px; }
   `;
 
+const STATE_CUENTA_80MM_CSS = `
+    @page { size: 80mm auto; margin: 0; }
+    html, body { width: 72mm; max-width: 72mm; min-width: 72mm; overflow-x: hidden; }
+    body { font-family: Arial, Helvetica, sans-serif; font-size: 7pt; line-height: 1.25; }
+    .header, .info-row, .line, h3, .notas-box, .firma { max-width: 100%; overflow-wrap: anywhere; word-break: break-word; }
+    .header { padding-bottom: 5px; border-bottom-width: 2px; margin-bottom: 7px; }
+    .header h1 { font-size: 14pt; letter-spacing: 2px; }
+    .header .sub { font-size: 6pt; }
+    .header .title { font-size: 9pt; }
+    .info-row { display: block; font-size: 6.5pt; padding: 1px 0; }
+    table { width: 100%; table-layout: fixed; }
+    th, td { padding: 2px 1.5px; font-size: 5.8pt; overflow-wrap: anywhere; word-break: break-word; }
+    h3.sub-title { font-size: 6.5pt; margin: 6px 0 2px; }
+    .total { font-size: 9pt; }
+    .notas-box { font-size: 6pt; }
+    .firma { margin-top: 28px; font-size: 6pt; }
+  `;
+
 function abrirVentana(titulo, alto, ancho) {
   const win = window.open('', '_blank', 'width=' + (ancho || 800) + ',height=' + (alto || 900));
   if (!win) {
@@ -464,8 +493,11 @@ export function printRemisionVenta(venta, opts) {
   const horaStr = now.toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' });
   const desglosePagos = getDesglosePagos(venta);
 
+  const interesTotalCredito = esCredito
+    ? (venta.interesTotal != null ? Number(venta.interesTotal) : desglosePagos.montoCredito * porcentajeInteres / 100)
+    : 0;
   const totalConInteres = esCredito
-    ? desglosePagos.montoCredito + (desglosePagos.montoCredito * porcentajeInteres / 100)
+    ? desglosePagos.montoCredito + interesTotalCredito
     : (venta.total || 0);
 
   const detalleRows = (venta.detalles || []).map(d => {
@@ -490,13 +522,13 @@ export function printRemisionVenta(venta, opts) {
        <td class="right">${Utils.formatMonto(p.monto)}</td>
      </tr>`).join('')
        + (esCredito && porcentajeInteres > 0
-         ? `<tr><td>Interés ${(porcentajeInteres || 0)}% / Plazo: ${plazoMeses != null ? plazoMeses + ' meses' : '—'}</td><td class="right">${Utils.formatMonto(desglosePagos.montoCredito * porcentajeInteres / 100)}</td></tr>`
+          ? `<tr><td>Interés mensual ${(porcentajeInteres || 0)}% / ${venta.periodicidad || 'MENSUAL'}: ${venta.numeroParcialidades || plazoMeses || '—'}</td><td class="right">${Utils.formatMonto(interesTotalCredito)}</td></tr>`
          : '')
        : `<tr><td>Enviando pedido</td><td class="right small">Pendiente de pago</td></tr>`;
   const pagareDesgloseHtml = desglosePagos.pagos.map(p =>
     `<tr><td>${Utils.esc(p.label)}</td><td>${Utils.formatMonto(p.monto)}</td></tr>`).join('')
     + (porcentajeInteres > 0
-      ? `<tr><td>Interés ${(porcentajeInteres || 0)}%</td><td>${Utils.formatMonto(desglosePagos.montoCredito * porcentajeInteres / 100)}</td></tr>`
+       ? `<tr><td>Interés ${(porcentajeInteres || 0)}%</td><td>${Utils.formatMonto(interesTotalCredito)}</td></tr>`
       : '');
 
   const titularPagare = configs['titularPagare'] || (venta.folioPagare ? 'Logotex' : '');
@@ -673,8 +705,127 @@ function seleccionarFormatoTicket(venta, options) {
   instancia.show();
 }
 
+function seleccionarFormatoDocumento(titulo, descripcion, onSelect) {
+  const existente = document.getElementById('selectorFormatoDocumento');
+  if (existente) existente.remove();
+  const modal = document.createElement('div');
+  modal.id = 'selectorFormatoDocumento';
+  modal.className = 'modal fade';
+  modal.tabIndex = -1;
+  modal.innerHTML = `
+    <div class="modal-dialog modal-dialog-centered modal-sm">
+      <div class="modal-content border-0 shadow">
+        <div class="modal-header border-0">
+          <h5 class="modal-title fw-bold"><i class="fas fa-print me-2" style="color:var(--primary)"></i>${Utils.esc(titulo)}</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body">
+          <p class="small text-muted mb-3">${Utils.esc(descripcion)}</p>
+          <div class="d-grid gap-2">
+            <button type="button" class="btn btn-primary formato-documento" data-formato="carta"><i class="fas fa-file-alt me-2"></i>Carta</button>
+            <button type="button" class="btn btn-outline-primary formato-documento" data-formato="80mm"><i class="fas fa-receipt me-2"></i>80 mm</button>
+          </div>
+        </div>
+      </div>
+    </div>`;
+  document.body.appendChild(modal);
+  const instancia = new bootstrap.Modal(modal);
+  modal.querySelectorAll('.formato-documento').forEach(btn => btn.addEventListener('click', () => {
+    instancia.hide();
+    onSelect(btn.dataset.formato);
+    modal.addEventListener('hidden.bs.modal', () => modal.remove(), { once: true });
+  }));
+  modal.addEventListener('hidden.bs.modal', () => modal.remove(), { once: true });
+  instancia.show();
+}
+
+export function printComprobanteAbono(abonos, opts) {
+  const options = opts || {};
+  if (!options._confirmed) {
+    seleccionarFormatoDocumento(
+      'Imprimir comprobante de abono',
+      'Selecciona el formato del comprobante',
+      formato => printComprobanteAbono(abonos, { ...options, formato, _confirmed: true })
+    );
+    return;
+  }
+
+  const lista = Array.isArray(abonos) ? abonos : [abonos];
+  const primero = lista[0] || {};
+  const total = lista.reduce((sum, abono) => sum + (Number(abono?.monto) || 0), 0);
+  const saldoTotal = lista.reduce((sum, abono) => sum + (Number(abono?.saldoNuevo) || 0), 0);
+  const fecha = primero.fecha ? new Date(primero.fecha) : new Date();
+  const fechaStr = fecha.toLocaleDateString('es-MX', { year: 'numeric', month: 'long', day: 'numeric' });
+  const horaStr = fecha.toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' });
+  const pagos = lista.flatMap(abono => abono?.pagos || []);
+  const pagosHtml = pagos.length
+    ? pagos.map(p => `<tr><td>${Utils.esc(p.nombreTipoPago || p.tipoPagoNombre || 'Pago')}${p.referencia ? ' (' + Utils.esc(p.referencia) + ')' : ''}</td><td class="right">${Utils.formatMonto(p.monto || 0)}</td></tr>`).join('')
+    : `<tr><td>${Utils.esc(primero.metodoPago || 'Pago')}</td><td class="right">${Utils.formatMonto(total)}</td></tr>`;
+  const detalleHtml = lista.map(abono => `
+    <tr>
+      <td>Crédito #${Utils.esc(abono.idCredito || '')}${abono.folioCredito ? '<br><span class="muted">' + Utils.esc(abono.folioCredito) + '</span>' : ''}</td>
+      <td class="right">${abono.saldoAnterior != null ? Utils.formatMonto(abono.saldoAnterior) : '—'}</td>
+      <td class="right">${Utils.formatMonto(abono.monto || 0)}</td>
+      <td class="right">${Utils.formatMonto(abono.interesPagado || 0)}</td>
+      <td class="right">${Utils.formatMonto(abono.capitalPagado || 0)}</td>
+      <td class="right">${abono.saldoNuevo != null ? Utils.formatMonto(abono.saldoNuevo) : '—'}</td>
+    </tr>`).join('');
+  const clienteNombre = options.clienteNombre || primero.clienteNombre || 'Cliente';
+  const estado = lista.some(a => a.estadoCredito === 'PAGADO') ? 'LIQUIDADO' : 'SALDO PENDIENTE';
+  const css = options.formato === '80mm' ? TICKET_CSS + TICKET_80MM_CSS : TICKET_CSS;
+  const html = `<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8"><title>Comprobante de abono</title><style>${css}
+    .abono-table { width:100%; border-collapse:collapse; table-layout:fixed; }
+    .abono-table th, .abono-table td { padding:5px 6px; border-bottom:1px solid #ddd; font-size:9pt; overflow-wrap:anywhere; }
+    .abono-table th { text-align:left; font-size:7.5pt; text-transform:uppercase; }
+    .right { text-align:right; }
+    .muted { color:#666; font-size:7.5pt; }
+    .abono-total { font-size:14pt; font-weight:700; color:#2563EB; }
+    .abono-status { text-align:center; font-weight:700; letter-spacing:1px; margin:10px 0; }
+    @media print { .print-copy { break-after: page; } .print-copy:last-child { break-after:auto; } }
+  </style></head><body>
+    <div class="print-copy">
+      <div class="header"><div class="sub">Racoon</div><div class="folio">COMPROBANTE DE ABONO</div></div>
+      <table class="info-grid">
+        <tr><td class="label">Cliente</td><td>${Utils.esc(clienteNombre)}</td></tr>
+        <tr><td class="label">Fecha</td><td>${fechaStr} ${horaStr}</td></tr>
+        <tr><td class="label">Folio</td><td>#${Utils.esc(primero.idAbono || '')}</td></tr>
+        <tr><td class="label">Venta</td><td>#${Utils.esc(primero.idVenta || '')}</td></tr>
+        ${options.cajaNombre ? `<tr><td class="label">Caja</td><td>${Utils.esc(options.cajaNombre)}</td></tr>` : ''}
+      </table>
+      <div class="divider"></div>
+      <table class="abono-table">
+        <thead><tr><th>Crédito</th><th class="right">Saldo anterior</th><th class="right">Abono</th><th class="right">Interés</th><th class="right">Capital</th><th class="right">Saldo restante</th></tr></thead>
+        <tbody>${detalleHtml}</tbody>
+      </table>
+      <div class="divider"></div>
+      <table class="totals">
+        <tr><td>Saldo anterior</td><td class="right">${lista.length === 1 && primero.saldoAnterior != null ? Utils.formatMonto(primero.saldoAnterior) : 'Ver detalle'}</td></tr>
+        <tr><td>Total abonado</td><td class="right abono-total">${Utils.formatMonto(total)}</td></tr>
+        ${lista.length > 1 ? `<tr><td>Saldo total restante</td><td class="right">${Utils.formatMonto(saldoTotal)}</td></tr>` : ''}
+      </table>
+      <div class="section"><div class="section-title">Forma de pago</div><table class="totals">${pagosHtml}</table></div>
+      <div class="abono-status">${estado}</div>
+      <div class="footer">Conserve este comprobante como constancia de su pago.</div>
+    </div>
+  </body></html>`;
+  const win = abrirVentana('Comprobante de abono', 600, 800);
+  if (!win) return;
+  win.document.write(html);
+  win.document.close();
+  win.focus();
+  setTimeout(() => win.print(), 300);
+}
+
 export function printCotizacion(cotizacion, opts) {
   const options = opts || {};
+  if (!options._confirmed) {
+    seleccionarFormatoDocumento(
+      'Imprimir cotización',
+      'Selecciona el formato para la cotización #' + cotizacion.idCotizacion,
+      formato => printCotizacion(cotizacion, { ...options, formato, _confirmed: true })
+    );
+    return;
+  }
   const esCredito = options.esCredito != null ? options.esCredito : cotizacion.tipoVenta === 'CREDITO';
   const porcentajeInteres = options.porcentajeInteres != null ? options.porcentajeInteres : (cotizacion.porcentajeInteres || 0);
   const plazoMeses = options.plazoMeses != null ? options.plazoMeses : cotizacion.plazoMeses;
@@ -690,7 +841,10 @@ export function printCotizacion(cotizacion, opts) {
     s + (d.subtotal != null ? d.subtotal : ((d.cantidad || 0) * (d.precioUnitario || 0))), 0);
   const montoEnvio = (cotizacion.cobraEnvio && cotizacion.montoEnvio) ? cotizacion.montoEnvio : 0;
   const total = cotizacion.total != null ? cotizacion.total : (subtotal + montoEnvio);
-  const totalConInteres = esCredito ? total + (total * porcentajeInteres / 100) : total;
+  const parcialidades = cotizacion.numeroParcialidades || cotizacion.plazoMeses || 1;
+  const mesesEquivalentes = cotizacion.periodicidad === 'QUINCENAL' ? parcialidades / 2 : cotizacion.periodicidad === 'SEMANAL' ? parcialidades / 4 : parcialidades;
+  const interesTotal = esCredito ? total * porcentajeInteres / 100 * mesesEquivalentes : 0;
+  const totalConInteres = total + interesTotal;
 
   const detalleRows = (cotizacion.detalles || []).map(d => {
     const dSubtotal = d.subtotal != null ? d.subtotal : ((d.cantidad || 0) * (d.precioUnitario || 0));
@@ -707,8 +861,8 @@ export function printCotizacion(cotizacion, opts) {
   }).join('');
 
   const pagoHtml = esCredito
-    ? `<tr><td>Cr\u00e9dito &mdash; Plazo ${plazoMeses != null ? plazoMeses + ' meses' : '—'}</td><td class="right">${Utils.formatMonto(totalConInteres)}</td></tr>
-       <tr><td class="small">Inter\u00e9s ${(porcentajeInteres || 0)}%</td><td class="right">${Utils.formatMonto(total * porcentajeInteres / 100)}</td></tr>`
+     ? `<tr><td>Cr\u00e9dito &mdash; ${cotizacion.periodicidad || 'MENSUAL'} x ${parcialidades}</td><td class="right">${Utils.formatMonto(totalConInteres)}</td></tr>
+       <tr><td class="small">Inter\u00e9s mensual ${(porcentajeInteres || 0)}%</td><td class="right">${Utils.formatMonto(interesTotal)}</td></tr>`
     : `<tr><td>Contado</td><td class="right">${Utils.formatMonto(total)}</td></tr>`;
 
   const expiraStr = cotizacion.fechaExpiracion
@@ -734,12 +888,14 @@ export function printCotizacion(cotizacion, opts) {
   </div>
   ${cotizacion.nota ? `<div class="nota"><strong>Nota:</strong> ${Utils.esc(cotizacion.nota)}</div>` : ''}`;
 
+  const formato = options.formato || 'carta';
+  const printCss = formato === '80mm' ? TICKET_CSS + TICKET_80MM_CSS : TICKET_CSS;
   const html = `<!DOCTYPE html>
 <html lang="es">
 <head>
   <meta charset="UTF-8">
   <title>Cotizaci\u00f3n #${cotizacion.idCotizacion}</title>
-  <style>${TICKET_CSS}</style>
+  <style>${printCss}</style>
 </head>
 <body>
 <div class="print-copy">
@@ -790,7 +946,7 @@ export function printCotizacion(cotizacion, opts) {
   }
 }
 
-function buildEstadoCuentaHtml(payload) {
+function buildEstadoCuentaHtml(payload, formato) {
   const configs = payload.configs || {};
   const cliente = payload.cliente || {};
   const totalPendiente = payload.totalPendiente || 0;
@@ -833,8 +989,9 @@ function buildEstadoCuentaHtml(payload) {
 
   const nombreCliente = [cliente.nombre || '', cliente.apellidoPaterno || '', cliente.apellidoMaterno || ''].filter(Boolean).join(' ');
 
+  const printCss = formato === '80mm' ? STATE_CUENTA_CSS + STATE_CUENTA_80MM_CSS : STATE_CUENTA_CSS;
   return `<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8"><title>Estado de Cuenta</title>
-  <style>${STATE_CUENTA_CSS}</style></head><body>
+  <style>${printCss}</style></head><body>
     <div class="header">
        ${(configs.logoTicket || configs.logoUrl || configs.logoEmpresa) ? '<img src="' + Utils.esc(configs.logoTicket || configs.logoUrl || configs.logoEmpresa) + '" class="logo" alt="" onerror="this.remove()">' : ''}
       <div class="sub">${Utils.esc(configs['descripcionEmpresa'] || '')} &mdash; ${Utils.esc(configs['direccionEmpresa'] || '')}</div>
@@ -862,8 +1019,18 @@ function buildEstadoCuentaHtml(payload) {
   </body></html>`;
 }
 
-export function printEstadoCuenta(payload) {
-  const html = buildEstadoCuentaHtml(payload);
+export function printEstadoCuenta(payload, opts) {
+  const options = opts || {};
+  if (!options._confirmed) {
+    seleccionarFormatoDocumento(
+      'Imprimir estado de cuenta',
+      'Selecciona el formato del estado de cuenta',
+      formato => printEstadoCuenta(payload, { ...options, formato, _confirmed: true })
+    );
+    return;
+  }
+  const formato = options.formato || 'carta';
+  const html = buildEstadoCuentaHtml(payload, formato);
   const win = abrirVentana('Estado de Cuenta', 700, 680);
   if (!win) return;
   win.document.write(html);
@@ -877,7 +1044,7 @@ export function descargarEstadoCuentaPdf(payload) {
     Utils.showToast('Librer\u00edas de PDF no disponibles', 'error');
     return;
   }
-  const html = buildEstadoCuentaHtml(payload);
+  const html = buildEstadoCuentaHtml(payload, options.formato || 'carta');
   const iframe = document.createElement('iframe');
   iframe.setAttribute('aria-hidden', 'true');
   iframe.style.position = 'fixed';
