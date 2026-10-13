@@ -353,7 +353,8 @@ const TICKET_80MM_CSS = `
   `;
 
 export function getDesglosePagos(venta) {
-  const pagos = (venta?.pagos || []).filter(p => {
+  const pagosBase = venta && venta.pagos ? venta.pagos : [];
+  const pagos = pagosBase.filter(p => {
     const nombre = (p.tipoPagoNombre || '').toLowerCase();
     return nombre !== 'credito' && nombre !== 'crédito';
   }).map(p => ({
@@ -363,12 +364,12 @@ export function getDesglosePagos(venta) {
     credito: false,
   }));
   const pagado = pagos.reduce((suma, pago) => suma + pago.monto, 0);
-  const montoCredito = venta?.tipoVenta === 'CREDITO'
+  const montoCredito = venta && venta.tipoVenta === 'CREDITO'
     ? Math.max(0, (Number(venta.total) || 0) - pagado)
     : 0;
   if (montoCredito > 0.005) {
     pagos.push({
-      label: 'Crédito' + (venta.folioPagare ? ' / Pagaré #' + venta.folioPagare : ''),
+       label: 'Crédito' + (venta.folioPagare ? ' / Folio ' + venta.folioPagare : ''),
       monto: montoCredito,
       referencia: '',
       credito: true,
@@ -531,9 +532,9 @@ export function printRemisionVenta(venta, opts) {
        ? `<tr><td>Interés ${(porcentajeInteres || 0)}%</td><td>${Utils.formatMonto(interesTotalCredito)}</td></tr>`
       : '');
 
-  const titularPagare = configs['titularPagare'] || (venta.folioPagare ? 'Logotex' : '');
-  const lugarPagare = configs['direccionEmpresa'] || 'San Luis Potos\u00ed, S.L.P.';
-  const tasaMora = configs['tasaInteresMoraPagare'] || 0;
+   const titularPagare = configs['titularPagare'] || (venta.folioPagare ? 'Logotex' : '');
+   const lugarPagare = configs['direccionEmpresa'] || 'San Luis Potos\u00ed, S.L.P.';
+   const tasaMora = configs['tasaInteresMoraPagare'] || 0;
   const montoLetras = Utils.numeroALetras(totalConInteres);
 
   const deudorNombre = clienteInfo
@@ -555,8 +556,8 @@ export function printRemisionVenta(venta, opts) {
 
   const pagareHtml = `
   <div class="pagare">
-    <h2 class="pagare-h2">PAGAR\u00c9</h2>
-    <div class="pagare-doc-no">FOLIO DE PAGAR\u00c9: ${Utils.esc(venta.folioPagare || '—')}</div>
+     <h2 class="pagare-h2">DOCUMENTO DE CR\u00c9DITO</h2>
+     <div class="pagare-doc-no">FOLIO DE CR\u00c9DITO: ${Utils.esc(venta.folioPagare || '—')}</div>
     <div class="pagare-lugar-fecha">
       <span>LUGAR DE EXPEDICI\u00d3N: ${Utils.esc(lugarPagare)}</span>
       <span>D\u00cdA: ${diaExpedicion}&nbsp;&nbsp; MES: ${Utils.esc(mesExpedicion)}&nbsp;&nbsp; A\u00d1O: ${anioExpedicion}</span>
@@ -569,16 +570,16 @@ export function printRemisionVenta(venta, opts) {
       ${pagareDesgloseHtml}
     </table>
     <p class="pagare-leyenda">
-      Debemos y pagar\u00e9(mos) incondicionalmente en esta ciudad o en cualquier otra que se me requiera, este Pagar\u00e9 a la orden de:
+       Debemos y nos obligamos a cubrir incondicionalmente en esta ciudad o en cualquier otra que se me requiera, este documento de cr\u00e9dito a la orden de:
       <strong>${Utils.esc(titularPagare)}</strong>, el d\u00eda ${diaExpedicion} de ${Utils.esc(mesExpedicion)} de ${anioExpedicion}.
       La cantidad de: <strong>${Utils.formatMonto(totalConInteres)} (${Utils.esc(montoLetras)})</strong>.
     </p>
     <p class="pagare-leyenda">
-      CANTIDAD QUE CORRESPONDE AL IMPORTE DE LAS MERCANCIAS QUE SE DETALLAN EN EL PEDIDO CUYO N\u00daMERO COINCIDE CON EL DE ESTE DOCUMENTO QUE HE RECIBIDO DE CONFORMIDAD,
-      SIENDO ESTE PAGAR\u00c9 MERCANTIL EN LOS T\u00c9RMINOS DE LOS ART\u00cdCULOS 170 Y 171 DE LA LEY GENERAL DE T\u00cdTULOS Y OPERACIONES DE CR\u00c9DITO; AS\u00cd MISMO,
-      DE CONFORMIDAD CON EL ART\u00cdCULO 11 Y DEM\u00c1S RELATIVOS DE LA LEY CITADA, ME OBLIGO INCONDICIONALMENTE A PAGAR EL IMPORTE DE ESTE PAGAR\u00c9 CUANDO
-      SEA ACEPTADO EN MI NOMBRE Y REPRESENTACI\u00d3N POR EMPLEADO O DEPENDIENTE DE MI NEGOCIO. EL PRESENTE PAGAR\u00c9 ES SIN PROTESTO; EN CASO DE MORA
-      AL PLAZO SE CUBRIR\u00c1N INTERESES A LA TASA DEL <strong>${tasaMora}%</strong> MENSUAL.
+       CANTIDAD QUE CORRESPONDE AL IMPORTE DE LAS MERCANC\u00cdAS QUE SE DETALLAN EN EL PEDIDO CUYO N\u00daMERO COINCIDE CON EL DE ESTE DOCUMENTO QUE HE RECIBIDO DE CONFORMIDAD.
+       EL PRESENTE DOCUMENTO REPRESENTA EL SALDO DEL CR\u00c9DITO CONTRATADO Y LAS CONDICIONES ACEPTADAS POR EL CLIENTE; AS\u00cd MISMO,
+       DE CONFORMIDAD CON LAS CONDICIONES DEL CR\u00c9DITO, ME OBLIGO INCONDICIONALMENTE A PAGAR EL IMPORTE DE ESTE DOCUMENTO CUANDO
+       SEA ACEPTADO EN MI NOMBRE Y REPRESENTACI\u00d3N POR EMPLEADO O DEPENDIENTE DE MI NEGOCIO. EN CASO DE MORA
+       AL PLAZO SE CUBRIR\u00c1N INTERESES A LA TASA DEL <strong>${tasaMora}%</strong> MENSUAL.
     </p>
     <div class="pagare-pie">
       <div class="pagare-caja">
@@ -752,12 +753,12 @@ export function printComprobanteAbono(abonos, opts) {
 
   const lista = Array.isArray(abonos) ? abonos : [abonos];
   const primero = lista[0] || {};
-  const total = lista.reduce((sum, abono) => sum + (Number(abono?.monto) || 0), 0);
-  const saldoTotal = lista.reduce((sum, abono) => sum + (Number(abono?.saldoNuevo) || 0), 0);
+  const total = lista.reduce((sum, abono) => sum + (Number(abono && abono.monto) || 0), 0);
+  const saldoTotal = lista.reduce((sum, abono) => sum + (Number(abono && abono.saldoNuevo) || 0), 0);
   const fecha = primero.fecha ? new Date(primero.fecha) : new Date();
   const fechaStr = fecha.toLocaleDateString('es-MX', { year: 'numeric', month: 'long', day: 'numeric' });
   const horaStr = fecha.toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' });
-  const pagos = lista.flatMap(abono => abono?.pagos || []);
+  const pagos = lista.reduce((todos, abono) => todos.concat(abono && abono.pagos ? abono.pagos : []), []);
   const pagosHtml = pagos.length
     ? pagos.map(p => `<tr><td>${Utils.esc(p.nombreTipoPago || p.tipoPagoNombre || 'Pago')}${p.referencia ? ' (' + Utils.esc(p.referencia) + ')' : ''}</td><td class="right">${Utils.formatMonto(p.monto || 0)}</td></tr>`).join('')
     : `<tr><td>${Utils.esc(primero.metodoPago || 'Pago')}</td><td class="right">${Utils.formatMonto(total)}</td></tr>`;
@@ -809,6 +810,52 @@ export function printComprobanteAbono(abonos, opts) {
     </div>
   </body></html>`;
   const win = abrirVentana('Comprobante de abono', 600, 800);
+  if (!win) return;
+  win.document.write(html);
+  win.document.close();
+  win.focus();
+  setTimeout(() => win.print(), 300);
+}
+
+export function printComprobanteMovimiento(movimiento, opts) {
+  const options = opts || {};
+  if (!options._confirmed) {
+    seleccionarFormatoDocumento(
+      'Imprimir comprobante de movimiento',
+      'Selecciona el formato del comprobante',
+      formato => printComprobanteMovimiento(movimiento, { ...options, formato, _confirmed: true })
+    );
+    return;
+  }
+
+  const tipo = Utils.capitalize((movimiento.tipoMovimiento || 'MOVIMIENTO').replace('_', ' '));
+  const stock = movimiento.stockAnterior != null && movimiento.stockNuevo != null
+    ? movimiento.stockAnterior + ' &rarr; ' + movimiento.stockNuevo : '—';
+  const costoTotal = movimiento.costoTotal != null
+    ? Utils.formatMonto(movimiento.costoTotal) : '—';
+  const css = options.formato === '80mm' ? TICKET_CSS + TICKET_80MM_CSS : TICKET_CSS;
+  const html = '<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8">' +
+    '<title>Comprobante de movimiento #' + Utils.esc(movimiento.idMovimiento || '') + '</title>' +
+    '<style>' + css + '</style></head><body>' +
+    '<div class="print-copy">' +
+    '<div class="header"><div class="sub">Racoon</div><div class="folio">COMPROBANTE DE MOVIMIENTO</div></div>' +
+    '<table class="info-grid">' +
+    '<tr><td class="label">Folio</td><td>' + Utils.esc(movimiento.referencia || ('MOV-' + movimiento.idMovimiento)) + '</td></tr>' +
+    '<tr><td class="label">Tipo</td><td>' + Utils.esc(tipo) + '</td></tr>' +
+    '<tr><td class="label">Fecha</td><td>' + Utils.formatDateTime(movimiento.fechaMovimiento) + '</td></tr>' +
+    '<tr><td class="label">Sucursal</td><td>' + Utils.esc(movimiento.sucursalNombre || 'Global') + '</td></tr>' +
+    '<tr><td class="label">Responsable</td><td>' + Utils.esc(movimiento.usuario || '') + '</td></tr>' +
+    '</table><div class="divider"></div>' +
+    '<table class="detalles"><thead><tr><th>Producto</th><th class="right">Cantidad</th><th class="right">Costo total</th></tr></thead>' +
+    '<tbody><tr><td>' + Utils.esc((movimiento.productoSku || '') + ' - ' + (movimiento.productoNombre || '')) + '</td>' +
+    '<td class="right">' + (movimiento.cantidad != null ? movimiento.cantidad : '—') + '</td>' +
+    '<td class="right">' + costoTotal + '</td></tr></tbody></table>' +
+    '<div class="divider"></div><table class="totals">' +
+    '<tr><td>Stock anterior &rarr; nuevo</td><td class="right">' + stock + '</td></tr>' +
+    '<tr><td>Observación</td><td class="right">' + Utils.esc(movimiento.observacion || '—') + '</td></tr>' +
+    '</table><div class="footer">Documento generado por Racoon.</div>' +
+    '</div></body></html>';
+  const win = abrirVentana('Movimiento #' + movimiento.idMovimiento, 600, 800);
   if (!win) return;
   win.document.write(html);
   win.document.close();
@@ -1003,7 +1050,7 @@ function buildEstadoCuentaHtml(payload, formato) {
     <div class="line"></div>
     <h3 class="sub-title">Cr\u00e9ditos</h3>
     <table>
-      <thead><tr><th>#</th><th>Pagar\u00e9</th><th class="right">Original</th><th class="right">Pendiente</th></tr></thead>
+      <thead><tr><th>#</th><th>Folio de cr\u00e9dito</th><th class="right">Original</th><th class="right">Pendiente</th></tr></thead>
       <tbody>${creditosRows || '<tr><td colspan="4" style="text-align:center">Sin cr\u00e9ditos</td></tr>'}</tbody>
     </table>
     <div class="line"></div>
@@ -1044,7 +1091,7 @@ export function descargarEstadoCuentaPdf(payload) {
     Utils.showToast('Librer\u00edas de PDF no disponibles', 'error');
     return;
   }
-  const html = buildEstadoCuentaHtml(payload, options.formato || 'carta');
+  const html = buildEstadoCuentaHtml(payload, 'carta');
   const iframe = document.createElement('iframe');
   iframe.setAttribute('aria-hidden', 'true');
   iframe.style.position = 'fixed';

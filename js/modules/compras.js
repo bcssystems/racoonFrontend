@@ -1,5 +1,6 @@
-let state = { compras: [], productos: [], sucursales: [], proveedores: [], detalles: [], guardando: false };
+let state = { compras: [], productos: [], sucursales: [], proveedores: [], categorias: [], detalles: [], guardando: false };
 let productoModal = null;
+let nuevoProductoModal = null;
 
 export function init() {
   bindEvents();
@@ -15,6 +16,8 @@ function bindEvents() {
   }
   document.getElementById('btnNuevaCompra')?.addEventListener('click', abrirModal);
   document.getElementById('btnGuardarCompra')?.addEventListener('click', guardar);
+  document.getElementById('btnNuevoProductoCompra')?.addEventListener('click', abrirModalNuevoProducto);
+  document.getElementById('btnGuardarProductoCompra')?.addEventListener('click', guardarProductoNuevo);
   document.getElementById('btnAgregarDetalle')?.addEventListener('click', () => agregarDetalle());
   document.getElementById('searchCompras')?.addEventListener('input', Utils.debounce(cargarCompras, 300));
   document.getElementById('filtroSucursalCompra')?.addEventListener('change', cargarCompras);
@@ -71,6 +74,17 @@ async function cargarCatalogo() {
 
   if (state.productos.length === 0) {
     Utils.showToast('No hay productos activos en el inventario', 'warning');
+  }
+
+  try {
+    state.categorias = await API.get('/categorias/activas') || [];
+    const selCategoria = document.getElementById('cmpProductoCategoria');
+    if (selCategoria) {
+      selCategoria.innerHTML = '<option value="">Seleccionar categor&iacute;a</option>' +
+        state.categorias.map(c => `<option value="${c.idCategoria}">${Utils.esc(c.nombre)}</option>`).join('');
+    }
+  } catch (err) {
+    state.categorias = [];
   }
 }
 
@@ -235,6 +249,64 @@ function abrirModal() {
   productoModal.show();
 }
 
+function abrirModalNuevoProducto() {
+  if (!Utils.hasPermiso('PRODUCTOS_CREAR')) {
+    Utils.showToast('No tienes permiso para crear productos', 'warning');
+    return;
+  }
+  const form = document.getElementById('formNuevoProductoCompra');
+  if (form) form.reset();
+  const selCategoria = document.getElementById('cmpProductoCategoria');
+  if (selCategoria) {
+    selCategoria.innerHTML = '<option value="">Seleccionar categor&iacute;a</option>' +
+      state.categorias.map(c => `<option value="${c.idCategoria}">${Utils.esc(c.nombre)}</option>`).join('');
+  }
+  const modal = document.getElementById('modalNuevoProductoCompra');
+  if (!modal) return;
+  nuevoProductoModal = bootstrap.Modal.getOrCreateInstance(modal);
+  nuevoProductoModal.show();
+}
+
+async function guardarProductoNuevo() {
+  const nombre = document.getElementById('cmpProductoNombre').value.trim();
+  const idCategoria = parseInt(document.getElementById('cmpProductoCategoria').value) || null;
+  const unidadMedida = document.getElementById('cmpProductoUnidad').value || 'PIEZA';
+  const idSucursal = parseInt(document.getElementById('cmpSucursal').value) || null;
+  const precioBase = parseFloat(document.getElementById('cmpProductoPrecio').value);
+  const costoPromedio = parseFloat(document.getElementById('cmpProductoCosto').value);
+  if (!nombre) { Utils.showToast('El nombre es obligatorio', 'warning'); return; }
+  if (!idCategoria) { Utils.showToast('Selecciona una categor&iacute;a', 'warning'); return; }
+  if (Number.isFinite(precioBase) && Number.isFinite(costoPromedio) && precioBase <= costoPromedio) {
+    Utils.showToast('El precio p&uacute;blico debe ser mayor al costo', 'warning'); return;
+  }
+  const btn = document.getElementById('btnGuardarProductoCompra');
+  if (btn) btn.disabled = true;
+  try {
+    const producto = await API.post('/productos', {
+      sku: null,
+      nombre,
+      descripcion: null,
+      precioBase: Number.isFinite(precioBase) ? precioBase : null,
+      precio2: null,
+      precio3: null,
+      precio4: null,
+      costoPromedio: Number.isFinite(costoPromedio) ? costoPromedio : null,
+      idCategoria,
+      unidadMedida,
+      activo: true,
+      inventarios: idSucursal ? [{ idSucursal, stock: 0, stockMinimo: null, stockMaximo: null }] : []
+    });
+    state.productos.push(producto);
+    if (nuevoProductoModal) nuevoProductoModal.hide();
+    agregarDetalle(producto.idProducto, 1, Number.isFinite(costoPromedio) ? costoPromedio : null);
+    Utils.showToast('Producto creado y agregado a la compra', 'success');
+  } catch (err) {
+    Utils.showToast(err.message, 'error');
+  } finally {
+    if (btn) btn.disabled = false;
+  }
+}
+
 function agregarDetalle(producto, cantidad, precio) {
   if (!state.productos || state.productos.length === 0) {
     Utils.showToast('No hay productos en el inventario para agregar', 'warning');
@@ -248,7 +320,7 @@ function agregarDetalle(producto, cantidad, precio) {
     <td>
       <select id="${uid}" class="form-select form-select-sm det-producto">${opts}</select>
     </td>
-     <td><input type="number" class="form-control form-control-sm det-cantidad" value="${cantidad || ''}" min="1" placeholder="Cantidad"></td>
+     <td><input type="number" class="form-control form-control-sm det-cantidad" value="${cantidad || 1}" min="1" placeholder="Cantidad"></td>
     <td><input type="number" class="form-control form-control-sm det-precio" value="${precio || ''}" min="0" step="0.01" placeholder="$"></td>
     <td class="det-subtotal text-end fw-semibold">$0.00</td>
     <td><button class="btn-action" style="color:var(--danger)" data-action="quitar"><i class="fas fa-times"></i></button></td>`;

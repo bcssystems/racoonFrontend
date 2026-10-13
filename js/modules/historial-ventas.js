@@ -23,9 +23,12 @@ function fechaLocalHoy() {
 }
 
 function bindEvents() {
-  document.getElementById('btnFiltrar')?.addEventListener('click', () => buscar(0));
-  document.getElementById('btnLimpiar')?.addEventListener('click', limpiar);
-  document.getElementById('filterSucursal')?.addEventListener('change', async (e) => {
+  const btnFiltrar = document.getElementById('btnFiltrar');
+  if (btnFiltrar) btnFiltrar.addEventListener('click', () => buscar(0));
+  const btnLimpiar = document.getElementById('btnLimpiar');
+  if (btnLimpiar) btnLimpiar.addEventListener('click', limpiar);
+  const filterSucursal = document.getElementById('filterSucursal');
+  if (filterSucursal) filterSucursal.addEventListener('change', async (e) => {
     const idSucursal = parseInt(e.target.value);
     const selCaja = document.getElementById('filterCaja');
     selCaja.innerHTML = '<option value="">Todas</option>';
@@ -36,7 +39,8 @@ function bindEvents() {
       } catch (_) {}
     }
   });
-  document.getElementById('tableBody')?.addEventListener('click', (e) => {
+  const tableBody = document.getElementById('tableBody');
+  if (tableBody) tableBody.addEventListener('click', (e) => {
     const kebab = e.target.closest('.kebab-trigger');
     if (kebab) {
       e.preventDefault();
@@ -297,7 +301,7 @@ async function verDetalle(id) {
           <div class="col-4"><strong>Descuento:</strong> ${Utils.formatMonto(venta.descuento || 0)}</div>
           <div class="col-4"><strong>Estado:</strong> <span class="badge ${estadoBadge}">${venta.estado}</span></div>
           ${venta.tipoVenta === 'CREDITO'
-            ? `<div class="col-4"><strong>Pagar\u00e9:</strong> ${Utils.esc(venta.folioPagare || '—')}</div>
+             ? `<div class="col-4"><strong>Folio de cr\u00e9dito:</strong> ${Utils.esc(venta.folioPagare || '—')}</div>
                <div class="col-4"><strong>Inter\u00e9s:</strong> ${venta.porcentajeInteres || 0}%</div>
                 <div class="col-4"><strong>Plan:</strong> ${(venta.periodicidad || 'MENSUAL')} x ${venta.numeroParcialidades || venta.plazoMeses || '—'}</div>
             : ''}

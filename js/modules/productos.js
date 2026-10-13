@@ -568,6 +568,7 @@ function abrirModalMovimiento() {
   document.getElementById('movimientoForm').reset();
   document.getElementById('movimientoSucursalGroup').classList.remove('d-none');
   document.getElementById('movimientoTipo').value = 'ENTRADA';
+  document.getElementById('movimientoCantidad').value = '1';
 
   bootstrap.Modal.getOrCreateInstance(modalEl).show();
 

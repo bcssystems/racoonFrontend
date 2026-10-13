@@ -89,7 +89,10 @@
 
         <div class="d-flex justify-content-between align-items-center mb-2">
           <label class="form-label fw-semibold mb-0">Productos</label>
-          <button type="button" class="btn btn-outline-primary btn-sm" id="btnAgregarDetalle"><i class="fas fa-plus me-1"></i>Agregar producto</button>
+          <div class="d-flex gap-2">
+            <button type="button" class="btn btn-outline-success btn-sm" id="btnNuevoProductoCompra"><i class="fas fa-box me-1"></i>Nuevo producto</button>
+            <button type="button" class="btn btn-outline-primary btn-sm" id="btnAgregarDetalle"><i class="fas fa-plus me-1"></i>Agregar producto</button>
+          </div>
         </div>
 
         <div class="table-responsive">
@@ -115,6 +118,53 @@
       <div class="modal-footer">
         <button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancelar</button>
         <button type="button" class="btn btn-primary" id="btnGuardarCompra"><i class="fas fa-save me-1"></i>Guardar compra</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="modal fade" id="modalNuevoProductoCompra" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content border-0 shadow">
+      <div class="modal-header border-0">
+        <h5 class="modal-title fw-bold"><i class="fas fa-box me-2" style="color:var(--success)"></i>Nuevo producto</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <form id="formNuevoProductoCompra">
+          <div class="mb-3">
+            <label class="form-label">Nombre <span class="text-danger">*</span></label>
+            <input type="text" class="form-control" id="cmpProductoNombre" maxlength="200" required>
+          </div>
+          <div class="row g-3">
+            <div class="col-md-6">
+              <label class="form-label">Categor&iacute;a <span class="text-danger">*</span></label>
+              <select class="form-select" id="cmpProductoCategoria" required>
+                <option value="">Seleccionar categor&iacute;a</option>
+              </select>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">Unidad</label>
+              <select class="form-select" id="cmpProductoUnidad">
+                <option value="PIEZA">PIEZA</option>
+                <option value="COMBO">COMBO</option>
+                <option value="KG">KG</option>
+              </select>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">Precio p&uacute;blico</label>
+              <input type="number" class="form-control" id="cmpProductoPrecio" min="0" step="0.01">
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">Costo de compra</label>
+              <input type="number" class="form-control" id="cmpProductoCosto" min="0" step="0.01">
+            </div>
+          </div>
+        </form>
+      </div>
+      <div class="modal-footer border-0">
+        <button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancelar</button>
+        <button type="button" class="btn btn-success" id="btnGuardarProductoCompra">Crear y agregar</button>
       </div>
     </div>
   </div>

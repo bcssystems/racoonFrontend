@@ -15,6 +15,8 @@ let state = {
   guardando: false,
 };
 
+import { printComprobanteMovimiento } from './printing.js';
+
 export function init() {
   bindEvents();
   cargarSucursales().then(() => {
@@ -181,7 +183,7 @@ function renderTable() {
        <td>${stockDisplay}</td>
       <td>${Utils.esc(r.sucursalNombre || 'Global')}</td>
        <td>${Utils.esc(r.usuario)}</td>
-        <td class="acciones-cell">${r.estado === 'PENDIENTE' && (Utils.hasPermiso('PRODUCTOS_MOVIMIENTO_AUTORIZAR') || Utils.hasPermiso('PRODUCTOS_MOVIMIENTO')) ? '<button type="button" class="btn-kebab-toggle movimiento-kebab" data-id="' + r.idMovimiento + '" title="Acciones"><i class="fas fa-ellipsis-v"></i></button>' : (r.estado ? '<span class="small text-muted">' + Utils.esc(r.estado) + '</span>' : '')}</td>
+        <td class="acciones-cell"><button type="button" class="btn-kebab-toggle movimiento-kebab" data-id="${r.idMovimiento}" title="Acciones"><i class="fas fa-ellipsis-v"></i></button></td>
     </tr>`;
   }).join('');
 }
@@ -190,14 +192,38 @@ function handleTableClick(e) {
   const btn = e.target.closest('.movimiento-kebab');
   if (!btn) return;
   const id = parseInt(btn.dataset.id);
+  const movimiento = state.data.find(m => m.idMovimiento === id);
+  if (!movimiento) return;
   const items = [];
-  if (Utils.hasPermiso('PRODUCTOS_MOVIMIENTO_AUTORIZAR')) {
+  items.push({ icon: 'fa-eye', text: 'Ver detalle', color: 'var(--primary)', onClick: () => verMovimiento(movimiento) });
+  items.push({ icon: 'fa-print', text: 'Imprimir comprobante', color: 'var(--success)', onClick: () => printComprobanteMovimiento(movimiento) });
+  if (movimiento.estado === 'PENDIENTE' && Utils.hasPermiso('PRODUCTOS_MOVIMIENTO_AUTORIZAR')) {
     items.push({ icon: 'fa-key', text: 'Generar código', color: 'var(--primary)', onClick: () => generarCodigoMovimiento(id) });
     items.push({ danger: true, icon: 'fa-times', text: 'Rechazar', onClick: () => rechazarMovimiento(id) });
-  } else if (Utils.hasPermiso('PRODUCTOS_MOVIMIENTO')) {
+  } else if (movimiento.estado === 'PENDIENTE' && Utils.hasPermiso('PRODUCTOS_MOVIMIENTO')) {
     items.push({ icon: 'fa-key', text: 'Autorizar con código', color: 'var(--primary)', onClick: () => autorizarMovimiento(id) });
   }
   Utils.abrirMenuKebab(btn, items);
+}
+
+function verMovimiento(m) {
+  const costo = m.costoTotal != null ? Utils.formatMonto(m.costoTotal) : '—';
+  const stock = m.stockAnterior != null && m.stockNuevo != null
+    ? m.stockAnterior + ' &rarr; ' + m.stockNuevo : '—';
+  const body = '<div class="table-responsive"><table class="table table-sm table-custom mb-0">' +
+    '<tbody>' +
+    '<tr><th>Tipo</th><td>' + Utils.esc(Utils.capitalize((m.tipoMovimiento || '').replace('_', ' '))) + '</td></tr>' +
+    '<tr><th>Producto</th><td>' + Utils.esc((m.productoSku || '') + ' - ' + (m.productoNombre || '')) + '</td></tr>' +
+    '<tr><th>Cantidad</th><td>' + (m.cantidad != null ? m.cantidad : '—') + '</td></tr>' +
+    '<tr><th>Stock</th><td>' + stock + '</td></tr>' +
+    '<tr><th>Costo total</th><td>' + costo + '</td></tr>' +
+    '<tr><th>Sucursal</th><td>' + Utils.esc(m.sucursalNombre || 'Global') + '</td></tr>' +
+    '<tr><th>Referencia</th><td>' + Utils.esc(m.referencia || '—') + '</td></tr>' +
+    '<tr><th>Observación</th><td>' + Utils.esc(m.observacion || '—') + '</td></tr>' +
+    '<tr><th>Responsable</th><td>' + Utils.esc(m.usuario || '—') + '</td></tr>' +
+    '<tr><th>Fecha</th><td>' + Utils.formatDateTime(m.fechaMovimiento) + '</td></tr>' +
+    '</tbody></table></div>';
+  Utils.showDialog('Movimiento #' + m.idMovimiento, body);
 }
 
 async function generarCodigoMovimiento(id) {
@@ -320,7 +346,7 @@ function agregarLineaMovimiento() {
   const fila = document.createElement('tr');
   fila.innerHTML =
     '<td><select id="' + uid + '" class="form-select form-select-sm mov-producto-linea"><option value="">Selecciona...</option>' + productos + '</select></td>' +
-    '<td><input type="number" class="form-control form-control-sm mov-cantidad-linea" min="1" step="1" placeholder="Cantidad"></td>' +
+    '<td><input type="number" class="form-control form-control-sm mov-cantidad-linea" value="1" min="1" step="1" placeholder="Cantidad"></td>' +
     '<td class="mov-subtotal-linea text-end fw-semibold">$0.00</td>' +
     '<td><button type="button" class="btn-action" style="color:var(--danger)" data-action="quitar"><i class="fas fa-times"></i></button></td>';
   tbody.appendChild(fila);

@@ -7,9 +7,9 @@
   <link href="assets/bootstrap/css/bootstrap.min.css" rel="stylesheet">
   <link href="assets/fontawesome/css/all.min.css" rel="stylesheet">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-  <link href="css/main.css" rel="stylesheet">
-  <link href="css/login.css" rel="stylesheet">
-  <link href="css/dashboard.css" rel="stylesheet">
+  <link href="css/main.css?v=3.4.16" rel="stylesheet">
+  <link href="css/login.css?v=3.4.16" rel="stylesheet">
+  <link href="css/dashboard.css?v=3.4.16" rel="stylesheet">
 </head>
 <body>
 
@@ -345,7 +345,7 @@
   <script src="assets/fontawesome/js/all.min.js"></script>
   <script src="assets/jspdf/umd/jspdf.min.js"></script>
   <script src="assets/html2canvas/html2canvas.min.js"></script>
-  <script src="js/version.js"></script>
+  <script src="js/version.js?v=3.4.16"></script>
   <script>
     document.querySelectorAll('link[rel="stylesheet"][href^="css/"]').forEach(function(l) {
       if (typeof PAYLOAD_VERSION !== 'undefined') l.href = l.href.split('?')[0] + '?v=' + PAYLOAD_VERSION;
@@ -358,11 +358,11 @@
     var sidebarVer = document.getElementById('sidebar-version');
     if (sidebarVer && typeof PAYLOAD_VERSION !== 'undefined') sidebarVer.textContent = 'v' + PAYLOAD_VERSION;
   </script>
-  <script src="js/api.js"></script>
-  <script src="js/utils.js"></script>
-  <script src="js/dashboard.js"></script>
+  <script src="js/api.js?v=3.4.16"></script>
+  <script src="js/utils.js?v=3.4.16"></script>
+  <script src="js/dashboard.js?v=3.4.16"></script>
   <script>initSidebarDelegation();</script>
-  <script src="js/auth.js"></script>
+  <script src="js/auth.js?v=3.4.16"></script>
   <script>Auth.init();</script>
 </body>
 </html>
