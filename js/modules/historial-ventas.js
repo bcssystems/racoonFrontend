@@ -300,11 +300,11 @@ async function verDetalle(id) {
           <div class="col-4"><strong>Subtotal:</strong> ${Utils.formatMonto(venta.subtotal || 0)}</div>
           <div class="col-4"><strong>Descuento:</strong> ${Utils.formatMonto(venta.descuento || 0)}</div>
           <div class="col-4"><strong>Estado:</strong> <span class="badge ${estadoBadge}">${venta.estado}</span></div>
-          ${venta.tipoVenta === 'CREDITO'
-             ? `<div class="col-4"><strong>Folio de cr\u00e9dito:</strong> ${Utils.esc(venta.folioPagare || '—')}</div>
-               <div class="col-4"><strong>Inter\u00e9s:</strong> ${venta.porcentajeInteres || 0}%</div>
-                <div class="col-4"><strong>Plan:</strong> ${(venta.periodicidad || 'MENSUAL')} x ${venta.numeroParcialidades || venta.plazoMeses || '—'}</div>
-            : ''}
+           ${venta.tipoVenta === 'CREDITO'
+              ? '<div class="col-4"><strong>Folio de cr\u00e9dito:</strong> ' + Utils.esc(venta.folioPagare || '—') + '</div>' +
+                '<div class="col-4"><strong>Inter\u00e9s:</strong> ' + (venta.porcentajeInteres || 0) + '%</div>' +
+                '<div class="col-4"><strong>Plan:</strong> ' + (venta.periodicidad || 'MENSUAL') + ' x ' + (venta.numeroParcialidades || venta.plazoMeses || '—') + '</div>'
+             : ''}
           <div class="col-12 mt-2"><strong>Desglose de pagos:</strong>
             <table class="table table-sm table-custom mb-0 mt-1"><tbody>${desglosePagosHtml}</tbody></table>
           </div>

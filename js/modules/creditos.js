@@ -235,11 +235,12 @@ function renderCreditos() {
       <td>${c.idCredito}</td>
       <td>#${c.folioVenta || c.idVenta}</td>
       <td class="text-end">${Utils.formatMonto(c.montoOriginal || 0)}<small class="d-block text-muted">Capital: ${Utils.formatMonto(c.capitalFinanciado != null ? c.capitalFinanciado : c.montoOriginal || 0)}<br>Interés: ${Utils.formatMonto(c.interesTotal || 0)}</small></td>
-      <td class="text-end fw-semibold">${Utils.formatMonto(c.saldoPendiente || 0)}</td>
-      <td style="font-size:0.85rem">${c.fechaVencimiento ? new Date(c.fechaVencimiento).toLocaleDateString() : '-'}</td>
-      <td><span class="badge ${estadoBadge}">${c.estado}</span></td>
-      <td>
-        <button class="btn-action" style="color:var(--primary)" data-id="${c.idCredito}" data-action="reprint" title="Reimprimir venta"><i class="fas fa-print"></i></button>
+       <td class="text-end fw-semibold">${Utils.formatMonto(c.saldoPendiente || 0)}</td>
+       <td style="font-size:0.85rem">${c.fechaVencimiento ? new Date(c.fechaVencimiento).toLocaleDateString() : '-'}</td>
+       <td><span class="badge ${estadoBadge}">${c.estado}</span></td>
+       <td>
+         ${Utils.hasPermiso('CREDITOS_ASIGNAR') ? '<button class="btn-action" style="color:var(--primary)" data-id="' + c.idCredito + '" data-action="cobrador" title="Asignar cobrador"><i class="fas fa-user-tag"></i></button>' : ''}
+         <button class="btn-action" style="color:var(--primary)" data-id="${c.idCredito}" data-action="reprint" title="Reimprimir venta"><i class="fas fa-print"></i></button>
         <button class="btn-action" style="color:var(--info)" data-id="${c.idCredito}" data-action="parcialidades" title="Ver parcialidades"><i class="fas fa-calendar-alt"></i></button>
         <button class="btn-action" style="color:var(--info)" data-id="${c.idCredito}" data-action="ver-nota" title="Ver nota de la venta"><i class="fas fa-sticky-note"></i></button>
         ${abonoBtn}
@@ -263,6 +264,7 @@ function handleCreditoClick(e) {
   const accion = e.target.closest('[data-action]')?.dataset?.action;
   if (accion === 'reprint') reimprimirVenta(credito.idVenta || credito.folioVenta);
   else if (accion === 'parcialidades') verParcialidades(credito);
+  else if (accion === 'cobrador') asignarCobrador(credito);
   else if (accion === 'condonar') condonarIntereses(credito);
   else if (accion === 'ver-nota') verNotaVenta(credito);
 }
@@ -281,6 +283,30 @@ async function verParcialidades(credito) {
     Utils.showDialog('Parcialidades del crédito #' + credito.idCredito,
       '<div class="small mb-2">Interés mensual: <strong>' + (credito.porcentajeInteres || 0) + '%</strong> | Saldo de interés: <strong>' + Utils.formatMonto(credito.saldoInteres || 0) + '</strong></div>' +
       '<div class="table-responsive"><table class="table table-sm"><thead><tr><th>#</th><th>Fecha</th><th class="text-end">Capital</th><th class="text-end">Interés</th><th class="text-end">Total</th><th>Estado</th></tr></thead><tbody>' + (filas || '<tr><td colspan="6">Sin parcialidades</td></tr>') + '</tbody></table></div>');
+  } catch (err) { Utils.showToast(err.message, 'error'); }
+}
+
+async function asignarCobrador(credito) {
+  if (!Utils.hasPermiso('CREDITOS_ASIGNAR')) return;
+  try {
+    const cobradores = await API.get('/creditos/cobradores') || [];
+    const opciones = ['<option value="">Sin asignar</option>'].concat(cobradores.map(p =>
+      '<option value="' + p.idPersona + '"' + (String(p.idPersona) === String(credito.idCobrador) ? ' selected' : '') + '>' +
+      Utils.esc((p.nombre || '') + ' ' + (p.apellido || '') + ' (' + (p.usuario || '') + ')') + '</option>'
+    )).join('');
+    const html = '<label class="form-label">Cobrador</label><select id="dialogCobrador" class="form-select">' + opciones + '</select>';
+    Utils.showDialog('Asignar cobrador', html + '<div class="text-end mt-3"><button class="btn btn-primary btn-sm" id="btnDialogCobrador">Guardar</button></div>');
+    document.getElementById('btnDialogCobrador')?.addEventListener('click', async () => {
+      const idPersona = parseInt(document.getElementById('dialogCobrador').value) || null;
+      try {
+        await API.patch('/creditos/' + credito.idCredito + '/cobrador', { idPersona });
+        credito.idCobrador = idPersona;
+        credito.cobradorNombre = idPersona ? (cobradores.find(p => p.idPersona === idPersona)?.nombre || '') : null;
+        document.getElementById('dynamicDialog')?.remove();
+        Utils.showToast('Cobrador actualizado', 'success');
+        renderCreditos();
+      } catch (err) { Utils.showToast(err.message, 'error'); }
+    });
   } catch (err) { Utils.showToast(err.message, 'error'); }
 }
 

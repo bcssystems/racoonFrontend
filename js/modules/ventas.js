@@ -27,6 +27,7 @@ let state = {
   posCreditoContext: null,
   cobrando: false,
   selectorCajaBound: false,
+  cobradores: [],
 };
 
 const REGIMENES_FISCALES = [
@@ -48,6 +49,7 @@ const REGIMENES_FISCALES = [
 
 export function init() {
   bindEvents();
+  cargarCobradoresPOS();
   cargarConfiguraciones();
   const lastCajaId = localStorage.getItem('lastCajaId');
   const lastSucursalId = localStorage.getItem('lastSucursalId');
@@ -56,6 +58,18 @@ export function init() {
   } else {
     mostrarSelectorCaja();
   }
+}
+
+async function cargarCobradoresPOS() {
+  try {
+    state.cobradores = await API.get('/creditos/cobradores') || [];
+    const select = document.getElementById('posCreditoCobrador');
+    if (select) {
+      select.innerHTML = '<option value="">Sin asignar</option>' + state.cobradores.map(p =>
+        '<option value="' + p.idPersona + '">' + Utils.esc((p.nombre || '') + ' ' + (p.apellido || '') + ' (' + (p.usuario || '') + ')') + '</option>'
+      ).join('');
+    }
+  } catch (_) { /* La venta puede continuar sin cobrador */ }
 }
 
 async function autoEntrarCaja(id, sucursalId) {
@@ -1279,6 +1293,7 @@ async function confirmarCreditoPOS() {
   const numeroParcialidades = parseInt(document.getElementById('posCreditoParcialidades').value) || 1;
   const porcentajeInteres = parseFloat(document.getElementById('posCreditoInteres').value) || 0;
   const fechaPrimerPago = document.getElementById('posCreditoFechaPrimerPago').value || null;
+  const idCobrador = parseInt(document.getElementById('posCreditoCobrador')?.value) || null;
   const plazoMeses = periodicidad === 'QUINCENAL' ? Math.ceil(numeroParcialidades / 2)
     : periodicidad === 'SEMANAL' ? Math.ceil(numeroParcialidades / 4) : numeroParcialidades;
 
@@ -1296,6 +1311,7 @@ async function confirmarCreditoPOS() {
     periodicidad: periodicidad,
     numeroParcialidades: numeroParcialidades,
     fechaPrimerPago: fechaPrimerPago,
+    idCobrador: idCobrador,
     detalles: state.cart.map(d => ({
       idProducto: d.sku === 'ENVIO' || d.sku === 'VR' ? null : d.idProducto,
       descripcion: d.sku === 'ENVIO' || d.sku === 'VR' ? (d.descripcion || d.nombre) : null,
