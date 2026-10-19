@@ -342,9 +342,9 @@ async function verDetalle(id) {
               <tr><th>Categor&iacute;a</th><td>${Utils.esc(p.categoriaNombre || 'Sin categor&iacute;a')}</td></tr>
               <tr><th>Descripci&oacute;n</th><td>${Utils.esc(p.descripcion || '—')}</td></tr>
               <tr><th>Precio p&uacute;blico</th><td>${Utils.formatMonto(p.precioBase || 0)}</td></tr>
-              <tr><th>Precio 2</th><td>${p.precio2 != null ? Utils.formatMonto(p.precio2) : '—'}</td></tr>
-              <tr><th>Precio 3</th><td>${p.precio3 != null ? Utils.formatMonto(p.precio3) : '—'}</td></tr>
-              <tr><th>Precio 4</th><td>${p.precio4 != null ? Utils.formatMonto(p.precio4) : '—'}</td></tr>
+              <tr><th>Precio colaborador</th><td>${p.precio2 != null ? Utils.formatMonto(p.precio2) : '—'}</td></tr>
+              <tr><th>Precio mayoreo</th><td>${p.precio3 != null ? Utils.formatMonto(p.precio3) : '—'}</td></tr>
+              <tr><th>Precio distribuidor</th><td>${p.precio4 != null ? Utils.formatMonto(p.precio4) : '—'}</td></tr>
               <tr><th>Costo promedio</th><td>${p.costoPromedio != null ? Utils.formatMonto(p.costoPromedio) : '—'}</td></tr>
               <tr><th>Unidad de medida</th><td>${Utils.esc(unidad)}</td></tr>
               <tr><th>Stock global</th><td>${p.stockActual != null ? p.stockActual + ' ' + Utils.esc(unidad) : '—'}</td></tr>

@@ -462,7 +462,9 @@ const STATE_CUENTA_80MM_CSS = `
   `;
 
 function abrirVentana(titulo, alto, ancho) {
-  const win = window.open('', '_blank', 'width=' + (ancho || 800) + ',height=' + (alto || 900));
+  // Reutiliza una sola pestaña del mismo navegador para todos los comprobantes.
+  // No se envían dimensiones para evitar que el navegador la convierta en popup.
+  const win = window.open('', 'racoon-print-tab');
   if (!win) {
     Utils.showToast('Bloqueador de popups activo. Permite las ventanas emergentes.', 'warning');
     return null;
@@ -618,10 +620,9 @@ export function printRemisionVenta(venta, opts) {
   ${venta.nota ? `<div class="nota"><strong>Nota:</strong> ${Utils.esc(venta.nota)}</div>` : ''}
   ${esCredito ? '<div class="firmas"><div class="firma-espacio"><div class="firma-linea"></div>Entreg\u00f3</div><div class="firma-espacio"><div class="firma-linea"></div>Recibi\u00f3</div></div>' : ''}`;
 
-    const pieHtml = `<div class="bottom-section pagare-footer">${pagareHtml}</div>`;
-
-    const configFooter = footer ? '<div class="ticket-config-footer footer">' + Utils.esc(footer) + '</div>' : '';
-    const cuerpoTotales = '<div class="page-totals">' + totalesHtml + '\n  ' + pieHtml + configFooter + '</div>';
+    const firmaCliente = '<div class="ticket-firma firma"><div class="firma-linea"></div>Firma del cliente</div>';
+    const configFooter = footer ? '<div class="ticket-config-footer footer">' + Utils.esc(footer).replace(/\n/g, '<br>') + '</div>' : '';
+    const cuerpoTotales = '<div class="page-totals">' + totalesHtml + '\n  ' + firmaCliente + configFooter + '</div>';
 
     return `
   ${numCopies > 1 ? '<div class="copy-label">--- COPIA ' + (copyIndex + 1) + ' DE ' + numCopies + ' ---</div>' : ''}

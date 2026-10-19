@@ -114,12 +114,13 @@ function renderTable() {
   if (!tbody) return;
 
   if (!state.data || state.data.length === 0) {
-    tbody.innerHTML = '<tr><td colspan="10"><div class="empty-state"><i class="fas fa-address-book"></i><p>No hay clientes</p></div></td></tr>';
+    tbody.innerHTML = '<tr><td colspan="11"><div class="empty-state"><i class="fas fa-address-book"></i><p>No hay clientes</p></div></td></tr>';
     return;
   }
 
   tbody.innerHTML = state.data.map(c => {
     const saldo = c.saldoActual;
+    const saldoFavor = c.saldoFavor || 0;
     const saldoRojo = saldo != null && saldo > 0;
     const creditoHtml = c.tieneCredito
       ? '<span class="badge bg-info"><i class="fas fa-check me-1"></i>S\u00ed</span>' + (c.tieneIne ? '' : ' <span class="badge bg-danger" title="Falta INE"><i class="fas fa-id-card"></i></span>')
@@ -133,7 +134,8 @@ function renderTable() {
     <td>${Utils.esc(c.telefono) || '-'}</td>
     <td>${creditoHtml}</td>
     <td>${limiteHtml}</td>
-    <td class="text-end" style="${saldoRojo ? 'color:var(--danger);font-weight:600' : ''}">${saldo != null ? Utils.formatMonto(saldo) : '-'}</td>
+     <td class="text-end" style="${saldoRojo ? 'color:var(--danger);font-weight:600' : ''}">${saldo != null ? Utils.formatMonto(saldo) : '-'}</td>
+     <td class="text-end" style="${saldoFavor > 0 ? 'color:var(--success);font-weight:600' : ''}">${Utils.formatMonto(saldoFavor)}</td>
     <td class="text-center">
       <input type="checkbox" class="form-check-input" data-id="${c.idCliente}" data-ln="${c.enListaNegra ? 1 : 0}" data-nombre="${Utils.esc(c.nombre + ' ' + (c.apellidoPaterno||''))}" ${c.enListaNegra ? 'checked' : ''} title="Lista negra">
     </td>
@@ -216,6 +218,7 @@ function abrirAccionesCliente(anchor, id) {
     { icon: 'fa-file-invoice', text: 'Estado de cuenta', color: 'var(--primary)', onClick: () => irACreditos(id) },
     { icon: 'fa-list', text: 'Cr\u00e9ditos pendientes', color: 'var(--primary)', onClick: () => irACreditosPendientes(id) },
     { icon: 'fa-cash-register', text: 'Abonar', color: 'var(--success)', onClick: () => abonarEnPOS(id, c) },
+    { icon: 'fa-wallet', text: 'Registrar anticipo', color: 'var(--success)', onClick: () => registrarSaldoFavor(id, c) },
     { icon: 'fa-id-card', text: 'INE' + (c && c.tieneIne ? '  \u2713' : ''), color: 'var(--warning)', onClick: () => abrirModalIne(id) },
   ];
   if (Utils.hasPermiso('CLIENTES_EDITAR')) {
@@ -231,6 +234,32 @@ function abrirAccionesCliente(anchor, id) {
     items.push({ icon: 'fa-eye', text: 'Ver', color: 'var(--info)', onClick: () => abrirDetalleCliente(id) });
   }
   Utils.abrirMenuKebab(anchor, items);
+}
+
+async function registrarSaldoFavor(id, cliente) {
+  try {
+    const cajas = (await API.get('/cajas') || []).filter(c => c.estado === 'ABIERTA');
+    const tipos = await API.get('/tipos-pago') || [];
+    const html = '<div class="small mb-3">Cliente: <strong>' + Utils.esc((cliente.nombre || '') + ' ' + (cliente.apellidoPaterno || '')) + '</strong><br>Saldo actual a favor: <strong>' + Utils.formatMonto(cliente.saldoFavor || 0) + '</strong></div>' +
+      '<label class="form-label">Monto del anticipo</label><input type="number" id="saldoFavorMonto" class="form-control mb-2" min="0.01" step="0.01" placeholder="0.00">' +
+      '<label class="form-label">Caja abierta</label><select id="saldoFavorCaja" class="form-select mb-2"><option value="">Seleccionar...</option>' + cajas.map(c => '<option value="' + c.idCaja + '">' + Utils.esc(c.nombre) + '</option>').join('') + '</select>' +
+      '<label class="form-label">Forma de pago</label><select id="saldoFavorTipoPago" class="form-select mb-2"><option value="">Seleccionar...</option>' + tipos.map(t => '<option value="' + t.idTipoPago + '">' + Utils.esc(t.nombre) + '</option>').join('') + '</select>' +
+      '<label class="form-label">Concepto</label><input type="text" id="saldoFavorConcepto" class="form-control" value="Anticipo" maxlength="300">' +
+      '<div class="text-end mt-3"><button class="btn btn-success btn-sm" id="btnGuardarSaldoFavor">Registrar anticipo</button></div>';
+    Utils.showDialog('Saldo a favor', html);
+    document.getElementById('btnGuardarSaldoFavor')?.addEventListener('click', async () => {
+      const monto = parseFloat(document.getElementById('saldoFavorMonto').value) || 0;
+      const idCaja = parseInt(document.getElementById('saldoFavorCaja').value) || null;
+      const idTipoPago = parseInt(document.getElementById('saldoFavorTipoPago').value) || null;
+      if (monto <= 0 || !idCaja || !idTipoPago) { Utils.showToast('Completa monto, caja y forma de pago', 'warning'); return; }
+      try {
+        await API.post('/clientes/' + id + '/saldo-favor', { monto, idCaja, idTipoPago, concepto: document.getElementById('saldoFavorConcepto').value.trim() });
+        document.getElementById('dynamicDialog')?.remove();
+        Utils.showToast('Anticipo registrado como saldo a favor', 'success');
+        cargarClientes(state.currentPage);
+      } catch (err) { Utils.showToast(err.message, 'error'); }
+    });
+  } catch (err) { Utils.showToast(err.message, 'error'); }
 }
 
 function irACreditos(id) {
@@ -288,7 +317,8 @@ function abrirDetalleCliente(id) {
   const cred = [];
   cred.push('<div class="mb-1"><span class="text-muted">Cr\u00e9dito:</span> ' + (c.tieneCredito ? '<span class="text-success">Habilitado</span>' : '<span class="text-muted">No</span>') + '</div>');
   cred.push('<div class="mb-1"><span class="text-muted">L\u00edmite:</span> ' + (c.tieneCredito ? (c.limiteCredito != null ? Utils.formatMonto(c.limiteCredito) : 'Ilimitado') : '-') + '</div>');
-  cred.push('<div class="mb-1"><span class="text-muted">Saldo:</span> <strong>' + (c.saldoActual != null ? Utils.formatMonto(c.saldoActual) : '-') + '</strong></div>');
+   cred.push('<div class="mb-1"><span class="text-muted">Saldo a deber:</span> <strong>' + (c.saldoActual != null ? Utils.formatMonto(c.saldoActual) : '-') + '</strong></div>');
+   cred.push('<div class="mb-1"><span class="text-muted">Saldo a favor:</span> <strong class="text-success">' + Utils.formatMonto(c.saldoFavor || 0) + '</strong></div>');
   cred.push('<div class="mb-0"><span class="text-muted">Lista negra:</span> ' + (c.enListaNegra ? '<span class="text-danger">' + formatear(c.motivoListaNegra) + '</span>' : '<span class="text-success">No</span>') + '</div>');
   document.getElementById('clienteDetalleCredito').innerHTML = cred.join('');
 

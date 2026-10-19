@@ -104,6 +104,7 @@ function bindEvents() {
     document.getElementById(id)?.addEventListener('input', actualizarResumenCreditoPOS);
     document.getElementById(id)?.addEventListener('change', actualizarResumenCreditoPOS);
   });
+  document.getElementById('posCreditoPeriodicidad')?.addEventListener('change', actualizarFechaPrimerPagoPOS);
   document.getElementById('btnEsperaPOS')?.addEventListener('click', ponerEnEspera);
   document.getElementById('btnNuevoClientePOS')?.addEventListener('click', () => abrirClienteModal());
   document.getElementById('btnGuardarPosCliente')?.addEventListener('click', guardarClienteDesdePOS);
@@ -1049,7 +1050,16 @@ async function cargarFormasPagoCobro() {
       return;
     }
 
-    container.innerHTML = tipos.map((t) => {
+    const saldoFavorDisponible = clienteCredito ? (clienteCredito.saldoFavor || 0) : 0;
+    const saldoFavorHtml = saldoFavorDisponible > 0
+      ? '<div class="payment-row border rounded p-2 mb-1" style="background:rgba(16,185,129,.08)">' +
+        '<div class="row g-2 align-items-center"><div class="col-3"><span class="fw-semibold small text-success"><i class="fas fa-wallet me-1"></i>Saldo a favor</span></div>' +
+        '<div class="col-3"><div class="input-group input-group-sm"><span class="input-group-text">$</span>' +
+        '<input type="number" class="form-control payment-saldo-favor" step="0.01" min="0" max="' + saldoFavorDisponible.toFixed(2) + '" value="0.00"></div></div>' +
+        '<div class="col-6"><small class="text-muted">Disponible: <strong>' + Utils.formatMonto(saldoFavorDisponible) + '</strong></small></div></div></div>'
+      : '';
+
+    container.innerHTML = saldoFavorHtml + tipos.map((t) => {
       const isEfectivo = t.nombre.toUpperCase() === 'EFECTIVO';
       return `<div class="payment-row border rounded p-2 mb-1">
         <div class="row g-2 align-items-center">
@@ -1089,6 +1099,17 @@ async function cargarFormasPagoCobro() {
 
     container.oninput = recalcularSumaCobro;
 
+    container.querySelectorAll('.payment-monto').forEach(input => {
+      const seleccionarMonto = () => input.select();
+      input.addEventListener('focus', seleccionarMonto);
+      input.addEventListener('click', seleccionarMonto);
+    });
+    container.querySelectorAll('.payment-saldo-favor').forEach(input => {
+      const seleccionarMonto = () => input.select();
+      input.addEventListener('focus', seleccionarMonto);
+      input.addEventListener('click', seleccionarMonto);
+    });
+
     recalcularSumaCobro();
   } catch (err) {
     container.innerHTML = '<div class="text-center py-3 text-danger">Error al cargar formas de pago</div>';
@@ -1098,6 +1119,9 @@ async function cargarFormasPagoCobro() {
 function recalcularSumaCobro() {
   let suma = 0;
   document.querySelectorAll('.payment-monto').forEach(inp => {
+    suma += parseFloat(inp.value) || 0;
+  });
+  document.querySelectorAll('.payment-saldo-favor').forEach(inp => {
     suma += parseFloat(inp.value) || 0;
   });
   const total = Utils.parseMonto(document.getElementById('posCobroTotal').textContent);
@@ -1134,6 +1158,23 @@ async function confirmarCobro() {
 
   const pagos = [];
   let montoCredito = 0;
+  const saldoFavorInput = document.querySelector('.payment-saldo-favor');
+  const montoSaldoFavor = saldoFavorInput ? (parseFloat(saldoFavorInput.value) || 0) : 0;
+  const clienteSeleccionado = clienteId ? state.clientes.find(c => c.idCliente === clienteId) : null;
+  if (montoSaldoFavor > 0.01) {
+    if (!clienteSeleccionado) {
+      Utils.showToast('Selecciona un cliente para usar saldo a favor', 'warning');
+      return;
+    }
+    if (montoSaldoFavor > (clienteSeleccionado.saldoFavor || 0) + 0.001) {
+      Utils.showToast('El saldo a favor excede el disponible del cliente', 'warning');
+      return;
+    }
+    if (montoSaldoFavor > total + 0.001) {
+      Utils.showToast('El saldo a favor no puede exceder el total', 'warning');
+      return;
+    }
+  }
   document.querySelectorAll('.payment-monto').forEach(inp => {
     const monto = parseFloat(inp.value) || 0;
     if (monto <= 0) return;
@@ -1165,21 +1206,21 @@ async function confirmarCobro() {
       }
     }
     const sumaPagos = pagos.reduce((s, p) => s + p.monto, 0);
-    if (Math.abs((sumaPagos + montoCredito) - total) > 0.01) {
+    if (Math.abs((sumaPagos + montoCredito + montoSaldoFavor) - total) > 0.01) {
       Utils.showToast('Los pagos y el monto a cr\u00e9dito deben cubrir exactamente el total', 'warning');
       return;
     }
-    await pedirConfirmarCredito(total, subtotal, clienteId, nota, pagos, montoCredito);
+    await pedirConfirmarCredito(total, subtotal, clienteId, nota, pagos, montoCredito, montoSaldoFavor);
     return;
   }
 
-  if (pagos.length === 0) {
+  if (pagos.length === 0 && montoSaldoFavor <= 0.01) {
     Utils.showToast('Selecciona al menos una forma de pago', 'warning');
     return;
   }
 
   const sumaPagos = pagos.reduce((s, p) => s + p.monto, 0);
-  if (sumaPagos + 0.01 < total) {
+  if (sumaPagos + montoSaldoFavor + 0.01 < total) {
     Utils.showToast('La suma de los pagos debe ser al menos igual al total', 'warning');
     return;
   }
@@ -1206,6 +1247,7 @@ async function confirmarCobro() {
     })),
     pagos: pagos,
     montoCredito: montoCredito || null,
+    montoSaldoFavor: montoSaldoFavor || null,
   };
 
   state.cobrando = true;
@@ -1243,21 +1285,31 @@ async function confirmarCobro() {
   }
 }
 
-async function pedirConfirmarCredito(total, subtotal, clienteId, nota, pagos, montoCredito) {
+async function pedirConfirmarCredito(total, subtotal, clienteId, nota, pagos, montoCredito, montoSaldoFavor) {
   const cliente = state.clientes.find(c => c.idCliente === clienteId);
-  state.posCreditoContext = { pagos, montoCredito };
+  state.posCreditoContext = { pagos, montoCredito, montoSaldoFavor };
   document.getElementById('posCreditoTotal').textContent = Utils.formatMonto(montoCredito);
   document.getElementById('posCreditoClienteName').textContent = (cliente ? (cliente.nombre || '') + ' ' + (cliente.apellidoPaterno || '') : '');
   document.getElementById('posCreditoMontoOriginal').textContent = Utils.formatMonto(montoCredito);
   document.getElementById('posCreditoPeriodicidad').value = 'MENSUAL';
   document.getElementById('posCreditoParcialidades').value = '1';
   document.getElementById('posCreditoInteres').value = '0';
-  const fecha = new Date();
-  fecha.setMonth(fecha.getMonth() + 1);
-  document.getElementById('posCreditoFechaPrimerPago').value = fecha.toISOString().slice(0, 10);
+  const fechaHoy = fechaLocalPOS(0);
+  const fechaMaxima = fechaLocalPOS(10);
+  const fechaPrimerPagoInput = document.getElementById('posCreditoFechaPrimerPago');
+  fechaPrimerPagoInput.min = fechaHoy;
+  fechaPrimerPagoInput.max = fechaMaxima;
+  fechaPrimerPagoInput.value = fechaLocalPOS(7);
   actualizarResumenCreditoPOS();
   bootstrap.Modal.getInstance(document.getElementById('posCobroModal'))?.hide();
   new bootstrap.Modal(document.getElementById('posCreditoModal')).show();
+}
+
+function fechaLocalPOS(diasDesdeHoy) {
+  const fecha = new Date();
+  fecha.setHours(12, 0, 0, 0);
+  fecha.setDate(fecha.getDate() + diasDesdeHoy);
+  return fecha.getFullYear() + '-' + String(fecha.getMonth() + 1).padStart(2, '0') + '-' + String(fecha.getDate()).padStart(2, '0');
 }
 
 function actualizarResumenCreditoPOS() {
@@ -1276,6 +1328,14 @@ function actualizarResumenCreditoPOS() {
     '<div><strong>Parcialidad:</strong> ' + Utils.formatMonto(parcialidad) + ' x ' + cantidad + '</div>';
 }
 
+function actualizarFechaPrimerPagoPOS() {
+  const periodicidad = document.getElementById('posCreditoPeriodicidad')?.value || 'MENSUAL';
+  // La fecha sugerida siempre permanece dentro del rango permitido de 0 a 10 días.
+  const dias = periodicidad === 'SEMANAL' ? 7 : 10;
+  const input = document.getElementById('posCreditoFechaPrimerPago');
+  if (input) input.value = fechaLocalPOS(dias);
+}
+
 async function confirmarCreditoPOS() {
   if (state.cobrando) return;
   if (!state.caja) { Utils.showToast('No hay caja activa', 'error'); return; }
@@ -1285,7 +1345,7 @@ async function confirmarCreditoPOS() {
   }
 
   const total = Utils.parseMonto(document.getElementById('posCobroTotal').textContent);
-  const credito = state.posCreditoContext || { pagos: [], montoCredito: total };
+  const credito = state.posCreditoContext || { pagos: [], montoCredito: total, montoSaldoFavor: 0 };
   const subtotal = Utils.parseMonto(document.getElementById('posSubtotal').textContent);
   const clienteId = parseInt(document.getElementById('posCliente').value) || null;
   const nota = document.getElementById('posCobroNota').value.trim() || null;
@@ -1293,6 +1353,12 @@ async function confirmarCreditoPOS() {
   const numeroParcialidades = parseInt(document.getElementById('posCreditoParcialidades').value) || 1;
   const porcentajeInteres = parseFloat(document.getElementById('posCreditoInteres').value) || 0;
   const fechaPrimerPago = document.getElementById('posCreditoFechaPrimerPago').value || null;
+  const fechaMinimaPago = fechaLocalPOS(0);
+  const fechaMaximaPago = fechaLocalPOS(10);
+  if (!fechaPrimerPago || fechaPrimerPago < fechaMinimaPago || fechaPrimerPago > fechaMaximaPago) {
+    Utils.showToast('La primera fecha de pago debe estar entre hoy y 10 días después de la venta', 'warning');
+    return;
+  }
   const idCobrador = parseInt(document.getElementById('posCreditoCobrador')?.value) || null;
   const plazoMeses = periodicidad === 'QUINCENAL' ? Math.ceil(numeroParcialidades / 2)
     : periodicidad === 'SEMANAL' ? Math.ceil(numeroParcialidades / 4) : numeroParcialidades;
@@ -1325,6 +1391,7 @@ async function confirmarCreditoPOS() {
     })),
     pagos: credito.pagos,
     montoCredito: credito.montoCredito,
+    montoSaldoFavor: credito.montoSaldoFavor || null,
   };
   state.cobrando = true;
   const btn = document.getElementById('btnConfirmarCreditoPOS');
@@ -1337,7 +1404,7 @@ async function confirmarCreditoPOS() {
     await limpiarCart();
     await refreshCaja();
     await cargarEsperas();
-    imprimirTicketVenta(ventaCreada, 2, true, plazoMeses, porcentajeInteres, cInfo);
+    imprimirTicketVenta(ventaCreada, 1, true, plazoMeses, porcentajeInteres, cInfo);
     if (state.idCotizacionActiva) {
       try {
         await API.post('/cotizaciones/' + state.idCotizacionActiva + '/convertir');

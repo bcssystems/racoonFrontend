@@ -62,9 +62,9 @@
           <label class="form-label mb-0 small text-nowrap" for="precioSelector">Lista de precio:</label>
           <select class="form-select form-select-sm" id="precioSelector" style="max-width:180px">
             <option value="1">Precio p&uacute;blico</option>
-            <option value="2">Precio 2</option>
-            <option value="3">Precio 3</option>
-            <option value="4">Precio 4</option>
+            <option value="2">Precio colaborador</option>
+            <option value="3">Precio mayoreo</option>
+            <option value="4">Precio distribuidor</option>
           </select>
         </div>
         <div id="posProductResults" class="pos-product-results mt-1 d-none">
@@ -449,7 +449,8 @@
               </div>
               <div class="col-6">
                 <label class="form-label small">Primera fecha de pago</label>
-                <input type="date" class="form-control form-control-sm" id="posCreditoFechaPrimerPago">
+                <input type="date" class="form-control form-control-sm" id="posCreditoFechaPrimerPago" aria-describedby="posCreditoFechaPrimerPagoHelp">
+                <small class="text-muted" id="posCreditoFechaPrimerPagoHelp">Disponible desde hoy hasta 10 días después de la venta.</small>
               </div>
               </div>
               <div class="mt-2">
