@@ -78,12 +78,13 @@ function renderTable() {
   if (!tbody) return;
 
   if (!state.data || state.data.length === 0) {
-    tbody.innerHTML = '<tr><td colspan="6"><div class="empty-state"><i class="fas fa-users"></i><p>No hay usuarios</p></div></td></tr>';
+    tbody.innerHTML = '<tr><td colspan="7"><div class="empty-state"><i class="fas fa-users"></i><p>No hay usuarios</p></div></td></tr>';
     return;
   }
 
   tbody.innerHTML = state.data.map(p => `<tr class="${p.activa ? '' : 'inactive-row'}">
     <td>${Utils.esc(p.nombre)} ${Utils.esc(p.apellido)}</td>
+    <td>${Utils.esc(p.telefono || '—')}</td>
     <td>${Utils.esc(p.usuario)}</td>
     <td><span class="badge bg-primary-light text-primary">${p.rol && p.rol.nombre ? Utils.esc(p.rol.nombre) : '-'}</span></td>
     <td>${Utils.formatDate(p.fechaRegistro)}</td>
@@ -158,6 +159,7 @@ function abrirDetallePersona(id) {
   state.detallePersonaId = id;
 
   const info = '<div class="mb-1"><span class="text-muted">Nombre:</span> <strong>' + Utils.esc(p.nombre + ' ' + p.apellido) + '</strong></div>' +
+    '<div class="mb-1"><span class="text-muted">Teléfono:</span> ' + Utils.esc(p.telefono || '—') + '</div>' +
     '<div class="mb-1"><span class="text-muted">Usuario:</span> ' + Utils.esc(p.usuario) + '</div>' +
     '<div class="mb-1"><span class="text-muted">Rol base:</span> ' + Utils.esc(p.rol && p.rol.nombre ? p.rol.nombre : '-') + '</div>' +
     '<div class="mb-1"><span class="text-muted">Registro:</span> ' + (p.fechaRegistro ? Utils.formatDateTime(p.fechaRegistro) : '-') + '</div>' +
@@ -298,6 +300,7 @@ function abrirModal(id) {
       document.getElementById('personaId').value = p.idPersona;
       document.getElementById('personaNombre').value = p.nombre || '';
       document.getElementById('personaApellido').value = p.apellido || '';
+      document.getElementById('personaTelefono').value = p.telefono || '';
       document.getElementById('personaUsuario').value = p.usuario || '';
       document.getElementById('personaRol').value = p.rol && p.rol.idRol;
       Utils.updateSearchableOptions('personaRol');
@@ -326,6 +329,7 @@ async function guardarPersona() {
   const data = {
     nombre: document.getElementById('personaNombre').value.trim(),
     apellido: document.getElementById('personaApellido').value.trim(),
+    telefono: document.getElementById('personaTelefono').value.trim(),
     usuario: document.getElementById('personaUsuario').value.trim(),
     password: document.getElementById('personaPassword').value,
     idRol: Number(document.getElementById('personaRol').value),

@@ -167,6 +167,7 @@ const TICKET_CSS = `
     }
     .firma-espacio { width: 45%; text-align: center; }
     .firma-linea { border-top: 1px solid #222; height: 26px; }
+    body, body * { color: #000 !important; }
 
     .pagare { margin-top: 8px; }
     .pagare-footer {
@@ -350,6 +351,7 @@ const TICKET_80MM_CSS = `
     .pagare-firma-rol { font-size: 4.2pt; letter-spacing: .3px; }
     .pagare-firma-nombre { font-size: 4.5pt; overflow-wrap: anywhere; }
     .ticket-config-footer { font-size: 5.5pt; margin-top: 4px; overflow-wrap: anywhere; }
+    body, body * { color: #000 !important; }
   `;
 
 export function getDesglosePagos(venta) {
@@ -490,6 +492,7 @@ export function printRemisionVenta(venta, opts) {
   const logoHtml = logo ? '<img src="' + Utils.esc(logo) + '" class="logo" alt="" onerror="this.remove()">' : '';
   const empresa = configs.descripcionEmpresa || 'Racoon';
   const footer = configs.pieTicket || configs.footerTicket || '';
+  const politicasGarantia = footer || 'POLÍTICAS DE GARANTÍA RACOON: Conserve este ticket. La garantía aplica conforme a las condiciones informadas al momento de la compra.';
 
   const now = new Date();
   const fechaStr = now.toLocaleDateString('es-MX', { year: 'numeric', month: 'long', day: 'numeric' });
@@ -618,11 +621,10 @@ export function printRemisionVenta(venta, opts) {
     </table>
   </div>
   ${venta.nota ? `<div class="nota"><strong>Nota:</strong> ${Utils.esc(venta.nota)}</div>` : ''}
-  ${esCredito ? '<div class="firmas"><div class="firma-espacio"><div class="firma-linea"></div>Entreg\u00f3</div><div class="firma-espacio"><div class="firma-linea"></div>Recibi\u00f3</div></div>' : ''}`;
+  <div class="firmas"><div class="firma-espacio"><div class="firma-linea"></div>Firma del cliente</div><div class="firma-espacio"><div class="firma-linea"></div>Firma de quien entrega</div></div>`;
 
-    const firmaCliente = '<div class="ticket-firma firma"><div class="firma-linea"></div>Firma del cliente</div>';
-    const configFooter = footer ? '<div class="ticket-config-footer footer">' + Utils.esc(footer).replace(/\n/g, '<br>') + '</div>' : '';
-    const cuerpoTotales = '<div class="page-totals">' + totalesHtml + '\n  ' + firmaCliente + configFooter + '</div>';
+    const configFooter = '<div class="ticket-config-footer footer"><strong>Políticas de garantía</strong><br>' + Utils.esc(politicasGarantia).replace(/\n/g, '<br>') + '</div>';
+    const cuerpoTotales = '<div class="page-totals">' + totalesHtml + '\n  ' + configFooter + '</div>';
 
     return `
   ${numCopies > 1 ? '<div class="copy-label">--- COPIA ' + (copyIndex + 1) + ' DE ' + numCopies + ' ---</div>' : ''}

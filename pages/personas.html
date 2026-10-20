@@ -22,6 +22,7 @@
         <thead>
           <tr>
             <th>Nombre</th>
+            <th>Teléfono</th>
             <th>Usuario</th>
             <th>Rol</th>
             <th>Registro</th>
@@ -30,7 +31,7 @@
           </tr>
         </thead>
         <tbody id="tablePersonasBody">
-          <tr><td colspan="6"><div class="empty-state"><i class="fas fa-users"></i><p>Cargando...</p></div></td></tr>
+          <tr><td colspan="7"><div class="empty-state"><i class="fas fa-users"></i><p>Cargando...</p></div></td></tr>
         </tbody>
       </table>
     </div>
@@ -57,6 +58,10 @@
             <div class="col-md-6">
               <label class="form-label">Apellido <span class="text-danger">*</span></label>
               <input type="text" class="form-control" id="personaApellido" required maxlength="100">
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">Teléfono</label>
+              <input type="tel" class="form-control" id="personaTelefono" maxlength="20">
             </div>
             <div class="col-md-6">
               <label class="form-label">Usuario <span class="text-danger">*</span></label>

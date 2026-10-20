@@ -10,6 +10,7 @@ export function init() {
     document.getElementById('cobranzaHasta').value = hoy;
     cargarAgenda();
   });
+  document.getElementById('cobranzaAntiguedad')?.addEventListener('change', render);
   document.getElementById('tableCobranzaBody')?.addEventListener('click', manejarClick);
   document.getElementById('btnGuardarCobranzaAbono')?.addEventListener('click', guardarAbono);
   cargarCatalogos();
@@ -27,16 +28,29 @@ async function cargarCatalogos() {
   if (pagos) pagos.innerHTML = state.tiposPago.map(t => '<option value="' + t.idTipoPago + '">' + Utils.esc(t.nombre) + '</option>').join('');
   const cajas = document.getElementById('cobranzaAbonoCaja');
   if (cajas) cajas.innerHTML = '<option value="">Seleccionar caja...</option>' + state.cajas.map(c => '<option value="' + c.idCaja + '">' + Utils.esc(c.nombre + ' - ' + (c.sucursalNombre || '')) + '</option>').join('');
+  try {
+    const personas = await API.get('/personas?page=0&size=100&activa=true&sort=nombre,ASC');
+    const cobradores = document.getElementById('cobranzaCobrador');
+    if (cobradores && personas?.content) {
+      const puedeVerTodas = Utils.hasPermiso('COBRANZA_VER_TODAS') || Utils.hasPermiso('CREDITOS_ASIGNAR');
+      cobradores.innerHTML = '<option value="">' + (puedeVerTodas ? 'Todos los cobradores' : 'Mi cartera') + '</option>' + personas.content.map(p =>
+        '<option value="' + p.idPersona + '">' + Utils.esc((p.nombre || '') + ' ' + (p.apellido || '')) + '</option>'
+      ).join('');
+      if (!puedeVerTodas) cobradores.disabled = true;
+    }
+  } catch (_) {}
 }
 
 async function cargarAgenda() {
   const desde = document.getElementById('cobranzaDesde').value;
   const hasta = document.getElementById('cobranzaHasta').value;
   const estado = document.getElementById('cobranzaEstado').value;
+  const idCobrador = document.getElementById('cobranzaCobrador')?.value;
   const params = new URLSearchParams();
   if (desde) params.set('desde', desde);
   if (hasta) params.set('hasta', hasta);
   if (estado) params.set('estado', estado);
+  if (idCobrador) params.set('idCobrador', idCobrador);
   try {
     state.agenda = await API.get('/creditos/cobranza/agenda?' + params.toString()) || [];
     render();
@@ -45,7 +59,14 @@ async function cargarAgenda() {
 
 function render() {
   const tbody = document.getElementById('tableCobranzaBody');
-  const agenda = state.agenda || [];
+  const antiguedad = document.getElementById('cobranzaAntiguedad')?.value || '';
+  const hoy = fechaLocal(new Date());
+  const agenda = (state.agenda || []).filter(x => {
+    const fecha = x.fechaVencimiento ? String(x.fechaVencimiento).slice(0, 10) : '';
+    if (antiguedad === 'HOY') return fecha === hoy;
+    if (antiguedad === 'ATRASADOS') return fecha < hoy && x.estado !== 'PAGADA' && (x.saldo || 0) > 0;
+    return true;
+  });
   document.getElementById('cobranzaTotal').textContent = agenda.length;
   document.getElementById('cobranzaSaldo').textContent = Utils.formatMonto(agenda.reduce((s, x) => s + (x.saldo || 0), 0));
   document.getElementById('cobranzaPagado').textContent = Utils.formatMonto(agenda.reduce((s, x) => s + (x.montoPagado || 0), 0));
@@ -57,7 +78,8 @@ function render() {
   tbody.innerHTML = agenda.map(x => {
     const mapa = x.direccion ? ' <a target="_blank" title="Abrir ubicación" href="https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent(x.direccion) + '"><i class="fas fa-map-marker-alt"></i></a>' : '';
     const estado = x.estado === 'PAGADA' ? 'bg-success' : x.estado === 'PARCIAL' ? 'bg-info' : 'bg-warning text-dark';
-    return '<tr><td class="text-nowrap">' + (x.fechaVencimiento ? new Date(x.fechaVencimiento).toLocaleDateString() : '-') + '</td>' +
+    const atrasada = x.fechaVencimiento && String(x.fechaVencimiento).slice(0, 10) < hoy && x.estado !== 'PAGADA';
+    return '<tr><td class="text-nowrap">' + (x.fechaVencimiento ? new Date(x.fechaVencimiento).toLocaleDateString() : '-') + (atrasada ? ' <span class="badge bg-danger">Atrasada</span>' : '') + '</td>' +
       '<td><strong>' + Utils.esc(x.clienteNombre || '') + '</strong><br><small class="text-muted">Parcialidad #' + x.numero + '</small></td>' +
       '<td>' + Utils.esc(x.telefono || '—') + '</td><td>' + Utils.esc(x.direccion || '—') + mapa + '</td>' +
       '<td>' + Utils.esc(x.folioCredito || ('#' + x.idCredito)) + '</td><td class="text-end">' + Utils.formatMonto(x.montoProgramado || 0) + '</td>' +
