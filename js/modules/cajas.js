@@ -113,15 +113,6 @@ function handleTableClick(e) {
             cajaNombre: movimiento.cajaNombre
           })
         });
-      if (movimiento.estadoCancelacion === 'SOLICITADA' && Utils.hasPermiso('CANCELACIONES_AUTORIZAR')) items.push({
-        icon: 'fa-key', text: 'Generar código', color: 'var(--primary)',
-        onClick: async () => {
-          try {
-            const codigo = await API.post('/cajas/movimientos/' + movimiento.idMovimientoCaja + '/generar-codigo');
-            Utils.showDialog('Código de autorización', '<div class="text-center"><p class="small text-muted mb-2">Comparte este código con quien solicitó la cancelación.</p><div class="display-6 fw-bold text-primary" style="letter-spacing:8px">' + Utils.esc(codigo.codigo || '') + '</div><p class="small text-muted mt-2">Vigencia: 10 minutos</p></div>');
-          } catch (err) { Utils.showToast(err.message, 'error'); }
-        }
-      });
       if (!movimiento.cancelado && Utils.hasPermiso('CAJAS_MOVIMIENTO')) items.push({
         danger: true, icon: 'fa-ban', text: 'Cancelar movimiento',
         onClick: () => cancelarMovimientoCaja(movimiento)

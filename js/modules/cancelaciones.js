@@ -1,4 +1,4 @@
-let state = { pendientes: [], historial: [], historialTabCargado: false };
+let state = { pendientes: [], pendientesAbonos: [], historial: [], historialTabCargado: false };
 
 export function init() {
   if (!Utils.hasPermiso('CANCELACIONES_VER')) {
@@ -14,6 +14,7 @@ export function init() {
 
 function bindEvents() {
   document.getElementById('cancelacionesBody')?.addEventListener('click', handleTableClick);
+  document.getElementById('cancelacionesAbonosBody')?.addEventListener('click', handleAbonosClick);
   document.getElementById('cancelHistorialBody')?.addEventListener('click', handleHistorialClick);
 
   document.querySelectorAll('#cancelTabs button[data-bs-toggle="tab"]').forEach(btn => {
@@ -44,13 +45,59 @@ async function cargarPendientes() {
   const body = document.getElementById('cancelacionesBody');
   if (!body) return;
   try {
-    const res = await API.get('/ventas?estado=SOLICITADA_CANCELACION&size=200');
+    const [ventas, abonos] = await Promise.all([
+      API.get('/ventas?estado=SOLICITADA_CANCELACION&size=200'),
+      API.get('/cajas/movimientos/solicitudes-cancelacion')
+    ]);
+    const res = ventas;
     state.pendientes = res.content || res || [];
+    state.pendientesAbonos = abonos || [];
     renderTable();
+    renderAbonos();
   } catch (err) {
     state.pendientes = [];
+    state.pendientesAbonos = [];
     renderTable();
+    renderAbonos();
   }
+}
+
+function renderAbonos() {
+  const body = document.getElementById('cancelacionesAbonosBody');
+  if (!body) return;
+  if (!state.pendientesAbonos.length) {
+    body.innerHTML = '<tr><td colspan="8"><div class="empty-state py-3"><i class="fas fa-check-double"></i><p>Sin solicitudes de abonos pendientes</p></div></td></tr>';
+    return;
+  }
+  body.innerHTML = state.pendientesAbonos.map(m => `<tr>
+    <td><span class="badge-status badge-warning">#${m.idMovimientoCaja}</span></td>
+    <td>${Utils.esc(m.clienteNombre || 'Cliente')}</td>
+    <td>#${m.idCredito || '-'}</td>
+    <td class="fw-semibold">${Utils.formatMonto(m.monto || 0)}</td>
+    <td>${Utils.esc(m.cajaNombre || '-')}</td>
+    <td>${Utils.esc(m.motivoCancelacion || '-')}</td>
+    <td>${Utils.formatDateTime(m.fecha)}</td>
+    <td class="acciones-cell"><button type="button" class="btn-kebab-toggle kebab-trigger abono-cancelacion-kebab" data-id="${m.idMovimientoCaja}" title="Acciones"><i class="fas fa-ellipsis-v"></i></button></td>
+  </tr>`).join('');
+}
+
+function handleAbonosClick(e) {
+  const kebab = e.target.closest('.abono-cancelacion-kebab');
+  if (!kebab) return;
+  const id = parseInt(kebab.dataset.id);
+  const movimiento = state.pendientesAbonos.find(m => m.idMovimientoCaja === id);
+  if (!movimiento) return;
+  Utils.abrirMenuKebab(kebab, [{
+    icon: 'fa-key', text: 'Generar código', color: 'var(--primary)',
+    onClick: () => generarCodigoAbono(movimiento)
+  }]);
+}
+
+async function generarCodigoAbono(movimiento) {
+  try {
+    const codigo = await API.post('/cajas/movimientos/' + movimiento.idMovimientoCaja + '/generar-codigo');
+    Utils.showDialog('Código de autorización de abono', '<div class="text-center"><p class="small text-muted">Comparte este código con el usuario que solicitó la cancelación.</p><div class="display-6 fw-bold text-primary" style="letter-spacing:8px">' + Utils.esc(codigo.codigo || '') + '</div><p class="small text-muted mt-2">Vigencia: 10 minutos</p></div>');
+  } catch (err) { Utils.showToast(err.message, 'error'); }
 }
 
 function renderTable() {
