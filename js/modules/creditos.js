@@ -152,18 +152,20 @@ function renderClientes() {
   if (!tbody) return;
 
   if (state.clientes.length === 0) {
-    tbody.innerHTML = '<tr><td colspan="6"><div class="empty-state"><i class="fas fa-credit-card"></i><p>No hay clientes con cr\u00e9dito</p></div></td></tr>';
+    tbody.innerHTML = '<tr><td colspan="7"><div class="empty-state"><i class="fas fa-credit-card"></i><p>No hay clientes con cr\u00e9dito</p></div></td></tr>';
     return;
   }
 
   tbody.innerHTML = state.clientes.map(c => {
     const disponible = (c.limiteCredito || 0) - (c.saldoActual || 0);
+    const score = c.scoreCredito == null ? 100 : c.scoreCredito;
     return `<tr class="credito-cliente-row" data-id="${c.idCliente}">
       <td><span class="fw-semibold">${Utils.esc(c.nombre)} ${Utils.esc(c.apellidoPaterno || '')}</span></td>
       <td>${Utils.esc(c.telefono) || '-'}</td>
       <td class="text-end">${Utils.formatMonto(c.limiteCredito || 0)}</td>
       <td class="text-end fw-semibold ${(c.saldoActual || 0) > 0 ? 'text-danger' : 'text-success'}">${Utils.formatMonto(c.saldoActual || 0)}</td>
       <td class="text-end">${Utils.formatMonto(Math.max(0, disponible))}</td>
+      <td><span class="badge ${score >= 75 ? 'bg-success' : score >= 50 ? 'bg-warning text-dark' : 'bg-danger'}">${score}/100</span></td>
       <td>
         <div class="d-flex justify-content-end">
           <button type="button" class="btn-kebab-toggle kebab-trigger" data-id="${c.idCliente}" title="Acciones"><i class="fas fa-ellipsis-v"></i></button>
@@ -220,7 +222,7 @@ function renderCreditos() {
   if (!tbody) return;
 
   if (!state.creditos || state.creditos.length === 0) {
-    tbody.innerHTML = '<tr><td colspan="7"><div class="empty-state py-2"><i class="fas fa-file-invoice"></i><p>Sin cr\u00e9ditos</p></div></td></tr>';
+    tbody.innerHTML = '<tr><td colspan="8"><div class="empty-state py-2"><i class="fas fa-file-invoice"></i><p>Sin cr\u00e9ditos</p></div></td></tr>';
     return;
   }
 
@@ -236,6 +238,7 @@ function renderCreditos() {
       <td>#${c.folioVenta || c.idVenta}</td>
       <td class="text-end">${Utils.formatMonto(c.montoOriginal || 0)}<small class="d-block text-muted">Capital: ${Utils.formatMonto(c.capitalFinanciado != null ? c.capitalFinanciado : c.montoOriginal || 0)}<br>Interés: ${Utils.formatMonto(c.interesTotal || 0)}</small></td>
        <td class="text-end fw-semibold">${Utils.formatMonto(c.saldoPendiente || 0)}</td>
+       <td><span class="badge ${((c.scoreCliente == null ? 100 : c.scoreCliente) >= 75) ? 'bg-success' : 'bg-warning text-dark'}">${c.scoreCliente == null ? 100 : c.scoreCliente}/100</span><small class="d-block text-muted">Al crear: ${c.scoreAlCrear == null ? 100 : c.scoreAlCrear}</small></td>
        <td style="font-size:0.85rem">${c.fechaVencimiento ? new Date(c.fechaVencimiento).toLocaleDateString() : '-'}</td>
        <td><span class="badge ${estadoBadge}">${c.estado}</span></td>
        <td>

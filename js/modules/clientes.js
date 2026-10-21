@@ -114,13 +114,15 @@ function renderTable() {
   if (!tbody) return;
 
   if (!state.data || state.data.length === 0) {
-    tbody.innerHTML = '<tr><td colspan="11"><div class="empty-state"><i class="fas fa-address-book"></i><p>No hay clientes</p></div></td></tr>';
+    tbody.innerHTML = '<tr><td colspan="12"><div class="empty-state"><i class="fas fa-address-book"></i><p>No hay clientes</p></div></td></tr>';
     return;
   }
 
   tbody.innerHTML = state.data.map(c => {
     const saldo = c.saldoActual;
     const saldoFavor = c.saldoFavor || 0;
+    const score = c.scoreCredito == null ? 100 : c.scoreCredito;
+    const scoreClase = score >= 90 ? 'bg-success' : score >= 75 ? 'bg-info' : score >= 50 ? 'bg-warning text-dark' : 'bg-danger';
     const saldoRojo = saldo != null && saldo > 0;
     const creditoHtml = c.tieneCredito
       ? '<span class="badge bg-info"><i class="fas fa-check me-1"></i>S\u00ed</span>' + (c.tieneIne ? '' : ' <span class="badge bg-danger" title="Falta INE"><i class="fas fa-id-card"></i></span>')
@@ -133,6 +135,7 @@ function renderTable() {
     <td>${Utils.esc(c.apellidoPaterno || '')} ${Utils.esc(c.apellidoMaterno || '')}</td>
     <td>${Utils.esc(c.telefono) || '-'}</td>
     <td>${creditoHtml}</td>
+    <td><span class="badge ${scoreClase}" title="Score crediticio">${score}/100</span></td>
     <td>${limiteHtml}</td>
      <td class="text-end" style="${saldoRojo ? 'color:var(--danger);font-weight:600' : ''}">${saldo != null ? Utils.formatMonto(saldo) : '-'}</td>
      <td class="text-end" style="${saldoFavor > 0 ? 'color:var(--success);font-weight:600' : ''}">${Utils.formatMonto(saldoFavor)}</td>
@@ -319,6 +322,7 @@ function abrirDetalleCliente(id) {
   cred.push('<div class="mb-1"><span class="text-muted">L\u00edmite:</span> ' + (c.tieneCredito ? (c.limiteCredito != null ? Utils.formatMonto(c.limiteCredito) : 'Ilimitado') : '-') + '</div>');
    cred.push('<div class="mb-1"><span class="text-muted">Saldo a deber:</span> <strong>' + (c.saldoActual != null ? Utils.formatMonto(c.saldoActual) : '-') + '</strong></div>');
    cred.push('<div class="mb-1"><span class="text-muted">Saldo a favor:</span> <strong class="text-success">' + Utils.formatMonto(c.saldoFavor || 0) + '</strong></div>');
+   cred.push('<div class="mb-1"><span class="text-muted">Score crediticio:</span> <strong>' + (c.scoreCredito == null ? 100 : c.scoreCredito) + '/100</strong></div>');
   cred.push('<div class="mb-0"><span class="text-muted">Lista negra:</span> ' + (c.enListaNegra ? '<span class="text-danger">' + formatear(c.motivoListaNegra) + '</span>' : '<span class="text-success">No</span>') + '</div>');
   document.getElementById('clienteDetalleCredito').innerHTML = cred.join('');
 
