@@ -230,9 +230,6 @@ function renderCreditos() {
     const estadoBadge = c.estado === 'ACTIVO' ? 'bg-warning text-dark' :
       c.estado === 'PAGADO' ? 'bg-success' :
       c.estado === 'VENCIDO' ? 'bg-danger' : 'bg-secondary';
-    const abonoBtn = c.estado === 'ACTIVO'
-      ? '<button class="btn btn-sm btn-success abono-btn" data-credito-id="' + c.idCredito + '" title="Abonar en caja"><i class="fas fa-money-bill-wave"></i></button>'
-      : '';
     return `<tr>
       <td>${c.idCredito}</td>
       <td>#${c.folioVenta || c.idVenta}</td>
@@ -241,19 +238,19 @@ function renderCreditos() {
        <td><span class="badge ${((c.scoreCliente == null ? 100 : c.scoreCliente) >= 75) ? 'bg-success' : 'bg-warning text-dark'}">${c.scoreCliente == null ? 100 : c.scoreCliente}/100</span><small class="d-block text-muted">Al crear: ${c.scoreAlCrear == null ? 100 : c.scoreAlCrear}</small></td>
        <td style="font-size:0.85rem">${c.fechaVencimiento ? new Date(c.fechaVencimiento).toLocaleDateString() : '-'}</td>
        <td><span class="badge ${estadoBadge}">${c.estado}</span></td>
-       <td>
-         ${Utils.hasPermiso('CREDITOS_ASIGNAR') ? '<button class="btn-action" style="color:var(--primary)" data-id="' + c.idCredito + '" data-action="cobrador" title="Asignar cobrador"><i class="fas fa-user-tag"></i></button>' : ''}
-         <button class="btn-action" style="color:var(--primary)" data-id="${c.idCredito}" data-action="reprint" title="Reimprimir venta"><i class="fas fa-print"></i></button>
-        <button class="btn-action" style="color:var(--info)" data-id="${c.idCredito}" data-action="parcialidades" title="Ver parcialidades"><i class="fas fa-calendar-alt"></i></button>
-        <button class="btn-action" style="color:var(--info)" data-id="${c.idCredito}" data-action="ver-nota" title="Ver nota de la venta"><i class="fas fa-sticky-note"></i></button>
-        ${abonoBtn}
-        ${Utils.hasPermiso('CREDITOS_CONDONAR_INTERES') && (c.saldoInteres || 0) > 0 ? '<button class="btn-action" style="color:var(--warning)" data-id="' + c.idCredito + '" data-action="condonar" title="Condonar intereses"><i class="fas fa-hand-holding-dollar"></i></button>' : ''}
-      </td>
+       <td><button type="button" class="btn-kebab-toggle kebab-trigger credito-kebab" data-id="${c.idCredito}" title="Acciones"><i class="fas fa-ellipsis-v"></i></button></td>
     </tr>`;
   }).join('');
 }
 
 function handleCreditoClick(e) {
+  const kebab = e.target.closest('.credito-kebab');
+  if (kebab) {
+    e.preventDefault();
+    const credito = state.creditos.find(c => c.idCredito === parseInt(kebab.dataset.id));
+    if (credito) abrirAccionesCredito(kebab, credito);
+    return;
+  }
   const id = e.target.closest('[data-id]')?.dataset?.id;
   if (!id) return;
   const credito = state.creditos.find(c => c.idCredito === parseInt(id));
@@ -270,6 +267,31 @@ function handleCreditoClick(e) {
   else if (accion === 'cobrador') asignarCobrador(credito);
   else if (accion === 'condonar') condonarIntereses(credito);
   else if (accion === 'ver-nota') verNotaVenta(credito);
+}
+
+function abrirAccionesCredito(anchor, credito) {
+  const items = [];
+  if (Utils.hasPermiso('CREDITOS_ASIGNAR')) items.push({
+    icon: 'fa-user-tag', text: 'Asignar cobrador', color: 'var(--primary)',
+    onClick: () => asignarCobrador(credito)
+  });
+  items.push(
+    { icon: 'fa-print', text: 'Reimprimir venta', color: 'var(--primary)', onClick: () => reimprimirVenta(credito.idVenta || credito.folioVenta) },
+    { icon: 'fa-calendar-alt', text: 'Ver parcialidades', color: 'var(--info)', onClick: () => verParcialidades(credito) },
+    { icon: 'fa-sticky-note', text: 'Ver nota de la venta', color: 'var(--info)', onClick: () => verNotaVenta(credito) }
+  );
+  if (credito.estado === 'ACTIVO') items.push({
+    icon: 'fa-money-bill-wave', text: 'Abonar en caja', color: 'var(--success)',
+    onClick: () => {
+      const cliente = state.clientes.find(c => c.idCliente === state.selectedClienteId);
+      if (cliente) abonarEnPOS(state.selectedClienteId, cliente, credito.idCredito);
+    }
+  });
+  if (Utils.hasPermiso('CREDITOS_CONDONAR_INTERES') && (credito.saldoInteres || 0) > 0) items.push({
+    icon: 'fa-hand-holding-dollar', text: 'Condonar intereses', color: 'var(--warning)',
+    onClick: () => condonarIntereses(credito)
+  });
+  Utils.abrirMenuKebab(anchor, items);
 }
 
 async function verParcialidades(credito) {

@@ -519,7 +519,7 @@ body {
 
 .kebab-menu-float {
   position: fixed;
-  z-index: 20000;
+  z-index: 20100;
   min-width: 170px;
   max-width: 230px;
   background: #fff;
