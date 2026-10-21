@@ -1,4 +1,6 @@
-let state = { data: [], editingId: null, sucursales: [] };
+import { printComprobanteAbono } from './printing.js';
+
+let state = { data: [], editingId: null, sucursales: [], movimientos: [] };
 
 export function init() {
   bindEvents();
@@ -69,7 +71,7 @@ function renderTable() {
 }
 
 function handleTableClick(e) {
-  const kebab = e.target.closest('.kebab-trigger');
+  const kebab = e.target.closest('.kebab-trigger:not(.movimiento-kebab)');
   if (kebab) {
     e.preventDefault();
     const id = parseInt(kebab.dataset.id);
@@ -97,6 +99,20 @@ function handleTableClick(e) {
       items.push({ danger: true, icon: 'fa-trash', text: 'Eliminar', onClick: () => confirmarEliminar(id) });
     }
     Utils.abrirMenuKebab(kebab, items);
+    return;
+  }
+  const movimientoKebab = e.target.closest('.movimiento-kebab');
+  if (movimientoKebab) {
+    const movimiento = state.movimientos.find(m => m.idMovimientoCaja === parseInt(movimientoKebab.dataset.movimientoId));
+    if (movimiento) {
+      Utils.abrirMenuKebab(movimientoKebab, [{
+        icon: 'fa-print', text: 'Imprimir comprobante de abono', color: 'var(--primary)',
+        onClick: () => printComprobanteAbono(movimiento, {
+          clienteNombre: movimiento.clienteNombre,
+          cajaNombre: movimiento.cajaNombre
+        })
+      }]);
+    }
     return;
   }
   const btn = e.target.closest('.btn-action');
@@ -216,13 +232,14 @@ async function confirmarMovimiento() {
 async function verMovimientos(id) {
   try {
     const movs = await API.get('/cajas/' + id + '/movimientos');
+    state.movimientos = movs || [];
     const caja = state.data.find(c => c.idCaja === id);
     document.getElementById('movimientosModalTitle').textContent =
       'Movimientos - ' + (caja ? caja.nombre : '');
 
     const body = document.getElementById('tableMovimientosBody');
     if (!movs || movs.length === 0) {
-      body.innerHTML = '<tr><td colspan="4"><div class="empty-state"><i class="fas fa-exchange-alt"></i><p>Sin movimientos</p></div></td></tr>';
+      body.innerHTML = '<tr><td colspan="5"><div class="empty-state"><i class="fas fa-exchange-alt"></i><p>Sin movimientos</p></div></td></tr>';
     } else {
       body.innerHTML = movs.map(m => {
         const esIngreso = m.tipo === 'INGRESO';
@@ -232,7 +249,8 @@ async function verMovimientos(id) {
           <td style="color:${esIngreso ? 'var(--success)' : 'var(--danger)'};font-weight:600">
             ${esIngreso ? '+' : '-'}${Utils.formatMonto(m.monto)}
           </td>
-          <td>${Utils.esc(m.motivo) || '-'}</td>
+          <td>${m.clienteNombre ? '<strong>' + Utils.esc(m.clienteNombre) + '</strong><br><small>Crédito ' + Utils.esc(m.folioCredito || ('#' + m.idCredito)) + '</small>' : (Utils.esc(m.motivo) || '-')}</td>
+          <td>${m.idAbono ? '<button type="button" class="btn-kebab-toggle kebab-trigger movimiento-kebab" data-movimiento-id="' + m.idMovimientoCaja + '" title="Acciones"><i class="fas fa-ellipsis-v"></i></button>' : ''}</td>
         </tr>`;
       }).join('');
     }

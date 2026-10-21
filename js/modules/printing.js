@@ -809,25 +809,32 @@ export function printComprobanteAbono(abonos, opts) {
     ? pagos.map(p => `<tr><td>${Utils.esc(p.nombreTipoPago || p.tipoPagoNombre || 'Pago')}${p.referencia ? ' (' + Utils.esc(p.referencia) + ')' : ''}</td><td class="right">${Utils.formatMonto(p.monto || 0)}</td></tr>`).join('')
     : `<tr><td>${Utils.esc(primero.metodoPago || 'Pago')}</td><td class="right">${Utils.formatMonto(total)}</td></tr>`;
   const detalleHtml = lista.map(abono => `
-    <tr>
-      <td>Crédito #${Utils.esc(abono.idCredito || '')}${abono.folioCredito ? '<br><span class="muted">' + Utils.esc(abono.folioCredito) + '</span>' : ''}</td>
-      <td class="right">${abono.saldoAnterior != null ? Utils.formatMonto(abono.saldoAnterior) : '—'}</td>
-      <td class="right">${Utils.formatMonto(abono.monto || 0)}</td>
-      <td class="right">${Utils.formatMonto(abono.interesPagado || 0)}</td>
-      <td class="right">${Utils.formatMonto(abono.capitalPagado || 0)}</td>
-      <td class="right">${abono.saldoNuevo != null ? Utils.formatMonto(abono.saldoNuevo) : '—'}</td>
-    </tr>`).join('');
+    <div class="abono-detalle">
+      <div class="abono-field"><span>Crédito</span><strong>#${Utils.esc(abono.idCredito || '')}${abono.folioCredito ? ' / ' + Utils.esc(abono.folioCredito) : ''}</strong></div>
+      <div class="abono-field"><span>Saldo anterior</span><strong>${abono.saldoAnterior != null ? Utils.formatMonto(abono.saldoAnterior) : '—'}</strong></div>
+      <div class="abono-field"><span>Abono</span><strong>${Utils.formatMonto(abono.monto || 0)}</strong></div>
+      <div class="abono-field"><span>Interés</span><strong>${Utils.formatMonto(abono.interesPagado || 0)}</strong></div>
+      <div class="abono-field"><span>Capital</span><strong>${Utils.formatMonto(abono.capitalPagado || 0)}</strong></div>
+      <div class="abono-field"><span>Saldo restante</span><strong>${abono.saldoNuevo != null ? Utils.formatMonto(abono.saldoNuevo) : '—'}</strong></div>
+    </div>`).join('');
   const clienteNombre = options.clienteNombre || primero.clienteNombre || 'Cliente';
   const estado = lista.some(a => a.estadoCredito === 'PAGADO') ? 'LIQUIDADO' : 'SALDO PENDIENTE';
   const css = options.formato === '80mm' ? TICKET_CSS + TICKET_80MM_CSS : TICKET_CSS;
   const html = `<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8"><title>Comprobante de abono</title><style>${css}
-    .abono-table { width:100%; border-collapse:collapse; table-layout:fixed; }
-    .abono-table th, .abono-table td { padding:5px 6px; border-bottom:1px solid #ddd; font-size:9pt; overflow-wrap:anywhere; }
-    .abono-table th { text-align:left; font-size:7.5pt; text-transform:uppercase; }
+     .abono-detalle { width:100%; border:1px solid #000; margin:6px 0; }
+     .abono-field { display:flex; justify-content:space-between; gap:12px; padding:5px 6px; border-bottom:1px solid #000; font-size:9pt; overflow-wrap:anywhere; }
+     .abono-field:last-child { border-bottom:0; }
+     .abono-field span { font-weight:700; }
+     .abono-field strong { text-align:right; }
     .right { text-align:right; }
     .muted { color:#666; font-size:7.5pt; }
     .abono-total { font-size:14pt; font-weight:700; color:#2563EB; }
-    .abono-status { text-align:center; font-weight:700; letter-spacing:1px; margin:10px 0; }
+     .abono-status { text-align:center; font-weight:700; letter-spacing:1px; margin:10px 0; }
+     @media print {
+       .abono-field { padding:3px 4px; font-size:7pt; }
+       .abono-field span { font-size:6.5pt; }
+       .abono-field strong { font-size:7pt; }
+     }
     @media print { .print-copy { break-after: page; } .print-copy:last-child { break-after:auto; } }
   </style></head><body>
     <div class="print-copy">
@@ -840,10 +847,7 @@ export function printComprobanteAbono(abonos, opts) {
         ${options.cajaNombre ? `<tr><td class="label">Caja</td><td>${Utils.esc(options.cajaNombre)}</td></tr>` : ''}
       </table>
       <div class="divider"></div>
-      <table class="abono-table">
-        <thead><tr><th>Crédito</th><th class="right">Saldo anterior</th><th class="right">Abono</th><th class="right">Interés</th><th class="right">Capital</th><th class="right">Saldo restante</th></tr></thead>
-        <tbody>${detalleHtml}</tbody>
-      </table>
+       <div class="abono-detalles">${detalleHtml}</div>
       <div class="divider"></div>
       <table class="totals">
         <tr><td>Saldo anterior</td><td class="right">${lista.length === 1 && primero.saldoAnterior != null ? Utils.formatMonto(primero.saldoAnterior) : 'Ver detalle'}</td></tr>
