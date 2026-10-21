@@ -1,11 +1,15 @@
 let state = { agenda: [], tiposPago: [], cajas: [], seleccion: null };
+let cobranzaClienteDebounce;
 
 export function init() {
   const hoy = fechaLocal(new Date());
   document.getElementById('cobranzaDesde').value = hoy;
   document.getElementById('cobranzaHasta').value = hoy;
   document.getElementById('btnBuscarCobranza')?.addEventListener('click', cargarAgenda);
-  document.getElementById('cobranzaCliente')?.addEventListener('keydown', e => { if (e.key === 'Enter') cargarAgenda(); });
+  document.getElementById('cobranzaCliente')?.addEventListener('input', () => {
+    clearTimeout(cobranzaClienteDebounce);
+    cobranzaClienteDebounce = setTimeout(cargarAgenda, 400);
+  });
   document.getElementById('btnHoyCobranza')?.addEventListener('click', () => {
     document.getElementById('cobranzaDesde').value = hoy;
     document.getElementById('cobranzaHasta').value = hoy;
