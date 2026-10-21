@@ -5,6 +5,7 @@ export function init() {
   document.getElementById('cobranzaDesde').value = hoy;
   document.getElementById('cobranzaHasta').value = hoy;
   document.getElementById('btnBuscarCobranza')?.addEventListener('click', cargarAgenda);
+  document.getElementById('cobranzaCliente')?.addEventListener('keydown', e => { if (e.key === 'Enter') cargarAgenda(); });
   document.getElementById('btnHoyCobranza')?.addEventListener('click', () => {
     document.getElementById('cobranzaDesde').value = hoy;
     document.getElementById('cobranzaHasta').value = hoy;
@@ -46,11 +47,13 @@ async function cargarAgenda() {
   const hasta = document.getElementById('cobranzaHasta').value;
   const estado = document.getElementById('cobranzaEstado').value;
   const idCobrador = document.getElementById('cobranzaCobrador')?.value;
+  const cliente = document.getElementById('cobranzaCliente')?.value.trim();
   const params = new URLSearchParams();
   if (desde) params.set('desde', desde);
   if (hasta) params.set('hasta', hasta);
   if (estado) params.set('estado', estado);
   if (idCobrador) params.set('idCobrador', idCobrador);
+  if (cliente) params.set('cliente', cliente);
   try {
     state.agenda = await API.get('/creditos/cobranza/agenda?' + params.toString()) || [];
     render();
