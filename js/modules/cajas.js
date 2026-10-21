@@ -105,13 +105,19 @@ function handleTableClick(e) {
   if (movimientoKebab) {
     const movimiento = state.movimientos.find(m => m.idMovimientoCaja === parseInt(movimientoKebab.dataset.movimientoId));
     if (movimiento) {
-      Utils.abrirMenuKebab(movimientoKebab, [{
-        icon: 'fa-print', text: 'Imprimir comprobante de abono', color: 'var(--primary)',
-        onClick: () => printComprobanteAbono(movimiento, {
-          clienteNombre: movimiento.clienteNombre,
-          cajaNombre: movimiento.cajaNombre
-        })
-      }]);
+      const items = [];
+      if (movimiento.idAbono) items.push({
+          icon: 'fa-print', text: 'Imprimir comprobante de abono', color: 'var(--primary)',
+          onClick: () => printComprobanteAbono(movimiento, {
+            clienteNombre: movimiento.clienteNombre,
+            cajaNombre: movimiento.cajaNombre
+          })
+        });
+      if (!movimiento.cancelado && Utils.hasPermiso('CAJAS_MOVIMIENTO')) items.push({
+        danger: true, icon: 'fa-ban', text: 'Cancelar movimiento',
+        onClick: () => cancelarMovimientoCaja(movimiento)
+      });
+      if (items.length) Utils.abrirMenuKebab(movimientoKebab, items);
     }
     return;
   }
@@ -243,18 +249,33 @@ async function verMovimientos(id) {
     } else {
       body.innerHTML = movs.map(m => {
         const esIngreso = m.tipo === 'INGRESO';
-        return `<tr>
+        return `<tr class="${m.cancelado ? 'text-muted text-decoration-line-through' : ''}">
           <td>${Utils.formatDateTime(m.fecha)}</td>
           <td><span class="badge-status ${esIngreso ? 'badge-active' : 'badge-inactive'}">${m.tipo}</span></td>
           <td style="color:${esIngreso ? 'var(--success)' : 'var(--danger)'};font-weight:600">
             ${esIngreso ? '+' : '-'}${Utils.formatMonto(m.monto)}
           </td>
           <td>${m.clienteNombre ? '<strong>' + Utils.esc(m.clienteNombre) + '</strong><br><small>Crédito ' + Utils.esc(m.folioCredito || ('#' + m.idCredito)) + '</small>' : (Utils.esc(m.motivo) || '-')}</td>
-          <td>${m.idAbono ? '<button type="button" class="btn-kebab-toggle kebab-trigger movimiento-kebab" data-movimiento-id="' + m.idMovimientoCaja + '" title="Acciones"><i class="fas fa-ellipsis-v"></i></button>' : ''}</td>
+          <td><button type="button" class="btn-kebab-toggle kebab-trigger movimiento-kebab" data-movimiento-id="${m.idMovimientoCaja}" title="Acciones"><i class="fas fa-ellipsis-v"></i></button></td>
         </tr>`;
       }).join('');
     }
     new bootstrap.Modal(document.getElementById('movimientosModal')).show();
+  } catch (err) { Utils.showToast(err.message, 'error'); }
+}
+
+async function cancelarMovimientoCaja(movimiento) {
+  const descripcion = movimiento.idAbono
+    ? 'el abono de ' + (movimiento.clienteNombre || 'Cliente') + ' al crédito #' + movimiento.idCredito
+    : 'el movimiento de caja #' + movimiento.idMovimientoCaja;
+  const ok = await Utils.confirm('Se cancelará ' + descripcion + ' y se revertirá el saldo de caja.', 'Cancelar movimiento');
+  if (!ok) return;
+  try {
+    await API.post('/cajas/movimientos/' + movimiento.idMovimientoCaja + '/cancelar');
+    Utils.showToast('Movimiento cancelado', 'success');
+    const cajaId = movimiento.idCaja;
+    await verMovimientos(cajaId);
+    cargarCajas();
   } catch (err) { Utils.showToast(err.message, 'error'); }
 }
 

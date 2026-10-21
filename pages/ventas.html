@@ -144,6 +144,9 @@
           <button class="btn btn-outline-danger btn-sm ripple" id="btnCancelarVentaPOS">
             <i class="fas fa-ban me-1"></i> Cancelar Venta
           </button>
+          <button class="btn btn-outline-success btn-sm ripple" id="btnAbonoCreditoPOS">
+            <i class="fas fa-money-bill-wave me-1"></i> Abonar al Crédito
+          </button>
           <button class="btn btn-outline-info btn-sm ripple" id="btnPromocionesPOS">
             <i class="fas fa-percent me-1"></i> Promociones
           </button>
@@ -530,6 +533,14 @@
         <div id="posCancelarEmpty" class="text-center py-4 d-none">
           <i class="fas fa-check-circle fa-2x text-muted mb-2"></i>
           <p class="text-muted mb-0">No hay ventas recientes para solicitar cancelaci&oacute;n</p>
+        </div>
+        <hr class="my-3">
+        <h6 class="fw-semibold"><i class="fas fa-hand-holding-dollar me-1"></i>Abonos a créditos</h6>
+        <div class="table-responsive" style="max-height:220px">
+          <table class="table table-custom table-sm mb-0">
+            <thead><tr><th>Abono</th><th>Cliente</th><th>Crédito</th><th>Monto</th><th>Fecha</th><th></th></tr></thead>
+            <tbody id="posCancelarAbonoBody"><tr><td colspan="6" class="text-center text-muted py-3">Cargando...</td></tr></tbody>
+          </table>
         </div>
         <div class="d-none mt-3 border rounded bg-light p-3" id="posCancelarPanel">
           <div class="alert alert-warning py-2 mb-2 small" id="posCancelarInfo"></div>

@@ -14,6 +14,7 @@ let state = {
   esperaVentas: [],
   activeEsperaTab: null,
   cancelarVentas: [],
+  cancelarAbonos: [],
   cancelarSelectedId: null,
   cancelarAccion: null,
   precioIndex: null,
@@ -132,6 +133,7 @@ function bindEvents() {
   });
   document.getElementById('btnSolicitarGastoPOS')?.addEventListener('click', solicitarGasto);
   document.getElementById('btnCancelarVentaPOS')?.addEventListener('click', abrirCancelarVentaModal);
+  document.getElementById('btnAbonoCreditoPOS')?.addEventListener('click', abrirAbonoCreditoDesdePOS);
   document.getElementById('btnConfirmarCancelarPOS')?.addEventListener('click', confirmarCancelarVenta);
   document.getElementById('btnConfirmarPrecioPOS')?.addEventListener('click', confirmarPrecio);
   document.getElementById('btnVentaRapidaPOS')?.addEventListener('click', () => {
@@ -2078,8 +2080,11 @@ async function abrirCancelarVentaModal() {
 
   try {
     state.cancelarVentas = await API.get('/ventas/sucursal/' + state.caja.idSucursal);
+    state.cancelarAbonos = (await API.get('/cajas/' + state.caja.idCaja + '/movimientos') || [])
+      .filter(m => m.idAbono && !m.cancelado);
   } catch (_) {
     state.cancelarVentas = [];
+    state.cancelarAbonos = [];
   }
 
   const body = document.getElementById('posCancelarVentaBody');
@@ -2122,7 +2127,54 @@ async function abrirCancelarVentaModal() {
     });
   }
 
+  const abonosBody = document.getElementById('posCancelarAbonoBody');
+  if (abonosBody) {
+    abonosBody.innerHTML = state.cancelarAbonos.length
+      ? state.cancelarAbonos.map(m => `<tr>
+          <td>${m.idAbono}</td>
+          <td>${Utils.esc(m.clienteNombre || 'Cliente')}</td>
+          <td>Cr&eacute;dito #${m.idCredito}</td>
+          <td>${Utils.formatMonto(m.monto)}</td>
+          <td>${new Date(m.fecha).toLocaleString()}</td>
+          <td><button type="button" class="btn btn-sm btn-outline-danger pos-cancelar-abono" data-movimiento-id="${m.idMovimientoCaja}">
+            <i class="fas fa-ban me-1"></i>Cancelar</button></td>
+        </tr>`).join('')
+      : '<tr><td colspan="6" class="text-center text-muted py-3">No hay abonos activos en esta caja</td></tr>';
+    abonosBody.querySelectorAll('.pos-cancelar-abono').forEach(btn => {
+      btn.addEventListener('click', () => cancelarAbonoPOS(parseInt(btn.dataset.movimientoId)));
+    });
+  }
+
   new bootstrap.Modal(document.getElementById('posCancelarModal')).show();
+}
+
+async function cancelarAbonoPOS(idMovimiento) {
+  const movimiento = state.cancelarAbonos.find(m => m.idMovimientoCaja === idMovimiento);
+  if (!movimiento) return;
+  const ok = await Utils.confirm(
+    'Se cancelará el abono de ' + (movimiento.clienteNombre || 'Cliente') +
+      ' al crédito #' + movimiento.idCredito + ' y se revertirá el ingreso de caja.',
+    'Cancelar abono');
+  if (!ok) return;
+  try {
+    await API.post('/cajas/movimientos/' + idMovimiento + '/cancelar');
+    Utils.showToast('Abono cancelado correctamente', 'success');
+    state.cancelarAbonos = state.cancelarAbonos.filter(m => m.idMovimientoCaja !== idMovimiento);
+    document.querySelector('.pos-cancelar-abono[data-movimiento-id="' + idMovimiento + '"]')?.closest('tr')?.remove();
+  } catch (err) { Utils.showToast(err.message, 'error'); }
+}
+
+function abrirAbonoCreditoDesdePOS() {
+  const idCliente = parseInt(document.getElementById('posCliente')?.value) || null;
+  if (!idCliente) {
+    Utils.showToast('Selecciona un cliente para registrar el abono', 'warning');
+    return;
+  }
+  const cliente = state.clientes.find(c => c.idCliente === idCliente);
+  abrirAbonoPOS({
+    idCliente,
+    nombre: cliente ? [cliente.nombre, cliente.apellidoPaterno, cliente.apellidoMaterno].filter(Boolean).join(' ') : 'Cliente'
+  });
 }
 
 async function prepararAccionCancelar() {
