@@ -272,10 +272,16 @@ async function guardarProductoNuevo() {
   const idCategoria = parseInt(document.getElementById('cmpProductoCategoria').value) || null;
   const unidadMedida = document.getElementById('cmpProductoUnidad').value || 'PIEZA';
   const idSucursal = parseInt(document.getElementById('cmpSucursal').value) || null;
+  const descripcion = document.getElementById('cmpProductoDescripcion').value.trim() || null;
   const precioBase = parseFloat(document.getElementById('cmpProductoPrecio').value);
   const costoPromedio = parseFloat(document.getElementById('cmpProductoCosto').value);
+  const precio2 = parseFloat(document.getElementById('cmpProductoPrecio2').value);
+  const precio3 = parseFloat(document.getElementById('cmpProductoPrecio3').value);
+  const precio4 = parseFloat(document.getElementById('cmpProductoPrecio4').value);
   if (!nombre) { Utils.showToast('El nombre es obligatorio', 'warning'); return; }
   if (!idCategoria) { Utils.showToast('Selecciona una categor&iacute;a', 'warning'); return; }
+  if (!Number.isFinite(precioBase) || precioBase < 0) { Utils.showToast('El precio público es obligatorio', 'warning'); return; }
+  if (!Number.isFinite(costoPromedio) || costoPromedio < 0) { Utils.showToast('El costo es obligatorio', 'warning'); return; }
   if (Number.isFinite(precioBase) && Number.isFinite(costoPromedio) && precioBase <= costoPromedio) {
     Utils.showToast('El precio p&uacute;blico debe ser mayor al costo', 'warning'); return;
   }
@@ -285,11 +291,11 @@ async function guardarProductoNuevo() {
     const producto = await API.post('/productos', {
       sku: null,
       nombre,
-      descripcion: null,
+       descripcion,
       precioBase: Number.isFinite(precioBase) ? precioBase : null,
-      precio2: null,
-      precio3: null,
-      precio4: null,
+       precio2: Number.isFinite(precio2) ? precio2 : null,
+       precio3: Number.isFinite(precio3) ? precio3 : null,
+       precio4: Number.isFinite(precio4) ? precio4 : null,
       costoPromedio: Number.isFinite(costoPromedio) ? costoPromedio : null,
       idCategoria,
       unidadMedida,

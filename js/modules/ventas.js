@@ -1349,6 +1349,10 @@ async function confirmarCreditoPOS() {
   const subtotal = Utils.parseMonto(document.getElementById('posSubtotal').textContent);
   const clienteId = parseInt(document.getElementById('posCliente').value) || null;
   const nota = document.getElementById('posCobroNota').value.trim() || null;
+  if (!nota) {
+    Utils.showToast('La nota es obligatoria para las ventas a crédito', 'warning');
+    return;
+  }
   const periodicidad = document.getElementById('posCreditoPeriodicidad').value || 'MENSUAL';
   const numeroParcialidades = parseInt(document.getElementById('posCreditoParcialidades').value) || 1;
   const porcentajeInteres = parseFloat(document.getElementById('posCreditoInteres').value) || 0;

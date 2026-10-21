@@ -84,15 +84,30 @@ function render() {
       '<td>' + Utils.esc(x.telefono || '—') + '</td><td>' + Utils.esc(x.direccion || '—') + mapa + '</td>' +
       '<td>' + Utils.esc(x.folioCredito || ('#' + x.idCredito)) + '</td><td class="text-end">' + Utils.formatMonto(x.montoProgramado || 0) + '</td>' +
       '<td class="text-end fw-semibold">' + Utils.formatMonto(x.saldo || 0) + '</td><td><span class="badge ' + estado + '">' + Utils.esc(x.estado) + '</span></td>' +
-      '<td>' + (x.saldo > 0 && Utils.hasPermiso('COBRANZA_ABONAR') ? '<button class="btn-action text-success" data-cobranza-id="' + x.idCredito + '" data-cobranza-parcialidad="' + x.idParcialidad + '" title="Registrar abono"><i class="fas fa-money-bill-wave"></i></button>' : '') + '</td></tr>';
+      '<td>' + (x.saldo > 0 && Utils.hasPermiso('COBRANZA_ABONAR') ? '<button type="button" class="btn-kebab-toggle kebab-trigger cobranza-kebab" data-cobranza-id="' + x.idCredito + '" data-cobranza-parcialidad="' + x.idParcialidad + '" title="Acciones"><i class="fas fa-ellipsis-v"></i></button>' : '') + '</td></tr>';
   }).join('');
 }
 
 function manejarClick(e) {
+  const kebab = e.target.closest('.cobranza-kebab');
+  if (kebab) {
+    const item = state.agenda.find(x => x.idCredito === parseInt(kebab.dataset.cobranzaId) && x.idParcialidad === parseInt(kebab.dataset.cobranzaParcialidad));
+    if (item) {
+      Utils.abrirMenuKebab(kebab, [{
+        icon: 'fa-money-bill-wave', text: 'Registrar abono', color: 'var(--success)',
+        onClick: () => abrirModalAbono(item)
+      }]);
+    }
+    return;
+  }
   const btn = e.target.closest('[data-cobranza-id]');
   if (!btn) return;
   const item = state.agenda.find(x => x.idCredito === parseInt(btn.dataset.cobranzaId) && x.idParcialidad === parseInt(btn.dataset.cobranzaParcialidad));
   if (!item) return;
+  abrirModalAbono(item);
+}
+
+function abrirModalAbono(item) {
   state.seleccion = item;
   document.getElementById('cobranzaAbonoInfo').innerHTML = '<strong>' + Utils.esc(item.clienteNombre) + '</strong><br>Crédito ' + Utils.esc(item.folioCredito || ('#' + item.idCredito)) + ' | Saldo: ' + Utils.formatMonto(item.saldo || 0);
   document.getElementById('cobranzaAbonoMonto').value = (item.saldo || 0).toFixed(2);

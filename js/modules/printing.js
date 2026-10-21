@@ -13,10 +13,10 @@ const TICKET_CSS = `
     .print-copy {
       page-break-after: always;
       break-after: page;
-      min-height: 100vh;
+       min-height: 0;
       position: relative;
       box-sizing: border-box;
-      padding: 0.25in;
+       padding: 0.08in;
       display: -webkit-flex;
       display: flex;
       -webkit-flex-direction: column;
@@ -138,6 +138,9 @@ const TICKET_CSS = `
       letter-spacing: 0.5px;
       margin-bottom: 4px;
     }
+    .credito-calendario { margin-top: 5px; }
+    .credito-calendario th, .credito-calendario td { padding: 2px 4px; font-size: 7pt; border-bottom: 1px solid #000; }
+    .credito-calendario th { text-align: left; font-weight: 700; }
     .nota {
       margin-top: 6px;
       padding: 6px 8px;
@@ -303,7 +306,7 @@ const TICKET_80MM_CSS = `
       width: 72mm;
       max-width: 72mm;
       min-height: 0;
-      padding: 2.5mm;
+       padding: 0;
       margin: 0 auto;
       display: block;
       page-break-after: always;
@@ -350,7 +353,8 @@ const TICKET_80MM_CSS = `
     .pagare-caja-tabla td { font-size: 4.6pt; padding: .5px; overflow-wrap: anywhere; word-break: break-word; }
     .pagare-firma-rol { font-size: 4.2pt; letter-spacing: .3px; }
     .pagare-firma-nombre { font-size: 4.5pt; overflow-wrap: anywhere; }
-    .ticket-config-footer { font-size: 5.5pt; margin-top: 4px; overflow-wrap: anywhere; }
+     .ticket-config-footer { font-size: 5.5pt; margin-top: 4px; overflow-wrap: anywhere; }
+     .credito-calendario th, .credito-calendario td { padding: 1px; font-size: 5.2pt; }
     body, body * { color: #000 !important; }
   `;
 
@@ -378,6 +382,44 @@ export function getDesglosePagos(venta) {
     });
   }
   return { pagos, montoCredito, pagado };
+}
+
+function fechaTicket(valor) {
+  if (!valor) return null;
+  const fecha = new Date(valor);
+  if (Number.isNaN(fecha.getTime())) return null;
+  return fecha.toLocaleDateString('es-MX', { year: 'numeric', month: '2-digit', day: '2-digit' });
+}
+
+function planCreditoTicket(venta, desglosePagos) {
+  if (!venta || venta.tipoVenta !== 'CREDITO') return '';
+  const cantidad = Number(venta.numeroParcialidades) || 1;
+  const periodicidad = venta.periodicidad || 'MENSUAL';
+  const capital = Number(venta.capitalFinanciado) || desglosePagos.montoCredito || 0;
+  const interes = Number(venta.interesTotal) || 0;
+  const totalPlan = capital + interes;
+  const montoAbono = totalPlan / cantidad;
+  const fechaInicio = venta.fecha ? new Date(venta.fecha) : new Date();
+  const primerPago = venta.fechaPrimerPago ? new Date(venta.fechaPrimerPago) : fechaInicio;
+  const fechas = [];
+  for (let i = 0; i < cantidad; i++) {
+    const fecha = new Date(primerPago);
+    if (periodicidad === 'SEMANAL') fecha.setDate(fecha.getDate() + (i * 7));
+    else if (periodicidad === 'QUINCENAL') fecha.setDate(fecha.getDate() + (i * 15));
+    else fecha.setMonth(fecha.getMonth() + i);
+    fechas.push(fecha);
+  }
+  const filas = fechas.map((fecha, i) => '<tr><td>Abono #' + (i + 1) + '</td><td>' + fechaTicket(fecha) + '</td><td class="right">' + Utils.formatMonto(montoAbono) + '</td></tr>').join('');
+  const saldo = Number(venta.saldoCapital || 0) + Number(venta.saldoInteres || 0);
+  return '<div class="section credito-plan">' +
+    '<div class="section-title">Plan de crédito y abonos</div>' +
+    '<table class="totals credito-resumen"><tr><td>Fecha de inicio</td><td class="right">' + (fechaTicket(venta.fecha) || '-') + '</td></tr>' +
+    '<tr><td>Primer pago</td><td class="right">' + (fechaTicket(primerPago) || '-') + '</td></tr>' +
+    '<tr><td>Fecha de fin</td><td class="right">' + (fechaTicket(fechas[fechas.length - 1]) || '-') + '</td></tr>' +
+    '<tr><td>Parcialidades</td><td class="right">' + cantidad + ' / ' + Utils.esc(periodicidad) + '</td></tr>' +
+    '<tr><td>Abono programado</td><td class="right">' + Utils.formatMonto(montoAbono) + '</td></tr>' +
+    '<tr><td>Saldo pendiente</td><td class="right">' + Utils.formatMonto(saldo) + '</td></tr></table>' +
+    '<table class="totals credito-calendario"><thead><tr><th>Abono</th><th>Fecha</th><th class="right">Monto</th></tr></thead><tbody>' + filas + '</tbody></table></div>';
 }
 
 const STATE_CUENTA_CSS = `
@@ -616,10 +658,11 @@ export function printRemisionVenta(venta, opts) {
   <div class="divider"></div>
   <div class="section">
     <div class="section-title">Forma de Pago</div>
-    <table class="totals">
+   <table class="totals">
       ${pagoRows}
     </table>
   </div>
+  ${planCreditoTicket(venta, desglosePagos)}
   ${venta.nota ? `<div class="nota"><strong>Nota:</strong> ${Utils.esc(venta.nota)}</div>` : ''}
   <div class="firmas"><div class="firma-espacio"><div class="firma-linea"></div>Firma del cliente</div><div class="firma-espacio"><div class="firma-linea"></div>Firma de quien entrega</div></div>`;
 
