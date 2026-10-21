@@ -1296,12 +1296,13 @@ async function pedirConfirmarCredito(total, subtotal, clienteId, nota, pagos, mo
   document.getElementById('posCreditoPeriodicidad').value = 'MENSUAL';
   document.getElementById('posCreditoParcialidades').value = '1';
   document.getElementById('posCreditoInteres').value = '0';
-  const fechaHoy = fechaLocalPOS(0);
-  const fechaMaxima = fechaLocalPOS(10);
+   const diasInicial = 3;
+   const fechaHoy = fechaLocalPOS(diasInicial);
+   const fechaMaxima = fechaLocalPOS(diasInicial);
   const fechaPrimerPagoInput = document.getElementById('posCreditoFechaPrimerPago');
   fechaPrimerPagoInput.min = fechaHoy;
   fechaPrimerPagoInput.max = fechaMaxima;
-  fechaPrimerPagoInput.value = fechaLocalPOS(7);
+   fechaPrimerPagoInput.value = fechaLocalPOS(diasInicial);
   actualizarResumenCreditoPOS();
   bootstrap.Modal.getInstance(document.getElementById('posCobroModal'))?.hide();
   new bootstrap.Modal(document.getElementById('posCreditoModal')).show();
@@ -1332,10 +1333,14 @@ function actualizarResumenCreditoPOS() {
 
 function actualizarFechaPrimerPagoPOS() {
   const periodicidad = document.getElementById('posCreditoPeriodicidad')?.value || 'MENSUAL';
-  // La fecha sugerida siempre permanece dentro del rango permitido de 0 a 10 días.
-  const dias = periodicidad === 'SEMANAL' ? 7 : 10;
+  // El primer pago queda bloqueado según la periodicidad.
+  const dias = periodicidad === 'SEMANAL' ? 7 : 3;
   const input = document.getElementById('posCreditoFechaPrimerPago');
-  if (input) input.value = fechaLocalPOS(dias);
+  if (input) {
+    input.min = fechaLocalPOS(dias);
+    input.max = fechaLocalPOS(dias);
+    input.value = fechaLocalPOS(dias);
+  }
 }
 
 async function confirmarCreditoPOS() {
@@ -1359,8 +1364,9 @@ async function confirmarCreditoPOS() {
   const numeroParcialidades = parseInt(document.getElementById('posCreditoParcialidades').value) || 1;
   const porcentajeInteres = parseFloat(document.getElementById('posCreditoInteres').value) || 0;
   const fechaPrimerPago = document.getElementById('posCreditoFechaPrimerPago').value || null;
-  const fechaMinimaPago = fechaLocalPOS(0);
-  const fechaMaximaPago = fechaLocalPOS(10);
+   const diasPrimerPago = periodicidad === 'SEMANAL' ? 7 : 3;
+   const fechaMinimaPago = fechaLocalPOS(diasPrimerPago);
+   const fechaMaximaPago = fechaLocalPOS(diasPrimerPago);
   if (!fechaPrimerPago || fechaPrimerPago < fechaMinimaPago || fechaPrimerPago > fechaMaximaPago) {
     Utils.showToast('La primera fecha de pago debe estar entre hoy y 10 días después de la venta', 'warning');
     return;
@@ -1499,28 +1505,21 @@ function imprimirTicketCorte(corte) {
   <div class="divider"></div>
   <div class="section-title">Desglose por Forma de Pago</div>
   <table class="data-table" style="font-size:11px">
-    <tr style="font-weight:bold;border-bottom:1px solid #000">
-      <td style="width:40%">M\u00e9todo</td>
-      <td style="width:20%;text-align:center">Sistema</td>
-      <td style="width:20%;text-align:center">Real</td>
-      <td style="width:20%;text-align:center">Diferencia</td>
-    </tr>
+     <tr style="font-weight:bold;border-bottom:1px solid #000"><td>Forma de pago</td><td style="text-align:right">Monto</td></tr>
     ${corte.detallePagos.map(d => {
       const diff = (d.montoReal != null) ? (d.montoReal - (d.monto || 0)) : null;
       const diffStr = diff != null ? ((diff >= 0 ? '+' : '') + Utils.formatMonto(diff)) : 'Sin conteo';
       return `
-    <tr>
-      <td>${Utils.esc(d.tipoPagoNombre || '')}</td>
-      <td style="text-align:center">${Utils.formatMonto(d.monto || 0)}</td>
-      <td style="text-align:center">${d.montoReal != null ? Utils.formatMonto(d.montoReal) : '-'}</td>
-      <td style="text-align:center">${diffStr}</td>
-    </tr>`;
+     <tr><td><strong>${Utils.esc(d.tipoPagoNombre || '')}</strong><br><small>Sistema</small></td><td style="text-align:right">${Utils.formatMonto(d.monto || 0)}</td></tr>
+     <tr><td>Real</td><td style="text-align:right">${d.montoReal != null ? Utils.formatMonto(d.montoReal) : '-'}</td></tr>
+     <tr><td>Diferencia</td><td style="text-align:right">${diffStr}</td></tr>`;
     }).join('')}
-    <tr style="font-weight:bold;border-top:2px solid #000;border-bottom:none">
-      <td style="padding-top:6px">Total</td>
-      <td style="text-align:center;padding-top:6px">${Utils.formatMonto(corte.detallePagos.reduce((s, d) => s + (d.monto || 0), 0))}</td>
-      <td style="text-align:center;padding-top:6px">${corte.totalReal != null ? Utils.formatMonto(corte.totalReal) : '-'}</td>
-      <td style="text-align:center;padding-top:6px">${corte.diferencia != null ? ((corte.diferencia >= 0 ? '+' : '') + Utils.formatMonto(corte.diferencia)) : '-'}</td>
+     <tr style="font-weight:bold;border-top:2px solid #000;border-bottom:none">
+       <td style="padding-top:6px">Total sistema</td>
+       <td style="text-align:right;padding-top:6px">${Utils.formatMonto(corte.detallePagos.reduce((s, d) => s + (d.monto || 0), 0))}</td>
+     </tr>
+     <tr style="font-weight:bold"><td>Total real</td><td style="text-align:right">${corte.totalReal != null ? Utils.formatMonto(corte.totalReal) : '-'}</td></tr>
+     <tr style="font-weight:bold"><td>Diferencia total</td><td style="text-align:right">${corte.diferencia != null ? ((corte.diferencia >= 0 ? '+' : '') + Utils.formatMonto(corte.diferencia)) : '-'}</td></tr>
     </tr>
   </table>` : ''}
   ${corte.saldoEsperado != null ? `
@@ -1836,7 +1835,7 @@ async function previewCorte() {
       <hr>
       <h6 class="fw-semibold">Desglose por Forma de Pago</h6>
       <p class="text-muted small mb-2">Ingresa el monto real contado para cada forma de pago</p>
-      <div class="table-responsive">
+     <div class="table-responsive">
         <table class="table table-sm table-custom mb-0">
           <thead>
             <tr>
@@ -2151,14 +2150,25 @@ async function abrirCancelarVentaModal() {
 async function cancelarAbonoPOS(idMovimiento) {
   const movimiento = state.cancelarAbonos.find(m => m.idMovimientoCaja === idMovimiento);
   if (!movimiento) return;
-  const ok = await Utils.confirm(
-    'Se cancelará el abono de ' + (movimiento.clienteNombre || 'Cliente') +
-      ' al crédito #' + movimiento.idCredito + ' y se revertirá el ingreso de caja.',
-    'Cancelar abono');
-  if (!ok) return;
   try {
-    await API.post('/cajas/movimientos/' + idMovimiento + '/cancelar');
-    Utils.showToast('Abono cancelado correctamente', 'success');
+    if (Utils.hasPermiso('CANCELACIONES_AUTORIZAR')) {
+      const ok = await Utils.confirm('Se cancelará el abono de ' + (movimiento.clienteNombre || 'Cliente') +
+        ' al crédito #' + movimiento.idCredito + ' y se revertirá el ingreso de caja.', 'Cancelar abono');
+      if (!ok) return;
+      await API.post('/cajas/movimientos/' + idMovimiento + '/cancelar', {});
+      Utils.showToast('Abono cancelado correctamente', 'success');
+    } else if (movimiento.estadoCancelacion === 'SOLICITADA') {
+      const codigo = await Utils.promptInput('Código de autorización', 'Ingresa el código generado por el administrador', '');
+      if (codigo === null || !/^\d{4}$/.test(String(codigo).trim())) return;
+      await API.post('/cajas/movimientos/' + idMovimiento + '/cancelar', { codigo: String(codigo).trim() });
+      Utils.showToast('Abono cancelado correctamente', 'success');
+    } else {
+      const motivo = await Utils.promptInput('Solicitar cancelación', 'Indica el motivo de la cancelación', '');
+      if (motivo === null || !motivo.trim()) return;
+      await API.post('/cajas/movimientos/' + idMovimiento + '/solicitar-cancelacion', { motivo: motivo.trim() });
+      Utils.showToast('Solicitud enviada al administrador', 'success');
+      return;
+    }
     state.cancelarAbonos = state.cancelarAbonos.filter(m => m.idMovimientoCaja !== idMovimiento);
     document.querySelector('.pos-cancelar-abono[data-movimiento-id="' + idMovimiento + '"]')?.closest('tr')?.remove();
   } catch (err) { Utils.showToast(err.message, 'error'); }

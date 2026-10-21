@@ -16,7 +16,7 @@ const TICKET_CSS = `
        min-height: 0;
       position: relative;
       box-sizing: border-box;
-       padding: 0.08in;
+        padding: 0.02in;
       display: -webkit-flex;
       display: flex;
       -webkit-flex-direction: column;
@@ -39,7 +39,7 @@ const TICKET_CSS = `
       text-align: center;
       padding-bottom: 8px;
       border-bottom: 3px solid #2563EB;
-      margin-bottom: 10px;
+       margin-bottom: 6px;
     }
     .header h1 {
       font-size: 22pt;
@@ -317,11 +317,11 @@ const TICKET_80MM_CSS = `
     .header, .section, .nota, .bottom-section, .pagare { max-width: 100%; overflow-wrap: anywhere; word-break: break-word; }
     .info-grid { table-layout: fixed; }
     .info-grid td { overflow-wrap: anywhere; word-break: break-word; }
-    .header { padding-bottom: 5px; border-bottom-width: 2px; margin-bottom: 6px; }
+     .header { padding-top: 0; padding-bottom: 3px; border-bottom-width: 2px; margin-bottom: 4px; }
     .header .logo { max-width: 100%; max-height: 28mm; }
     .header .sub { font-size: 7pt; }
     .header .folio { font-size: 10pt; }
-    .info-grid td { padding: 1px 2px; font-size: 6.5pt; }
+     .info-grid td { padding: 1px 2px; font-size: 6.5pt; }
     .info-grid .label { width: 35px; font-size: 5.5pt; }
     table.detalles { table-layout: fixed; }
     table.detalles th { padding: 3px 2px; font-size: 5.8pt; letter-spacing: 0; }

@@ -113,6 +113,15 @@ function handleTableClick(e) {
             cajaNombre: movimiento.cajaNombre
           })
         });
+      if (movimiento.estadoCancelacion === 'SOLICITADA' && Utils.hasPermiso('CANCELACIONES_AUTORIZAR')) items.push({
+        icon: 'fa-key', text: 'Generar código', color: 'var(--primary)',
+        onClick: async () => {
+          try {
+            const codigo = await API.post('/cajas/movimientos/' + movimiento.idMovimientoCaja + '/generar-codigo');
+            Utils.showDialog('Código de autorización', '<div class="text-center"><p class="small text-muted mb-2">Comparte este código con quien solicitó la cancelación.</p><div class="display-6 fw-bold text-primary" style="letter-spacing:8px">' + Utils.esc(codigo.codigo || '') + '</div><p class="small text-muted mt-2">Vigencia: 10 minutos</p></div>');
+          } catch (err) { Utils.showToast(err.message, 'error'); }
+        }
+      });
       if (!movimiento.cancelado && Utils.hasPermiso('CAJAS_MOVIMIENTO')) items.push({
         danger: true, icon: 'fa-ban', text: 'Cancelar movimiento',
         onClick: () => cancelarMovimientoCaja(movimiento)
@@ -268,11 +277,23 @@ async function cancelarMovimientoCaja(movimiento) {
   const descripcion = movimiento.idAbono
     ? 'el abono de ' + (movimiento.clienteNombre || 'Cliente') + ' al crédito #' + movimiento.idCredito
     : 'el movimiento de caja #' + movimiento.idMovimientoCaja;
-  const ok = await Utils.confirm('Se cancelará ' + descripcion + ' y se revertirá el saldo de caja.', 'Cancelar movimiento');
-  if (!ok) return;
   try {
-    await API.post('/cajas/movimientos/' + movimiento.idMovimientoCaja + '/cancelar');
-    Utils.showToast('Movimiento cancelado', 'success');
+    if (Utils.hasPermiso('CANCELACIONES_AUTORIZAR')) {
+      const ok = await Utils.confirm('Se cancelará ' + descripcion + ' y se revertirá el saldo de caja.', 'Cancelar movimiento');
+      if (!ok) return;
+      await API.post('/cajas/movimientos/' + movimiento.idMovimientoCaja + '/cancelar', {});
+      Utils.showToast('Movimiento cancelado', 'success');
+    } else if (movimiento.estadoCancelacion === 'SOLICITADA') {
+      const codigo = await Utils.promptInput('Código de autorización', 'Ingresa el código generado por el administrador', '');
+      if (codigo === null || !/^\d{4}$/.test(String(codigo).trim())) return;
+      await API.post('/cajas/movimientos/' + movimiento.idMovimientoCaja + '/cancelar', { codigo: String(codigo).trim() });
+      Utils.showToast('Movimiento cancelado', 'success');
+    } else {
+      const motivo = await Utils.promptInput('Solicitar cancelación', 'Indica el motivo de la cancelación', '');
+      if (motivo === null || !motivo.trim()) return;
+      await API.post('/cajas/movimientos/' + movimiento.idMovimientoCaja + '/solicitar-cancelacion', { motivo: motivo.trim() });
+      Utils.showToast('Solicitud enviada al administrador', 'success');
+    }
     const cajaId = movimiento.idCaja;
     await verMovimientos(cajaId);
     cargarCajas();
