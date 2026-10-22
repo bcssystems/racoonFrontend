@@ -1,4 +1,4 @@
-import { printComprobanteAbono } from './printing.js';
+import { printComprobanteAbono, printRemisionVenta } from './printing.js';
 
 let state = { data: [], editingId: null, sucursales: [], movimientos: [] };
 
@@ -106,18 +106,31 @@ function handleTableClick(e) {
     const movimiento = state.movimientos.find(m => m.idMovimientoCaja === parseInt(movimientoKebab.dataset.movimientoId));
     if (movimiento) {
       const items = [];
-      if (movimiento.idAbono) items.push({
+       if (movimiento.idAbono) items.push({
           icon: 'fa-print', text: 'Imprimir comprobante de abono', color: 'var(--primary)',
           onClick: () => printComprobanteAbono(movimiento, {
             clienteNombre: movimiento.clienteNombre,
             cajaNombre: movimiento.cajaNombre
           })
-        });
+         });
+      if (movimiento.idVenta && Utils.hasPermiso('VENTAS_VER')) items.push({
+        icon: 'fa-receipt', text: 'Ver / imprimir venta', color: 'var(--info)',
+        onClick: async () => {
+          try {
+            const venta = await API.get('/ventas/' + movimiento.idVenta);
+            printRemisionVenta(venta, { copies: 1 });
+          } catch (err) { Utils.showToast(err.message, 'error'); }
+        }
+      });
       if (!movimiento.cancelado && Utils.hasPermiso('CAJAS_MOVIMIENTO')) items.push({
         danger: true, icon: 'fa-ban', text: 'Cancelar movimiento',
         onClick: () => cancelarMovimientoCaja(movimiento)
       });
-      if (items.length) Utils.abrirMenuKebab(movimientoKebab, items);
+      if (!items.length) items.push({
+        icon: 'fa-info-circle', text: 'Sin acciones disponibles', color: 'var(--muted)',
+        onClick: () => {}
+      });
+      Utils.abrirMenuKebab(movimientoKebab, items);
     }
     return;
   }
@@ -255,7 +268,7 @@ async function verMovimientos(id) {
           <td style="color:${esIngreso ? 'var(--success)' : 'var(--danger)'};font-weight:600">
             ${esIngreso ? '+' : '-'}${Utils.formatMonto(m.monto)}
           </td>
-          <td>${m.clienteNombre ? '<strong>' + Utils.esc(m.clienteNombre) + '</strong><br><small>Crédito ' + Utils.esc(m.folioCredito || ('#' + m.idCredito)) + '</small>' : (Utils.esc(m.motivo) || '-')}</td>
+          <td>${m.clienteNombre ? '<strong>' + Utils.esc(m.clienteNombre) + '</strong><br><small>Crédito ' + Utils.esc(m.folioCredito || ('#' + m.idCredito)) + '</small>' : m.idVenta ? '<strong>Venta #' + m.idVenta + '</strong><br><small>' + (Utils.esc(m.motivo) || '-') + '</small>' : (Utils.esc(m.motivo) || '-')}</td>
           <td><button type="button" class="btn-kebab-toggle kebab-trigger movimiento-kebab" data-movimiento-id="${m.idMovimientoCaja}" title="Acciones"><i class="fas fa-ellipsis-v"></i></button></td>
         </tr>`;
       }).join('');
