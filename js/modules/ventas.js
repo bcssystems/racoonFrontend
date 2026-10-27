@@ -27,9 +27,14 @@ let state = {
   posProductPanelOpen: false,
   posCreditoContext: null,
   cobrando: false,
-  selectorCajaBound: false,
+  cajasRequestId: 0,
   cobradores: [],
 };
+
+function puedeAutorizarCancelacionesPOS() {
+  return Utils.hasPermiso('VENTAS_CANCELAR') || Utils.hasPermiso('CANCELACIONES_AUTORIZAR') ||
+    ['ADMINISTRADOR', 'SISTEMAS'].includes((Utils.getRolActual() || '').toUpperCase());
+}
 
 const REGIMENES_FISCALES = [
   { value: "601", label: "601 - General de Ley Personas Morales" },
@@ -213,31 +218,34 @@ async function mostrarSelectorCaja() {
     cajaSel.disabled = true;
     entrarBtn.disabled = true;
 
-    if (!state.selectorCajaBound) {
-      selSuc.addEventListener('change', async () => {
-        const idSucursal = parseInt(selSuc.value);
-        entrarBtn.disabled = true;
-        if (!idSucursal) {
-          cajaSel.innerHTML = '<option value="">-- Primero selecciona sucursal --</option>';
-          cajaSel.disabled = true;
+    selSuc.onchange = async () => {
+      const idSucursal = parseInt(selSuc.value);
+      const requestId = ++state.cajasRequestId;
+      state.cajas = [];
+      entrarBtn.disabled = true;
+      cajaSel.innerHTML = idSucursal
+        ? '<option value="">Cargando cajas...</option>'
+        : '<option value="">-- Primero selecciona sucursal --</option>';
+      cajaSel.disabled = true;
+      if (!idSucursal) return;
+      try {
+        const cajas = await API.get('/cajas/sucursal/' + idSucursal);
+        if (requestId !== state.cajasRequestId || String(selSuc.value) !== String(idSucursal)) return;
+        state.cajas = cajas || [];
+        if (!state.cajas.length) {
+          cajaSel.innerHTML = '<option value="">No hay cajas activas en esta sucursal</option>';
           return;
         }
-        try {
-          state.cajas = await API.get('/cajas/sucursal/' + idSucursal);
-          cajaSel.innerHTML = '<option value="">-- Selecciona una caja --</option>' +
-            state.cajas.map(c => '<option value="' + c.idCaja + '">' + Utils.esc(c.nombre) + '</option>').join('');
-          cajaSel.disabled = false;
-        } catch (_) {
-          cajaSel.innerHTML = '<option value="">Error al cargar cajas</option>';
-          cajaSel.disabled = true;
-          Utils.showToast('No se pudieron cargar las cajas de la sucursal', 'error');
-        }
-      });
-      cajaSel.addEventListener('change', () => {
-        entrarBtn.disabled = !parseInt(cajaSel.value);
-      });
-      state.selectorCajaBound = true;
-    }
+        cajaSel.innerHTML = '<option value="">-- Selecciona una caja --</option>' +
+          state.cajas.map(c => '<option value="' + c.idCaja + '">' + Utils.esc(c.nombre) + (c.estado === 'CERRADA' ? ' (Cerrada)' : '') + '</option>').join('');
+        cajaSel.disabled = false;
+      } catch (err) {
+        if (requestId !== state.cajasRequestId) return;
+        cajaSel.innerHTML = '<option value="">Error al cargar cajas</option>';
+        Utils.showToast('No se pudieron cargar las cajas: ' + err.message, 'error');
+      }
+    };
+    cajaSel.onchange = () => { entrarBtn.disabled = !parseInt(cajaSel.value); };
   } catch (err) { Utils.showToast(err.message, 'error'); }
 }
 
@@ -253,7 +261,14 @@ async function entrarCaja() {
       return;
     }
     if (state.caja.estado === 'CERRADA') {
-      const saldo = await Utils.promptInput('Saldo Inicial', '\u00bfCon cu\u00e1nto efectivo comienzas?', '0');
+      let saldoInicialSugerido = 0;
+      try {
+        const sugerencia = await API.get('/cajas/' + id + '/apertura/saldo-inicial');
+        saldoInicialSugerido = Number(sugerencia.saldoInicial) || 0;
+      } catch (_) {
+        saldoInicialSugerido = Number(state.configs.fondoCajas) || 0;
+      }
+      const saldo = await Utils.promptInput('Saldo Inicial', '\u00bfCon cu\u00e1nto efectivo comienzas?', saldoInicialSugerido.toFixed(2));
       if (saldo === null) return;
       await API.post('/cajas/' + id + '/apertura', { saldoInicial: parseFloat(saldo) || 0 });
       state.caja = await API.get('/cajas/' + id);
@@ -1191,6 +1206,12 @@ async function confirmarCobro() {
   });
 
   if (montoCredito > 0.01) {
+    if (!nota) {
+      const notaInput = document.getElementById('posCobroNota');
+      Utils.showToast('La nota es obligatoria para las ventas a crédito', 'warning');
+      notaInput?.focus();
+      return;
+    }
     if (!clienteId) {
       Utils.showToast('Selecciona un cliente en el POS para venta a cr\u00e9dito', 'warning');
       return;
@@ -1355,11 +1376,7 @@ async function confirmarCreditoPOS() {
   const credito = state.posCreditoContext || { pagos: [], montoCredito: total, montoSaldoFavor: 0 };
   const subtotal = Utils.parseMonto(document.getElementById('posSubtotal').textContent);
   const clienteId = parseInt(document.getElementById('posCliente').value) || null;
-  const nota = document.getElementById('posCobroNota').value.trim() || null;
-  if (!nota) {
-    Utils.showToast('La nota es obligatoria para las ventas a crédito', 'warning');
-    return;
-  }
+  const nota = document.getElementById('posCobroNota').value.trim();
   const periodicidad = document.getElementById('posCreditoPeriodicidad').value || 'MENSUAL';
   const numeroParcialidades = parseInt(document.getElementById('posCreditoParcialidades').value) || 1;
   const porcentajeInteres = parseFloat(document.getElementById('posCreditoInteres').value) || 0;
@@ -1742,7 +1759,12 @@ function cargarFormasPagoAbonoPOS(tipos) {
       </div>
     </div>`;
   }).join('');
-  container.addEventListener('input', recalcularSumaAbonoPOS);
+  container.oninput = recalcularSumaAbonoPOS;
+  container.querySelectorAll('.abono-pago-monto').forEach(input => {
+    const seleccionarMonto = () => input.select();
+    input.addEventListener('focus', seleccionarMonto);
+    input.addEventListener('click', seleccionarMonto);
+  });
   recalcularSumaAbonoPOS();
 }
 
@@ -1762,8 +1784,8 @@ async function solicitarGasto() {
   if (!monto || monto <= 0) { Utils.showToast('Monto inv\u00e1lido', 'warning'); return; }
 
   try {
-    await API.post('/gastos', { idCaja: state.caja.idCaja, descripcion: desc, monto });
-    Utils.showToast('Gasto solicitado, espera autorizaci\u00f3n', 'success');
+    const gasto = await API.post('/gastos', { idCaja: state.caja.idCaja, descripcion: desc, monto });
+    Utils.showToast(gasto.estado === 'AUTORIZADO' ? 'Gasto autorizado y registrado' : 'Gasto solicitado, espera autorización', 'success');
     bootstrap.Modal.getInstance(document.getElementById('posGastoModal'))?.hide();
     document.getElementById('posGastoDesc').value = '';
     document.getElementById('posGastoMonto').value = '';
@@ -2196,7 +2218,7 @@ async function prepararAccionCancelar() {
   const label = document.getElementById('btnConfirmarCancelarPOSLabel');
   const btn = document.getElementById('btnConfirmarCancelarPOS');
 
-  if (Utils.hasPermiso('VENTAS_CANCELAR') || Utils.hasPermiso('CANCELACIONES_AUTORIZAR')) {
+  if (puedeAutorizarCancelacionesPOS()) {
     state.cancelarAccion = 'directa';
     panel.classList.add('d-none');
     label.textContent = 'Autorizar y Cancelar';
@@ -2242,7 +2264,12 @@ async function confirmarCancelarVenta() {
       const ok = await Utils.confirm('Se cancelar\u00e1 la venta #' + id + ' y se revertir\u00e1 el stock, el saldo de la caja y el cr\u00e9dito en su caso.', 'Autorizar cancelaci\u00f3n');
       if (!ok) return;
       const codigo = state.cancelarAccion === 'autorizar' ? document.getElementById('posCancelarCodigo').value.trim() : null;
-      await API.post('/ventas/' + id + '/cancelar', codigo ? { codigo } : {});
+      const motivo = state.cancelarAccion === 'directa'
+        ? await Utils.promptInput('Cancelar venta', 'Indica el motivo de cancelación', '') : null;
+      if (state.cancelarAccion === 'directa' && (motivo === null || !motivo.trim())) return;
+      await API.post('/ventas/' + id + '/cancelar', codigo
+        ? { codigo }
+        : state.cancelarAccion === 'directa' ? { motivo: motivo.trim() } : {});
       Utils.showToast('Venta #' + id + ' cancelada', 'success');
     } else {
       const motivo = document.getElementById('posCancelarMotivo').value.trim();

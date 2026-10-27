@@ -6,6 +6,11 @@ let state = {
   size: 15,
 };
 
+function puedeAutorizarCancelaciones() {
+  return Utils.hasPermiso('VENTAS_CANCELAR') || Utils.hasPermiso('CANCELACIONES_AUTORIZAR') ||
+    ['ADMINISTRADOR', 'SISTEMAS'].includes((Utils.getRolActual() || '').toUpperCase());
+}
+
 export function init() {
   const today = fechaLocalHoy();
   const desdeEl = document.getElementById('filterDesde');
@@ -66,11 +71,13 @@ function abrirAccionesVenta(anchor, id, estado) {
     { icon: 'fa-print', text: 'Imprimir remisi\u00f3n', color: 'var(--success)', onClick: () => imprimirRemision(id) },
   ];
   if (estado === 'COMPLETADA') {
-    if (Utils.hasPermiso('VENTAS_CREAR')) {
+    if (puedeAutorizarCancelaciones()) {
+      items.push({ danger: true, icon: 'fa-ban', text: 'Cancelar venta', onClick: () => cancelarDirecto(id) });
+    } else if (Utils.hasPermiso('VENTAS_CREAR')) {
       items.push({ danger: true, icon: 'fa-ban', text: 'Solicitar cancelaci\u00f3n', onClick: () => solicitarCancelacion(id) });
     }
   } else if (estado === 'SOLICITADA_CANCELACION') {
-    if (Utils.hasPermiso('VENTAS_CANCELAR') || Utils.hasPermiso('CANCELACIONES_AUTORIZAR')) {
+    if (puedeAutorizarCancelaciones()) {
       items.push({ icon: 'fa-check', text: 'Autorizar cancelaci\u00f3n', color: 'var(--success)', onClick: () => autorizarCancelacion(id) });
       items.push({ icon: 'fa-undo', text: 'Rechazar cancelaci\u00f3n', color: 'var(--warning)', onClick: () => rechazarCancelacion(id) });
     }
@@ -216,6 +223,18 @@ async function solicitarCancelacion(id) {
   try {
     await API.post('/ventas/' + id + '/solicitar-cancelacion', { motivo });
     Utils.showToast('Solicitud enviada. Espera autorizaci\u00f3n del administrador', 'success');
+    buscar(state.page);
+  } catch (err) { Utils.showToast(err.message, 'error'); }
+}
+
+async function cancelarDirecto(id) {
+  const motivo = await Utils.promptInput('Cancelar venta', 'Indica el motivo de cancelación', '');
+  if (motivo === null || !motivo.trim()) return;
+  const ok = await Utils.confirm('La venta #' + id + ' se cancelará inmediatamente y se revertirán sus efectos.', 'Confirmar cancelación');
+  if (!ok) return;
+  try {
+    await API.post('/ventas/' + id + '/cancelar', { motivo: motivo.trim() });
+    Utils.showToast('Venta cancelada y autorizada', 'success');
     buscar(state.page);
   } catch (err) { Utils.showToast(err.message, 'error'); }
 }

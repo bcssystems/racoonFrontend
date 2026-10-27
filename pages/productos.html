@@ -30,6 +30,26 @@
   </div>
 </div>
 
+<div class="modal fade" id="productoMultimediaModal" tabindex="-1">
+  <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
+    <div class="modal-content border-0 shadow">
+      <div class="modal-header border-0">
+        <h5 class="modal-title fw-bold"><i class="fas fa-photo-video me-2"></i>Archivos del producto <span id="productoMultimediaNombre" class="text-muted fs-6"></span></h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
+          <div class="small text-muted">Arrastra las tarjetas para cambiar su orden. La primera imagen marcada se usa en el listado.</div>
+          <label class="btn btn-primary btn-sm mb-0" id="btnSubirMultimediaLabel"><i class="fas fa-upload me-1"></i>Agregar archivos
+            <input type="file" id="productoMultimediaInput" accept="image/*,video/*,application/pdf" multiple hidden>
+          </label>
+        </div>
+        <div id="productoMultimediaGallery" class="producto-media-grid"><div class="text-center text-muted py-4">Cargando archivos...</div></div>
+      </div>
+    </div>
+  </div>
+</div>
+
 <div class="filter-bar">
     <div class="input-group" style="flex: 1 1 100%">
       <span class="input-group-text"><i class="fas fa-search"></i></span>

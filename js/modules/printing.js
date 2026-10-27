@@ -170,7 +170,14 @@ const TICKET_CSS = `
     }
     .firma-espacio { width: 45%; text-align: center; }
     .firma-linea { border-top: 1px solid #222; height: 26px; }
-    body, body * { color: #000 !important; }
+     body, body * {
+       color: #000 !important;
+       border-color: #000 !important;
+       box-shadow: none !important;
+       text-shadow: none !important;
+     }
+     body, body * { background-color: #fff !important; }
+     table.detalles thead, .totals, .nota, .ticket-config-footer { background: #fff !important; }
 
     .pagare { margin-top: 8px; }
     .pagare-footer {
@@ -503,6 +510,7 @@ const STATE_CUENTA_80MM_CSS = `
     .total { font-size: 9pt; }
     .notas-box { font-size: 6pt; }
     .firma { margin-top: 28px; font-size: 6pt; }
+    body, body * { color:#000 !important; background-color:#fff !important; border-color:#000 !important; box-shadow:none !important; text-shadow:none !important; }
   `;
 
 function abrirVentana(titulo, alto, ancho) {

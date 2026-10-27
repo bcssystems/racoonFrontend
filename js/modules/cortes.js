@@ -3,6 +3,7 @@ let state = {
   totalPages: 0,
   size: 15,
   currentCorte: null,
+  currentMovimientos: [],
 };
 
 export function init() {
@@ -16,6 +17,11 @@ export function init() {
 
 function todayStr() {
   return new Date().toISOString().slice(0, 10);
+}
+
+function puedeVerMovimientos() {
+  return Utils.hasPermiso('CORTES_MOVIMIENTOS_VER') ||
+    ['ADMINISTRADOR', 'SISTEMAS'].includes((Utils.getRolActual() || '').toUpperCase());
 }
 
 function bindEvents() {
@@ -34,16 +40,31 @@ function bindEvents() {
   });
   document.getElementById('tableBody')?.addEventListener('click', handleTableClick);
   document.getElementById('btnReimprimirCorte')?.addEventListener('click', reimprimirCorte);
+  document.getElementById('btnReimprimirCorte80')?.addEventListener('click', () => reimprimirCorte('80mm'));
 }
 
 function handleTableClick(e) {
   const kebab = e.target.closest('.kebab-trigger');
   if (kebab) {
     const id = parseInt(kebab.dataset.id);
-    Utils.abrirMenuKebab(kebab, [
+    const acciones = [
       { icon: 'fa-eye', text: 'Ver detalle', color: 'var(--info)', onClick: () => verCorte(id) },
-    ]);
+      { icon: 'fa-receipt', text: 'Reimprimir corte', color: 'var(--primary)', onClick: () => reimprimirCorteDesdeLista(id) },
+    ];
+    if (puedeVerMovimientos()) {
+      acciones.push({ icon: 'fa-print', text: 'Imprimir movimientos del corte', color: 'var(--primary)', onClick: () => imprimirMovimientosCorte(id) });
+    }
+    Utils.abrirMenuKebab(kebab, acciones);
     return;
+  }
+}
+
+async function reimprimirCorteDesdeLista(id) {
+  try {
+    state.currentCorte = await API.get('/cortes/' + id);
+    reimprimirCorte();
+  } catch (err) {
+    Utils.showToast('No se pudo cargar el corte: ' + err.message, 'error');
   }
 }
 
@@ -120,6 +141,12 @@ async function verCorte(id) {
   try {
     const corte = await API.get('/cortes/' + id);
     state.currentCorte = corte;
+    state.currentMovimientos = [];
+    let errorMovimientos = null;
+    if (puedeVerMovimientos()) {
+      try { state.currentMovimientos = await API.get('/cortes/' + id + '/movimientos') || []; }
+      catch (err) { errorMovimientos = err.message || 'No fue posible cargar los movimientos'; }
+    }
     document.getElementById('corteDetailId').textContent = corte.idCorte;
     const isAdmin = Utils.hasPermiso('CORTES_EDITAR');
 
@@ -130,9 +157,11 @@ async function verCorte(id) {
           <table class="table table-sm table-borderless mb-0">
             <tr><td class="text-muted">Caja</td><td class="fw-semibold text-end">${Utils.esc(corte.cajaNombre || '')}</td></tr>
             <tr><td class="text-muted">Sucursal</td><td class="fw-semibold text-end">${Utils.esc(corte.sucursalNombre || '')}</td></tr>
-            <tr><td class="text-muted">Usuario</td><td class="fw-semibold text-end">${Utils.esc(corte.usuario || '')}</td></tr>
+            <tr><td class="text-muted">Entregado por</td><td class="fw-semibold text-end">${Utils.esc(corte.usuario || '')}</td></tr>
             <tr><td class="text-muted">Apertura</td><td class="fw-semibold text-end">${Utils.formatDateTime(corte.fechaApertura)}</td></tr>
             <tr><td class="text-muted">Cierre</td><td class="fw-semibold text-end">${Utils.formatDateTime(corte.fechaCierre)}</td></tr>
+            <tr><td class="text-muted">Recibido por</td><td class="fw-semibold text-end">${Utils.esc(corte.recibidoPor || 'PENDIENTE')}</td></tr>
+            <tr><td class="text-muted">Fecha de recepción</td><td class="fw-semibold text-end">${corte.fechaRecepcion ? Utils.formatDateTime(corte.fechaRecepcion) : '—'}</td></tr>
           </table>
         </div>
       </div>
@@ -150,6 +179,21 @@ async function verCorte(id) {
           </table>
         </div>
       </div>
+      ${puedeVerMovimientos() ? `
+      <div class="col-12">
+        <div class="panel-card p-3">
+          <h6 class="fw-semibold mb-2">Movimientos del periodo <span class="text-muted small">(${state.currentMovimientos.length})</span></h6>
+          ${errorMovimientos ? `<div class="alert alert-danger py-2 mb-2">No se pudieron consultar los movimientos: ${Utils.esc(errorMovimientos)}. Si se denegó el acceso, cierra sesión y vuelve a entrar para renovar permisos.</div>` : ''}
+          <div class="table-responsive"><table class="table table-sm table-custom mb-0">
+            <thead><tr><th>Fecha</th><th>Tipo</th><th>Descripción</th><th>Cliente / crédito</th><th>Usuario</th><th>Estado</th><th class="text-end">Monto</th></tr></thead>
+            <tbody>${state.currentMovimientos.length ? state.currentMovimientos.map(m => `<tr>
+              <td>${Utils.formatDateTime(m.fecha)}</td><td>${Utils.esc(m.tipo || '')}</td><td>${Utils.esc(m.descripcion || '')}${m.idVenta ? ' · Venta #' + m.idVenta : ''}</td>
+              <td>${Utils.esc(m.cliente || '—')}${m.folioCredito ? '<br><small>Crédito ' + Utils.esc(m.folioCredito) + '</small>' : ''}</td>
+              <td>${Utils.esc(m.usuario || '')}</td><td>${m.cancelado ? 'CANCELADO' : 'VIGENTE'}${m.motivoCancelacion ? '<br><small>' + Utils.esc(m.motivoCancelacion) + '</small>' : ''}</td>
+              <td class="text-end">${Utils.formatMonto(m.monto || 0)}</td></tr>`).join('') : '<tr><td colspan="7" class="text-center text-muted">Sin movimientos registrados</td></tr>'}</tbody>
+          </table></div>
+        </div>
+      </div>` : ''}
       <div class="col-12">
         <div class="panel-card p-3">
           <div class="d-flex justify-content-between align-items-center mb-2">
@@ -225,6 +269,26 @@ async function verCorte(id) {
 
     new bootstrap.Modal(document.getElementById('corteDetailModal')).show();
 
+    const btnRecibir = document.getElementById('btnRecibirCorte');
+    if (btnRecibir) btnRecibir.remove();
+    if (Utils.hasPermiso('CORTES_RECIBIR') && !corte.recibidoPor) {
+      const footer = document.querySelector('#corteDetailModal .modal-body .text-center');
+      if (footer) {
+        const receive = document.createElement('button');
+        receive.id = 'btnRecibirCorte'; receive.className = 'btn btn-success px-4 ms-2';
+        receive.innerHTML = '<i class="fas fa-check me-1"></i> Marcar recibido';
+        receive.addEventListener('click', async () => {
+          try {
+            await API.post('/cortes/' + corte.idCorte + '/recibir', {});
+            Utils.showToast('Corte marcado como recibido', 'success');
+            bootstrap.Modal.getInstance(document.getElementById('corteDetailModal'))?.hide();
+            await verCorte(corte.idCorte); buscar(state.page);
+          } catch (err) { Utils.showToast(err.message, 'error'); }
+        });
+        footer.appendChild(receive);
+      }
+    }
+
     if (isAdmin) {
       const editBtn = document.getElementById('btnEditCorte');
       const saveDiv = document.getElementById('corteEditActions');
@@ -258,7 +322,46 @@ async function verCorte(id) {
   }
 }
 
-function reimprimirCorte() {
+async function imprimirMovimientosCorte(id) {
+  const printWindow = window.open('', '_blank', 'width=900,height=700');
+  if (!printWindow) {
+    Utils.showToast('Permite las ventanas emergentes para imprimir el reporte', 'warning');
+    return;
+  }
+  printWindow.document.write('<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8"><title>Movimientos del corte</title></head><body><p>Consultando movimientos...</p></body></html>');
+  try {
+    const [corte, movimientos] = await Promise.all([
+      API.get('/cortes/' + id), API.get('/cortes/' + id + '/movimientos')
+    ]);
+    const filas = movimientos.length ? movimientos.map(m => `<tr>
+      <td>${Utils.esc(Utils.formatDateTime(m.fecha))}</td><td>${Utils.esc(m.tipo || '')}</td>
+      <td>${Utils.esc(m.descripcion || '')}${m.idVenta ? ' · Venta #' + m.idVenta : ''}</td>
+      <td>${Utils.esc(m.cliente || '—')}${m.folioCredito ? '<br>Crédito ' + Utils.esc(m.folioCredito) : ''}</td>
+      <td>${Utils.esc(m.usuario || '')}</td><td>${m.cancelado ? 'CANCELADO' : 'VIGENTE'}</td>
+      <td class="amount">${Utils.formatMonto(m.monto || 0)}</td></tr>`).join('')
+      : '<tr><td colspan="7" class="empty">No hay movimientos registrados para el periodo de este corte.</td></tr>';
+    const total = movimientos.filter(m => !m.cancelado).reduce((s, m) =>
+      s + ((m.tipo === 'EGRESO') ? -1 : 1) * (Number(m.monto) || 0), 0);
+    printWindow.document.open();
+    printWindow.document.write(`<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8"><title>Movimientos del corte #${corte.idCorte}</title>
+      <style>@page{size:landscape;margin:12mm}*{box-sizing:border-box}body{font:12px Arial,sans-serif;color:#000}h1{font-size:20px;margin:0 0 6px}p{margin:3px 0}table{width:100%;border-collapse:collapse;margin-top:16px}th,td{border:1px solid #333;padding:6px;text-align:left;vertical-align:top}th{background:#eee}.amount{text-align:right;white-space:nowrap}.empty{text-align:center;padding:20px}.total{text-align:right;font-weight:bold;margin-top:10px}@media print{th{background:#fff}}</style>
+      </head><body><h1>Movimientos del corte #${corte.idCorte}</h1>
+      <p><strong>Caja:</strong> ${Utils.esc(corte.cajaNombre || '')} &nbsp; <strong>Sucursal:</strong> ${Utils.esc(corte.sucursalNombre || '')}</p>
+      <p><strong>Periodo:</strong> ${Utils.esc(Utils.formatDateTime(corte.fechaApertura))} — ${Utils.esc(Utils.formatDateTime(corte.fechaCierre))}</p>
+      <p><strong>Responsable:</strong> ${Utils.esc(corte.usuario || '')}</p>
+      <table><thead><tr><th>Fecha</th><th>Tipo</th><th>Descripción</th><th>Cliente / crédito</th><th>Usuario</th><th>Estado</th><th>Monto</th></tr></thead><tbody>${filas}</tbody></table>
+      <div class="total">Neto de movimientos vigentes: ${Utils.formatMonto(total)}</div>
+      </body></html>`);
+    printWindow.document.close();
+    printWindow.focus();
+    setTimeout(() => printWindow.print(), 350);
+  } catch (err) {
+    printWindow.close();
+    Utils.showToast('No se pudo generar el reporte: ' + err.message, 'error');
+  }
+}
+
+function reimprimirCorte(formato = 'carta') {
   const corte = state.currentCorte;
   if (!corte) return;
 
@@ -267,34 +370,38 @@ function reimprimirCorte() {
   const horaStr = now.toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' });
 
   const printWindow = window.open('', '_blank', 'width=800,height=600');
+  const es80mm = formato === '80mm';
   printWindow.document.write(`<!DOCTYPE html>
 <html lang="es">
 <head>
   <meta charset="UTF-8">
   <title>Corte de Caja #${corte.idCorte || ''}</title>
   <style>
-    @page { size: letter; margin: 0.5in; }
+    @page { size: ${es80mm ? '80mm auto' : 'letter'}; margin: ${es80mm ? '0' : '0.5in'}; }
     * { margin: 0; padding: 0; box-sizing: border-box; }
-    body { font-family: 'Courier New', monospace; font-size: 12px; color: #000; padding: 20px; }
+    body { font-family: 'Courier New', monospace; font-size: ${es80mm ? '8px' : '12px'}; color: #000; padding: ${es80mm ? '2mm' : '20px'}; ${es80mm ? 'width:72mm;max-width:72mm;' : ''} }
     .header { text-align: center; margin-bottom: 16px; }
-    .header h1 { font-size: 20px; font-weight: bold; letter-spacing: 2px; color: #2563EB; margin-bottom: 2px; }
-    .header .sub { font-size: 10px; color: #666; }
+    .header h1 { font-size: ${es80mm ? '14px' : '20px'}; font-weight: bold; letter-spacing: 2px; color: #000; margin-bottom: 2px; }
+    .header .sub { font-size: 10px; color: #000; }
     .header .logo { max-height: 72px; max-width: 340px; margin-bottom: 4px; }
     .divider { border-top: 1px dashed #000; margin: 8px 0; }
     .info-table { width: 100%; font-size: 11px; margin-bottom: 8px; }
     .info-table td { padding: 2px 4px; }
     .info-table td:last-child { text-align: right; }
     .section-title { font-size: 13px; font-weight: bold; margin: 12px 0 6px; text-transform: uppercase; letter-spacing: 1px; }
-    .data-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+    .data-table { width: 100%; border-collapse: collapse; font-size: ${es80mm ? '8px' : '12px'}; }
     .data-table td { padding: 5px 8px; border-bottom: 1px solid #ddd; }
     .data-table td:last-child { text-align: right; font-weight: 600; }
     .data-table .total-row td { font-size: 14px; font-weight: bold; border-top: 2px solid #000; border-bottom: none; padding-top: 8px; }
-    .footer { text-align: center; margin-top: 20px; font-size: 10px; color: #888; }
+    .footer { text-align: center; margin-top: 20px; font-size: 10px; color: #000; }
+    .firmas-entrega { margin-top: 22px; display: grid; grid-template-columns: 1fr 1fr; gap: 12px; text-align:center; font-size: ${es80mm ? '7px' : '10px'}; }
+    .firma-linea { border-top:1px solid #000; padding-top:4px; margin-top:24px; }
+    body, body * { color:#000 !important; background:#fff !important; border-color:#000 !important; box-shadow:none !important; }
   </style>
 </head>
 <body>
   <div class="header">
-    <img src="assets/imgs/logotex.png" class="logo" alt="Logotex">
+    <img src="assets/imgs/logotex.png" class="logo" alt="" onerror="this.remove()">
     <div class="sub">Corte de Caja</div>
   </div>
   <div class="divider"></div>
@@ -304,7 +411,8 @@ function reimprimirCorte() {
     <tr><td><strong>Hora</strong></td><td>${horaStr}</td></tr>
     <tr><td><strong>Caja</strong></td><td>${Utils.esc(corte.cajaNombre || '')}</td></tr>
     <tr><td><strong>Sucursal</strong></td><td>${Utils.esc(corte.sucursalNombre || '')}</td></tr>
-    <tr><td><strong>Usuario</strong></td><td>${Utils.esc(corte.usuario || '')}</td></tr>
+    <tr><td><strong>Entregado por</strong></td><td>${Utils.esc(corte.usuario || '')}</td></tr>
+    <tr><td><strong>Recibido por</strong></td><td>${Utils.esc(corte.recibidoPor || 'PENDIENTE')}</td></tr>
     <tr><td><strong>Apertura</strong></td><td>${corte.fechaApertura ? new Date(corte.fechaApertura).toLocaleString('es-MX') : '-'}</td></tr>
     <tr><td><strong>Cierre</strong></td><td>${corte.fechaCierre ? new Date(corte.fechaCierre).toLocaleString('es-MX') : now.toLocaleString('es-MX')}</td></tr>
   </table>
@@ -348,6 +456,12 @@ function reimprimirCorte() {
       <td style="text-align:center;padding-top:6px">${corte.diferencia != null ? ((corte.diferencia >= 0 ? '+' : '') + Utils.formatMonto(corte.diferencia)) : '-'}</td>
     </tr>
   </table>` : ''}
+  <div class="divider"></div>
+  <div class="section-title">Entrega y recepción</div>
+  <div class="firmas-entrega">
+    <div><div class="firma-linea">Entregado por<br>${Utils.esc(corte.usuario || '')}</div></div>
+    <div><div class="firma-linea">Recibido por<br>${Utils.esc(corte.recibidoPor || 'PENDIENTE')}</div></div>
+  </div>
   ${corte.abonos && corte.abonos.length > 0 ? `
   <div class="divider"></div>
   <div class="section-title">Abonos por Cr\u00e9dito</div>

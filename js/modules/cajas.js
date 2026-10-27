@@ -1,6 +1,6 @@
 import { printComprobanteAbono, printRemisionVenta } from './printing.js';
 
-let state = { data: [], editingId: null, sucursales: [], movimientos: [] };
+let state = { data: [], editingId: null, sucursales: [], movimientos: [], filtroRequestId: 0 };
 
 export function init() {
   bindEvents();
@@ -38,11 +38,17 @@ async function cargarSucursales() {
 }
 
 async function cargarCajas() {
+  const requestId = ++state.filtroRequestId;
   try {
     const sucId = document.getElementById('filtroSucursal')?.value;
-    state.data = sucId ? await API.get('/cajas/sucursal/' + sucId) : await API.get('/cajas');
+    const cajas = sucId ? await API.get('/cajas/sucursal/' + sucId) : await API.get('/cajas');
+    if (requestId !== state.filtroRequestId || String(document.getElementById('filtroSucursal')?.value || '') !== String(sucId || '')) return;
+    state.data = cajas || [];
     renderTable();
-  } catch (err) { Utils.showToast(err.message, 'error'); }
+  } catch (err) {
+    if (requestId !== state.filtroRequestId) return;
+    Utils.showToast(err.message, 'error');
+  }
 }
 
 function renderTable() {
@@ -199,10 +205,27 @@ async function confirmarEliminar(id) {
   } catch (err) { Utils.showToast(err.message, 'error'); }
 }
 
-function abrirAperturaModal(id) {
+async function abrirAperturaModal(id) {
   document.getElementById('apCajaId').value = id;
   document.getElementById('formApertura').reset();
   document.getElementById('apSaldoInicial').value = '0';
+  const input = document.getElementById('apSaldoInicial');
+  const info = document.getElementById('aperturaSaldoInfo');
+  if (input) input.readOnly = false;
+  if (info) info.textContent = 'Cargando fondo de apertura...';
+  try {
+    const sugerencia = await API.get('/cajas/' + id + '/apertura/saldo-inicial');
+    if (String(document.getElementById('apCajaId').value) !== String(id)) return;
+    if (input) {
+      input.value = (Number(sugerencia.saldoInicial) || 0).toFixed(2);
+      input.readOnly = sugerencia.tipoCaja !== 'SECUNDARIA';
+    }
+    if (info) info.textContent = sugerencia.tipoCaja === 'SECUNDARIA'
+      ? 'Caja secundaria: se sugiere el fondo configurado como referencia; puedes ajustar el saldo inicial.'
+      : 'Caja principal: se aplicará el fondo configurado para cajas normales.';
+  } catch (err) {
+    if (info) info.textContent = 'No se pudo consultar el fondo configurado: ' + err.message;
+  }
   new bootstrap.Modal(document.getElementById('cajaAperturaModal')).show();
 }
 

@@ -18,6 +18,8 @@ let state = {
   movFullTotalPages: 0,
   movFullFechaInicio: '',
   movFullFechaFin: '',
+  multimedia: [],
+  draggedMediaId: null,
 };
 
 export function init() {
@@ -57,6 +59,15 @@ function bindEvents() {
     cargarStats();
   });
   document.getElementById('productoTreeRoot')?.addEventListener('click', handleTableClick);
+  document.getElementById('productoMultimediaInput')?.addEventListener('change', subirMultimedia);
+  document.getElementById('productoMultimediaGallery')?.addEventListener('click', manejarAccionMultimedia);
+  document.getElementById('productoMultimediaGallery')?.addEventListener('dragstart', iniciarArrastreMultimedia);
+  document.getElementById('productoMultimediaGallery')?.addEventListener('dragover', e => e.preventDefault());
+  document.getElementById('productoMultimediaGallery')?.addEventListener('drop', soltarMultimedia);
+  if (!Utils.hasPermiso('PRODUCTOS_EDITAR')) {
+    const upload = document.getElementById('btnSubirMultimediaLabel');
+    if (upload) upload.style.display = 'none';
+  }
   if (!Utils.hasPermiso('PRODUCTOS_MOVIMIENTO')) {
     const btnMov = document.getElementById('btnRegistrarMovimiento');
     if (btnMov) btnMov.style.display = 'none';
@@ -216,10 +227,13 @@ function renderProductoNode(p) {
   let stockClass = Utils.getStockClass(p.stockActual, p.stockMinimo);
   const unidad = (p.unidadMedida || 'PIEZA').toLowerCase();
   const categoria = p.categoriaNombre ? '<small class="text-muted d-block">' + Utils.esc(p.categoriaNombre) + '</small>' : '';
+  const imagen = p.imagenPrincipalUrl
+    ? `<img src="${Utils.esc(API.mediaBaseUrl + p.imagenPrincipalUrl)}" alt="" loading="lazy">`
+    : '<i class="fas fa-image text-muted"></i>';
 
   return `<li class="producto-node${p.activo ? '' : ' inactive'}">
     <div class="producto-row">
-      <div class="producto-spacer"></div>
+      <div class="producto-list-thumb">${imagen}${p.cantidadMultimedia > 0 ? `<span>${p.cantidadMultimedia}</span>` : ''}</div>
       <span class="producto-sku">${Utils.esc(p.sku)}</span>
       <span class="producto-nombre"><strong>${Utils.esc(p.nombre)}</strong>${categoria}</span>
       <span class="producto-unidad">${Utils.esc(unidad)}</span>
@@ -298,6 +312,9 @@ function abrirAccionesProducto(anchor, id) {
     { icon: 'fa-warehouse', text: 'Inventario y movimientos', color: 'var(--primary)', onClick: () => verInventario(id) },
     { icon: 'fa-eye', text: 'Ver detalle', color: 'var(--primary)', onClick: () => verDetalle(id) },
   ];
+  if (Utils.hasPermiso('PRODUCTOS_VER')) {
+    items.push({ icon: 'fa-photo-video', text: 'Fotos y archivos', color: 'var(--primary)', onClick: () => verMultimedia(id) });
+  }
   if (p && !p.activo && (Utils.hasPermiso('PRODUCTOS_EDITAR') || Utils.hasPermiso('PRODUCTOS_CREAR'))) {
     items.push({ icon: 'fa-undo', text: 'Reactivar', color: '#28a745', onClick: () => reactivarProducto(id) });
   }
@@ -352,6 +369,11 @@ async function verDetalle(id) {
           </table>
         </div>
         <div class="col-12">
+          <div class="d-flex justify-content-end mb-2">
+            <button type="button" class="btn btn-sm btn-outline-primary" data-producto-media="${p.idProducto}">
+              <i class="fas fa-photo-video me-1"></i>Archivos multimedia (${p.cantidadMultimedia || 0})
+            </button>
+          </div>
           <h6 class="fw-semibold mt-2"><i class="fas fa-warehouse me-1"></i> Stock por Sucursal</h6>
           <div class="table-responsive">
             <table class="table table-sm table-bordered mb-0">
@@ -361,9 +383,109 @@ async function verDetalle(id) {
           </div>
         </div>
       </div>`;
+    body.querySelector('[data-producto-media]')?.addEventListener('click', () => verMultimedia(id));
   } catch (err) {
     body.innerHTML = '<div class="text-center py-4 text-danger">Error al cargar el producto</div>';
   }
+}
+
+async function verMultimedia(id) {
+  state.currentProductoId = id;
+  const modalEl = document.getElementById('productoMultimediaModal');
+  const gallery = document.getElementById('productoMultimediaGallery');
+  if (!modalEl || !gallery) return;
+  document.getElementById('productoMultimediaNombre').textContent = '';
+  gallery.innerHTML = '<div class="text-center text-muted py-4"><i class="fas fa-spinner fa-spin"></i> Cargando archivos...</div>';
+  bootstrap.Modal.getOrCreateInstance(modalEl).show();
+  try {
+    const [producto, multimedia] = await Promise.all([
+      API.get('/productos/' + id), API.get('/productos/' + id + '/multimedia')
+    ]);
+    document.getElementById('productoMultimediaNombre').textContent = producto.nombre + ' (' + producto.sku + ')';
+    state.multimedia = multimedia || [];
+    renderMultimedia();
+  } catch (err) {
+    gallery.innerHTML = '<div class="text-center text-danger py-4">' + Utils.esc(err.message) + '</div>';
+  }
+}
+
+function renderMultimedia() {
+  const gallery = document.getElementById('productoMultimediaGallery');
+  if (!gallery) return;
+  if (!state.multimedia.length) {
+    gallery.innerHTML = '<div class="text-center text-muted py-5"><i class="fas fa-photo-video fa-2x mb-2"></i><div>Este producto aún no tiene archivos.</div></div>';
+    return;
+  }
+  gallery.innerHTML = state.multimedia.map((m, index) => {
+    const puedeEditar = Utils.hasPermiso('PRODUCTOS_EDITAR');
+    const url = Utils.esc(API.mediaBaseUrl + m.url);
+    const preview = m.tipo === 'IMAGEN'
+      ? `<img src="${url}" alt="${Utils.esc(m.nombreArchivo || '')}" loading="lazy">`
+      : m.tipo === 'VIDEO'
+        ? `<video src="${url}" controls preload="none"></video>`
+        : `<a class="producto-media-document" href="${url}" target="_blank" rel="noopener"><i class="fas fa-file-pdf fa-3x"></i><span>Ver PDF</span></a>`;
+    return `<div class="producto-media-card" draggable="${puedeEditar}" data-media-id="${m.idMultimedia}">
+      <div class="producto-media-preview">${preview}<span class="producto-media-order">${index + 1}</span>${m.esPrincipal ? '<span class="producto-media-primary"><i class="fas fa-star"></i> Principal</span>' : ''}</div>
+      <div class="p-2"><div class="small text-truncate" title="${Utils.esc(m.nombreArchivo || '')}">${Utils.esc(m.nombreArchivo || 'Archivo')}</div>
+        ${puedeEditar ? `<div class="d-flex gap-1 mt-2">${m.tipo === 'IMAGEN' && !m.esPrincipal ? `<button class="btn btn-sm btn-outline-warning flex-fill" data-media-action="principal" data-id="${m.idMultimedia}" title="Usar como principal"><i class="fas fa-star"></i></button>` : ''}
+          <button class="btn btn-sm btn-outline-danger flex-fill" data-media-action="eliminar" data-id="${m.idMultimedia}" title="Eliminar"><i class="fas fa-trash"></i></button></div>` : ''}
+      </div></div>`;
+  }).join('');
+}
+
+async function subirMultimedia(e) {
+  const input = e.target;
+  const files = Array.from(input.files || []);
+  if (!files.length) return;
+  try {
+    for (const file of files) {
+      const data = new FormData(); data.append('archivo', file);
+      await API.requestUpload('/productos/' + state.currentProductoId + '/multimedia', data);
+    }
+    Utils.showToast(`${files.length} archivo(s) agregado(s)`, 'success');
+    await verMultimedia(state.currentProductoId);
+    await cargarProductos(state.currentPage);
+  } catch (err) { Utils.showToast(err.message, 'error'); }
+  finally { input.value = ''; }
+}
+
+async function manejarAccionMultimedia(e) {
+  const button = e.target.closest('[data-media-action]');
+  if (!button) return;
+  const id = parseInt(button.dataset.id, 10);
+  try {
+    if (button.dataset.mediaAction === 'principal') {
+      await API.put('/productos/' + state.currentProductoId + '/multimedia/' + id + '/principal', {});
+    } else {
+      if (!await Utils.confirmAction('¿Eliminar este archivo multimedia?', 'Confirmar', 'Eliminar')) return;
+      await API.del('/productos/' + state.currentProductoId + '/multimedia/' + id);
+    }
+    await verMultimedia(state.currentProductoId);
+    await cargarProductos(state.currentPage);
+  } catch (err) { Utils.showToast(err.message, 'error'); }
+}
+
+function iniciarArrastreMultimedia(e) {
+  const card = e.target.closest('[data-media-id]');
+  if (!card) return;
+  state.draggedMediaId = parseInt(card.dataset.mediaId, 10);
+  e.dataTransfer.effectAllowed = 'move';
+}
+
+async function soltarMultimedia(e) {
+  e.preventDefault();
+  const target = e.target.closest('[data-media-id]');
+  if (!target || !state.draggedMediaId) return;
+  const ids = state.multimedia.map(m => m.idMultimedia);
+  const from = ids.indexOf(state.draggedMediaId), to = ids.indexOf(parseInt(target.dataset.mediaId, 10));
+  state.draggedMediaId = null;
+  if (from < 0 || to < 0 || from === to) return;
+  ids.splice(to, 0, ids.splice(from, 1)[0]);
+  try {
+    state.multimedia = await API.put('/productos/' + state.currentProductoId + '/multimedia/orden', { idsOrdenados: ids });
+    renderMultimedia();
+    await cargarProductos(state.currentPage);
+  } catch (err) { Utils.showToast(err.message, 'error'); }
 }
 
 async function abrirModal(id) {

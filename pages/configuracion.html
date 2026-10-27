@@ -10,24 +10,13 @@
   <div class="row g-3">
     <div class="col-md-6">
       <div class="panel-card p-3">
-        <h6 class="fw-semibold mb-1"><i class="fas fa-wallet me-2" style="color:var(--primary)"></i>Caja chica</h6>
-        <small class="text-muted d-block mb-3">Fondo con el que se abre la caja chica</small>
-        <label class="form-label small fw-semibold">Fondo de caja chica ($)</label>
+        <h6 class="fw-semibold mb-1"><i class="fas fa-wallet me-2" style="color:var(--primary)"></i>Cajas normales</h6>
+        <small class="text-muted d-block mb-3">Fondo automático de apertura para cajas principales. Las cajas secundarias no usan este fondo.</small>
+        <label class="form-label small fw-semibold">Fondo de apertura de caja normal ($)</label>
         <input type="number" class="form-control" id="cfg-fondoCajas" step="0.01" min="0">
         <div class="form-text" id="desc-fondoCajas"></div>
       </div>
     </div>
-    <div class="col-md-6">
-      <div class="panel-card p-3">
-        <h6 class="fw-semibold mb-1"><i class="fas fa-print me-2" style="color:var(--primary)"></i>Impresión</h6>
-        <label class="form-label small fw-semibold">Logo del ticket</label>
-        <input type="file" class="form-control mb-2" id="cfg-logoArchivo" accept="image/png,image/jpeg,image/webp,image/svg+xml">
-        <div class="form-text mb-2" id="cfg-logoActual">Se conserva el logo actual si no seleccionas otro.</div>
-        <label class="form-label small fw-semibold">Pie de ticket y políticas de garantía</label>
-        <textarea class="form-control" id="cfg-footerTicket" rows="10" maxlength="2000" placeholder="Gracias por su compra.\nPolíticas de garantía Racoon..."></textarea>
-      </div>
-    </div>
-
     <div class="col-md-6">
       <div class="panel-card p-3">
         <h6 class="fw-semibold mb-1"><i class="fas fa-file-invoice-dollar me-2" style="color:var(--primary)"></i>Documento de cr&eacute;dito</h6>
@@ -57,6 +46,17 @@
         <input type="text" class="form-control mb-3" id="cfg-descripcionEmpresa">
         <label class="form-label small fw-semibold">Direcci&oacute;n</label>
         <input type="text" class="form-control" id="cfg-direccionEmpresa">
+      </div>
+    </div>
+
+    <div class="col-md-6">
+      <div class="panel-card p-3">
+        <h6 class="fw-semibold mb-1"><i class="fas fa-print me-2" style="color:var(--primary)"></i>Impresión</h6>
+        <label class="form-label small fw-semibold">Logo del ticket</label>
+        <input type="file" class="form-control mb-2" id="cfg-logoArchivo" accept="image/png,image/jpeg,image/webp,image/svg+xml">
+        <div class="form-text mb-2" id="cfg-logoActual">Se conserva el logo actual si no seleccionas otro.</div>
+        <label class="form-label small fw-semibold">Pie de ticket y políticas de garantía</label>
+        <textarea class="form-control" id="cfg-footerTicket" rows="10" maxlength="2000" placeholder="Gracias por su compra.\nPolíticas de garantía Racoon..."></textarea>
       </div>
     </div>
   </div>
