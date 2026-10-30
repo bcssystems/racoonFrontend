@@ -364,6 +364,10 @@ async function previewCorte(id) {
           <small class="text-muted">Abonos (Cr\u00e9ditos)</small>
           <h5 class="mb-0" style="color:var(--info)">${Utils.formatMonto(corte.totalAbonos || 0)}</h5>
         </div></div>
+        <div class="col-6"><div class="panel-card p-3 text-center">
+          <small class="text-muted">Total Gastos</small>
+          <h5 class="mb-0 text-danger">-${Utils.formatMonto(corte.totalGastos || 0)}</h5>
+        </div></div>
       </div>
       <hr>
       <div class="text-center">

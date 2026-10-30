@@ -175,6 +175,7 @@ async function verCorte(id) {
             <tr><td class="text-muted">Ingresos</td><td class="text-success fw-semibold text-end">+${Utils.formatMonto(corte.totalIngresos || 0)}</td></tr>
             <tr><td class="text-muted">Egresos</td><td class="text-danger fw-semibold text-end">-${Utils.formatMonto(corte.totalEgresos || 0)}</td></tr>
             <tr><td class="text-muted">Abonos (Cr\u00e9ditos)</td><td class="fw-semibold text-end" style="color:var(--info)">+${Utils.formatMonto(corte.totalAbonos || 0)}</td></tr>
+            <tr><td class="text-danger">Total Gastos</td><td class="text-danger fw-semibold text-end">-${Utils.formatMonto(corte.totalGastos || 0)}</td></tr>
             <tr class="border-top"><td class="fw-bold">Saldo Final</td><td class="fw-bold text-end" style="color:var(--primary)">${Utils.formatMonto(corte.saldoFinalContado || 0)}</td></tr>
           </table>
         </div>
@@ -189,7 +190,7 @@ async function verCorte(id) {
             <tbody>${state.currentMovimientos.length ? state.currentMovimientos.map(m => `<tr>
               <td>${Utils.formatDateTime(m.fecha)}</td><td>${Utils.esc(m.tipo || '')}</td><td>${Utils.esc(m.descripcion || '')}${m.idVenta ? ' · Venta #' + m.idVenta : ''}</td>
               <td>${Utils.esc(m.cliente || '—')}${m.folioCredito ? '<br><small>Crédito ' + Utils.esc(m.folioCredito) + '</small>' : ''}</td>
-              <td>${Utils.esc(m.usuario || '')}</td><td>${m.cancelado ? 'CANCELADO' : 'VIGENTE'}${m.motivoCancelacion ? '<br><small>' + Utils.esc(m.motivoCancelacion) + '</small>' : ''}</td>
+              <td>${Utils.esc(m.usuario || '')}</td><td>${['GASTO', 'AUTORIZADO'].includes(m.tipo) ? (m.cancelado ? 'CANCELADO' : 'AUTORIZADO') : (m.cancelado ? 'CANCELADO' : 'VIGENTE')}${m.motivoCancelacion ? '<br><small>' + Utils.esc(m.motivoCancelacion) + '</small>' : ''}</td>
               <td class="text-end">${Utils.formatMonto(m.monto || 0)}</td></tr>`).join('') : '<tr><td colspan="7" class="text-center text-muted">Sin movimientos registrados</td></tr>'}</tbody>
           </table></div>
         </div>
@@ -337,11 +338,11 @@ async function imprimirMovimientosCorte(id) {
       <td>${Utils.esc(Utils.formatDateTime(m.fecha))}</td><td>${Utils.esc(m.tipo || '')}</td>
       <td>${Utils.esc(m.descripcion || '')}${m.idVenta ? ' · Venta #' + m.idVenta : ''}</td>
       <td>${Utils.esc(m.cliente || '—')}${m.folioCredito ? '<br>Crédito ' + Utils.esc(m.folioCredito) : ''}</td>
-      <td>${Utils.esc(m.usuario || '')}</td><td>${m.cancelado ? 'CANCELADO' : 'VIGENTE'}</td>
+      <td>${Utils.esc(m.usuario || '')}</td><td>${['GASTO', 'AUTORIZADO'].includes(m.tipo) ? (m.cancelado ? 'CANCELADO' : 'AUTORIZADO') : (m.cancelado ? 'CANCELADO' : 'VIGENTE')}</td>
       <td class="amount">${Utils.formatMonto(m.monto || 0)}</td></tr>`).join('')
       : '<tr><td colspan="7" class="empty">No hay movimientos registrados para el periodo de este corte.</td></tr>';
     const total = movimientos.filter(m => !m.cancelado).reduce((s, m) =>
-      s + ((m.tipo === 'EGRESO') ? -1 : 1) * (Number(m.monto) || 0), 0);
+      s + (((m.tipo === 'EGRESO') || m.tipo === 'GASTO' || m.tipo === 'AUTORIZADO') ? -1 : 1) * (Number(m.monto) || 0), 0);
     printWindow.document.open();
     printWindow.document.write(`<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8"><title>Movimientos del corte #${corte.idCorte}</title>
       <style>@page{size:landscape;margin:12mm}*{box-sizing:border-box}body{font:12px Arial,sans-serif;color:#000}h1{font-size:20px;margin:0 0 6px}p{margin:3px 0}table{width:100%;border-collapse:collapse;margin-top:16px}th,td{border:1px solid #333;padding:6px;text-align:left;vertical-align:top}th{background:#eee}.amount{text-align:right;white-space:nowrap}.empty{text-align:center;padding:20px}.total{text-align:right;font-weight:bold;margin-top:10px}@media print{th{background:#fff}}</style>
@@ -426,6 +427,7 @@ function reimprimirCorte(formato = 'carta') {
     <tr><td>Total Ingresos</td><td style="color:#059669">+${Utils.formatMonto(corte.totalIngresos || 0)}</td></tr>
     <tr><td>Total Egresos</td><td style="color:#dc2626">-${Utils.formatMonto(corte.totalEgresos || 0)}</td></tr>
     <tr><td>Abonos (Cr\u00e9ditos)</td><td style="color:#0891b2">+${Utils.formatMonto(corte.totalAbonos || 0)}</td></tr>
+    <tr><td>Total Gastos</td><td style="color:#dc2626">-${Utils.formatMonto(corte.totalGastos || 0)}</td></tr>
     <tr class="total-row"><td>Saldo Final</td><td>${Utils.formatMonto(corte.saldoFinalContado || 0)}</td></tr>
   </table>
   ${corte.detallePagos && corte.detallePagos.length > 0 ? `
