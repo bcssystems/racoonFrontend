@@ -243,7 +243,7 @@ function abrirAccionesCliente(anchor, id) {
     { icon: 'fa-cash-register', text: 'Abonar', color: 'var(--success)', onClick: () => abonarEnPOS(id, c) },
     { icon: 'fa-wallet', text: 'Registrar anticipo', color: 'var(--success)', onClick: () => registrarSaldoFavor(id, c) },
     { icon: 'fa-id-card', text: 'INE' + (c && c.tieneIne ? '  \u2713' : ''), color: 'var(--warning)', onClick: () => abrirModalIne(id) },
-    { icon: 'fa-file-signature', text: 'Solicitar crédito', color: 'var(--primary)', onClick: () => abrirSolicitudCredito(id) },
+     ...(!c?.tieneCredito ? [{ icon: 'fa-file-signature', text: 'Solicitar crédito', color: 'var(--primary)', onClick: () => abrirSolicitudCredito(id) }] : []),
   ];
   if (Utils.hasPermiso('CLIENTES_EDITAR')) {
     items.push({ icon: 'fa-edit', text: 'Editar', color: 'var(--primary)', onClick: () => abrirModal(id) });
@@ -483,7 +483,6 @@ function abrirSolicitudCredito(id) {
   state.solicitudClienteId = id;
   document.getElementById('solicitudCreditoClienteId').value = id;
   ['solMonto', 'solIngreso', 'solCapacidad', 'solReferencia', 'solObservaciones', 'solDocIneFrontal', 'solDocIneTrasera', 'solDocDomicilio', 'solDocPagare'].forEach(x => { const el = document.getElementById(x); if (el) el.value = ''; });
-  document.getElementById('solParcialidades').value = '8';
   new bootstrap.Modal(document.getElementById('solicitudCreditoModal')).show();
 }
 
@@ -496,10 +495,10 @@ async function enviarSolicitudCredito() {
   const encuesta = { actividad: document.getElementById('solActividad').value, ingresoMensual: parseFloat(document.getElementById('solIngreso').value) || 0, capacidadMensual: parseFloat(document.getElementById('solCapacidad').value) || 0, otrosCreditos: document.getElementById('solOtrosCreditos').value, atrasos: document.getElementById('solAtrasos').value, referencia: document.getElementById('solReferencia').value.trim() };
   const btn = document.getElementById('btnEnviarSolicitudCredito'); if (btn) btn.disabled = true;
   try {
-    const solicitud = await API.post('/solicitudes-credito', { idCliente, montoSolicitado: monto, parcialidadesSolicitadas: parseInt(document.getElementById('solParcialidades').value), encuestaJson: JSON.stringify(encuesta), observaciones: document.getElementById('solObservaciones').value.trim() });
+    const solicitud = await API.post('/solicitudes-credito', { idCliente, montoSolicitado: monto, encuestaJson: JSON.stringify(encuesta), observaciones: document.getElementById('solObservaciones').value.trim() });
     for (const [tipo, inputId] of archivos) { const form = new FormData(); form.append('tipo', tipo); form.append('archivo', document.getElementById(inputId).files[0]); await API.upload('/solicitudes-credito/' + solicitud.idSolicitud + '/documentos', form); }
     if (Utils.hasPermiso('CREDITOS_SOLICITUDES_AUTORIZAR')) {
-      await API.put('/solicitudes-credito/' + solicitud.idSolicitud + '/resolver', { aprobar: true, montoAprobado: solicitud.montoSugerido, parcialidadesAprobadas: solicitud.parcialidadesSolicitadas, observaciones: 'Aprobación automática para administrador' });
+      await API.put('/solicitudes-credito/' + solicitud.idSolicitud + '/resolver', { aprobar: true, montoAprobado: solicitud.montoSugerido, observaciones: 'Aprobación automática para administrador' });
     }
     bootstrap.Modal.getInstance(document.getElementById('solicitudCreditoModal'))?.hide();
     Utils.showToast(solicitud.estado === 'APROBADA' ? 'Crédito aprobado' : 'Solicitud enviada para autorización', 'success');
