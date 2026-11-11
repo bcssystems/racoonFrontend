@@ -28,8 +28,6 @@ function fechaLocalHoy() {
 }
 
 function bindEvents() {
-  const btnFiltrar = document.getElementById('btnFiltrar');
-  if (btnFiltrar) btnFiltrar.addEventListener('click', () => buscar(0));
   const btnLimpiar = document.getElementById('btnLimpiar');
   if (btnLimpiar) btnLimpiar.addEventListener('click', limpiar);
   const filterSucursal = document.getElementById('filterSucursal');
@@ -43,6 +41,10 @@ function bindEvents() {
         selCaja.innerHTML += cajas.map(c => `<option value="${c.idCaja}">${Utils.esc(c.nombre)}</option>`).join('');
       } catch (_) {}
     }
+    buscar(0);
+  });
+  ['filterCaja', 'filterEstado', 'filterTipoDetalle', 'filterDesde', 'filterHasta'].forEach(id => {
+    document.getElementById(id)?.addEventListener('change', () => buscar(0));
   });
   const tableBody = document.getElementById('tableBody');
   if (tableBody) tableBody.addEventListener('click', (e) => {

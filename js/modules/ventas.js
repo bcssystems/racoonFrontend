@@ -1317,13 +1317,12 @@ async function pedirConfirmarCredito(total, subtotal, clienteId, nota, pagos, mo
   document.getElementById('posCreditoPeriodicidad').value = 'MENSUAL';
   document.getElementById('posCreditoParcialidades').value = '1';
   document.getElementById('posCreditoInteres').value = '0';
-   const diasInicial = 3;
-   const fechaHoy = fechaLocalPOS(diasInicial);
-   const fechaMaxima = fechaLocalPOS(diasInicial);
-  const fechaPrimerPagoInput = document.getElementById('posCreditoFechaPrimerPago');
-  fechaPrimerPagoInput.min = fechaHoy;
-  fechaPrimerPagoInput.max = fechaMaxima;
-   fechaPrimerPagoInput.value = fechaLocalPOS(diasInicial);
+   const fechaHoy = fechaLocalPOS(0);
+   const fechaMaxima = fechaLocalPOS(10);
+   const fechaPrimerPagoInput = document.getElementById('posCreditoFechaPrimerPago');
+   fechaPrimerPagoInput.min = fechaHoy;
+   fechaPrimerPagoInput.max = fechaMaxima;
+    fechaPrimerPagoInput.value = fechaHoy;
   actualizarResumenCreditoPOS();
   bootstrap.Modal.getInstance(document.getElementById('posCobroModal'))?.hide();
   new bootstrap.Modal(document.getElementById('posCreditoModal')).show();
@@ -1353,14 +1352,13 @@ function actualizarResumenCreditoPOS() {
 }
 
 function actualizarFechaPrimerPagoPOS() {
-  const periodicidad = document.getElementById('posCreditoPeriodicidad')?.value || 'MENSUAL';
-  // El primer pago queda bloqueado según la periodicidad.
-  const dias = periodicidad === 'SEMANAL' ? 7 : 3;
   const input = document.getElementById('posCreditoFechaPrimerPago');
   if (input) {
-    input.min = fechaLocalPOS(dias);
-    input.max = fechaLocalPOS(dias);
-    input.value = fechaLocalPOS(dias);
+    input.min = fechaLocalPOS(0);
+    input.max = fechaLocalPOS(10);
+    if (!input.value || input.value < input.min || input.value > input.max) {
+      input.value = input.min;
+    }
   }
 }
 
@@ -1381,11 +1379,10 @@ async function confirmarCreditoPOS() {
   const numeroParcialidades = parseInt(document.getElementById('posCreditoParcialidades').value) || 1;
   const porcentajeInteres = parseFloat(document.getElementById('posCreditoInteres').value) || 0;
   const fechaPrimerPago = document.getElementById('posCreditoFechaPrimerPago').value || null;
-   const diasPrimerPago = periodicidad === 'SEMANAL' ? 7 : 3;
-   const fechaMinimaPago = fechaLocalPOS(diasPrimerPago);
-   const fechaMaximaPago = fechaLocalPOS(diasPrimerPago);
-  if (!fechaPrimerPago || fechaPrimerPago < fechaMinimaPago || fechaPrimerPago > fechaMaximaPago) {
-    Utils.showToast('La primera fecha de pago debe estar entre hoy y 10 días después de la venta', 'warning');
+    const fechaMinimaPago = fechaLocalPOS(0);
+    const fechaMaximaPago = fechaLocalPOS(10);
+   if (!fechaPrimerPago || fechaPrimerPago < fechaMinimaPago || fechaPrimerPago > fechaMaximaPago) {
+     Utils.showToast('La primera fecha de pago debe estar entre hoy y 10 días después de la venta', 'warning');
     return;
   }
   const idCobrador = parseInt(document.getElementById('posCreditoCobrador')?.value) || null;
@@ -1464,7 +1461,7 @@ function imprimirTicketCorte(corte) {
   const fechaStr = now.toLocaleDateString('es-MX', { year: 'numeric', month: 'long', day: 'numeric' });
   const horaStr = now.toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' });
 
-  const printWindow = window.open('', '_blank', 'width=800,height=600');
+   const printWindow = window.open('', '_blank');
   printWindow.document.write(`<!DOCTYPE html>
 <html lang="es">
 <head>
@@ -1487,13 +1484,17 @@ function imprimirTicketCorte(corte) {
     .data-table td { padding: 5px 8px; border-bottom: 1px solid #ddd; }
     .data-table td:last-child { text-align: right; font-weight: 600; }
     .data-table .total-row td { font-size: 14px; font-weight: bold; border-top: 2px solid #000; border-bottom: none; padding-top: 8px; }
-    .footer { text-align: center; margin-top: 20px; font-size: 10px; color: #888; }
+     .footer { text-align: center; margin-top: 20px; font-size: 10px; color: #888; }
+     .print-toolbar { display:flex; gap:8px; align-items:center; justify-content:flex-end; margin-bottom:14px; padding:8px; border:1px solid #bbb; font-family:Arial,sans-serif; }
+     .print-toolbar .format { margin-right:auto; font-weight:bold; }
+     .print-toolbar button { border:1px solid #333; background:#fff; color:#000; padding:6px 12px; cursor:pointer; }
+     @media print { .print-toolbar { display:none !important; } }
   </style>
 </head>
 <body>
+   <div class="print-toolbar"><span class="format">Formato: Carta</span><button type="button" onclick="window.print()">Imprimir</button></div>
   <div class="header">
-    <img src="assets/imgs/logotex.png" class="logo" alt="Logotex">
-    <div class="sub">Corte de Caja</div>
+     <div class="sub">Corte de Caja</div>
   </div>
   <div class="divider"></div>
   <table class="info-table">
@@ -1516,9 +1517,15 @@ function imprimirTicketCorte(corte) {
     <tr><td>Total Ingresos</td><td style="color:#059669">+${Utils.formatMonto(corte.totalIngresos || 0)}</td></tr>
     <tr><td>Total Egresos</td><td style="color:#dc2626">-${Utils.formatMonto(corte.totalEgresos || 0)}</td></tr>
     <tr><td>Abonos (Cr\u00e9ditos)</td><td style="color:#0891b2">+${Utils.formatMonto(corte.totalAbonos || 0)}</td></tr>
+    <tr><td>Anticipos en ventas a cr\u00e9dito</td><td style="color:#7c3aed">+${Utils.formatMonto(corte.totalAnticipos || 0)}</td></tr>
     <tr class="total-row"><td>Saldo Final</td><td>${Utils.formatMonto(corte.saldoFinalContado || 0)}</td></tr>
-  </table>
-  ${corte.detallePagos && corte.detallePagos.length > 0 ? `
+   </table>
+   ${corte.anticipos && corte.anticipos.length > 0 ? `
+   <div class="divider"></div><div class="section-title">Anticipos en ventas a crédito</div>
+   <table class="data-table" style="font-size:11px"><tr style="font-weight:bold;border-bottom:1px solid #000"><td>Venta / cliente</td><td>Forma de pago</td><td>Monto</td></tr>
+   ${corte.anticipos.map(a => `<tr><td>Venta #${a.idVenta || '-'}<br>${Utils.esc(a.cliente || '-')}</td><td>${Utils.esc(a.tipoPago || '-')}</td><td>${Utils.formatMonto(a.monto || 0)}</td></tr>`).join('')}
+   <tr class="total-row"><td colspan="2">Total anticipos</td><td>${Utils.formatMonto(corte.totalAnticipos || 0)}</td></tr></table>` : ''}
+   ${corte.detallePagos && corte.detallePagos.length > 0 ? `
   <div class="divider"></div>
   <div class="section-title">Desglose por Forma de Pago</div>
   <table class="data-table" style="font-size:11px">
@@ -1537,13 +1544,28 @@ function imprimirTicketCorte(corte) {
      </tr>
      <tr style="font-weight:bold"><td>Total real</td><td style="text-align:right">${corte.totalReal != null ? Utils.formatMonto(corte.totalReal) : '-'}</td></tr>
      <tr style="font-weight:bold"><td>Diferencia total</td><td style="text-align:right">${corte.diferencia != null ? ((corte.diferencia >= 0 ? '+' : '') + Utils.formatMonto(corte.diferencia)) : '-'}</td></tr>
-    </tr>
-  </table>` : ''}
-  ${corte.saldoEsperado != null ? `
+     </tr>
+   </table>` : ''}
+   ${corte.gastos && corte.gastos.length > 0 ? `
+   <div class="divider"></div>
+   <div class="section-title">Gastos del periodo</div>
+   <table class="data-table" style="font-size:11px">
+     <tr style="font-weight:bold;border-bottom:1px solid #000"><td>Descripción</td><td style="text-align:right">Monto</td></tr>
+     ${corte.gastos.map(g => `<tr><td>${Utils.esc(g.descripcion || '')}<br><small>${Utils.formatDateTime(g.fechaAutorizacion || g.fechaCreacion)}</small></td><td style="text-align:right;color:#dc2626">-${Utils.formatMonto(g.monto || 0)}</td></tr>`).join('')}
+     <tr style="font-weight:bold;border-top:2px solid #000"><td>Total gastos</td><td style="text-align:right;color:#dc2626">-${Utils.formatMonto(corte.totalGastos || 0)}</td></tr>
+   </table>` : ''}
+    ${corte.saldoEsperado != null ? `
   <div class="divider"></div>
   <table class="data-table">
     <tr><td>Saldo Esperado en Caja</td><td>${Utils.formatMonto(corte.saldoEsperado)}</td></tr>
-  </table>` : ''}
+   </table>` : ''}
+   ${corte.abonos && corte.abonos.length > 0 ? `
+   <div class="divider"></div>
+   <div class="section-title">Abonos por Crédito</div>
+   <table class="data-table" style="font-size:11px">
+     <tr style="font-weight:bold;border-bottom:1px solid #000"><td>Folio</td><td>Cliente</td><td>Fecha</td><td>Tipo pago</td><td>Monto</td></tr>
+     ${corte.abonos.map(a => `<tr><td>${Utils.esc(a.folioCredito || '-')}</td><td>${Utils.esc(a.cliente || '-')}</td><td>${a.fecha ? new Date(a.fecha).toLocaleString('es-MX') : '-'}</td><td>${Utils.esc(a.tipoPago || '-')}</td><td>${Utils.formatMonto(a.monto || 0)}</td></tr>`).join('')}
+   </table>` : ''}
   <div class="footer">
     <p>--- Fin del Corte ---</p>
     <p>${fechaStr} ${horaStr}</p>
@@ -1552,7 +1574,7 @@ function imprimirTicketCorte(corte) {
 </html>`);
   printWindow.document.close();
   printWindow.focus();
-  setTimeout(() => { printWindow.print(); }, 300);
+   // La pestaña permanece abierta y la impresión se inicia desde el botón de la página.
 }
 
 function construirDetallesEspera() {
@@ -1850,6 +1872,7 @@ async function previewCorte() {
           <div class="text-danger fw-semibold">-${Utils.formatMonto(corte.totalGastos)}</div>
         </div></div>
       </div>
+      ${corte.anticipos && corte.anticipos.length > 0 ? `<hr><h6 class="fw-semibold">Anticipos en ventas a crédito</h6><div class="table-responsive"><table class="table table-sm table-custom"><thead><tr><th>Venta</th><th>Cliente</th><th>Forma de pago</th><th class="text-end">Monto</th></tr></thead><tbody>${corte.anticipos.map(a => `<tr><td>#${a.idVenta || '-'}</td><td>${Utils.esc(a.cliente || '-')}</td><td>${Utils.esc(a.tipoPago || '-')}</td><td class="text-end">${Utils.formatMonto(a.monto || 0)}</td></tr>`).join('')}<tr class="fw-bold"><td colspan="3">Total anticipos</td><td class="text-end">${Utils.formatMonto(corte.totalAnticipos || 0)}</td></tr></tbody></table></div>` : ''}
       <hr>
       <h6 class="fw-semibold"><i class="fas fa-money-bill-wave me-1" style="color:var(--primary)"></i>Gastos del per\u00edodo</h6>
       ${gastosHtml}
@@ -1870,7 +1893,7 @@ async function previewCorte() {
             <tr>
               <td>${Utils.esc(d.tipoPagoNombre || '')}</td>
               <td class="text-end">
-                <input type="number" class="form-control form-control-sm corte-real-input text-end" data-id="${d.idTipoPago}" data-sistema="${(d.monto || 0)}" step="0.01" min="0" value="${(d.monto || 0).toFixed(2)}">
+                <input type="number" class="form-control form-control-sm corte-real-input text-end" data-id="${d.idTipoPago}" data-sistema="${(d.monto || 0)}" step="0.01" min="0" value="${d.montoReal != null ? Number(d.montoReal).toFixed(2) : ''}">
               </td>
             </tr>`).join('')}
             <tr class="border-top">
@@ -1882,7 +1905,7 @@ async function previewCorte() {
       </div>
       <script>
         document.querySelectorAll('.corte-real-input').forEach(inp => {
-          inp.addEventListener('input', function() {
+        inp.addEventListener('input', function() {
             let totalReal = 0;
             document.querySelectorAll('.corte-real-input').forEach(i => totalReal += parseFloat(i.value) || 0);
             document.getElementById('posCorteTotalReal').textContent = Utils.formatMonto(totalReal);
@@ -1919,9 +1942,9 @@ async function realizarCorte() {
     if (inputs.length > 0 && corteCreado?.idCorte) {
       const pagos = [];
       inputs.forEach(inp => {
-        pagos.push({ idTipoPago: parseInt(inp.dataset.id), montoReal: parseFloat(inp.value) || 0 });
+        if (inp.value.trim() !== '') pagos.push({ idTipoPago: parseInt(inp.dataset.id), montoReal: parseFloat(inp.value) });
       });
-      await API.put('/cortes/' + corteCreado.idCorte + '/detalle-pagos', { pagos });
+      if (pagos.length > 0) await API.put('/cortes/' + corteCreado.idCorte + '/detalle-pagos', { pagos });
     }
     Utils.showToast('Corte realizado', 'success');
     bootstrap.Modal.getInstance(document.getElementById('posCorteModal'))?.hide();
@@ -2437,15 +2460,10 @@ async function cargarColoniasPOS(cp, selectedColonia) {
   try {
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 4000);
-    const response = await fetch('https://api.zippopotam.us/MX/' + cp, { signal: controller.signal });
-    clearTimeout(timeoutId);
-    if (!response.ok) throw new Error('HTTP ' + response.status);
-    const data = await response.json();
-    if (data && data.places) {
-      const result = {
-        colonias: data.places.map(p => p['place name']),
-        estado: data.places[0]?.state || ''
-      };
+     const data = await API.get('/catalogos/codigos-postales/' + cp);
+     clearTimeout(timeoutId);
+     if (data && data.colonias) {
+       const result = { colonias: data.colonias, estado: data.estado || '', municipio: data.municipio || '' };
       cpCachePOS[cp] = result;
       aplicarDatosCPPOS(result, selectedColonia);
     }
@@ -2464,6 +2482,8 @@ function aplicarDatosCPPOS(result, selectedColonia) {
   }
   const estadoInput = document.getElementById('posClienteEstado');
   if (estadoInput) estadoInput.value = result.estado;
+  const municipioInput = document.getElementById('posClienteMunicipio');
+  if (municipioInput && result.municipio) municipioInput.value = result.municipio;
 }
 
 // --- Promociones y Combos POS Integration ---

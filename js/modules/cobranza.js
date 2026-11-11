@@ -5,7 +5,9 @@ export function init() {
   const hoy = fechaLocal(new Date());
   document.getElementById('cobranzaDesde').value = hoy;
   document.getElementById('cobranzaHasta').value = hoy;
-  document.getElementById('btnBuscarCobranza')?.addEventListener('click', cargarAgenda);
+  ['cobranzaDesde', 'cobranzaHasta', 'cobranzaEstado', 'cobranzaCobrador'].forEach(id => {
+    document.getElementById(id)?.addEventListener('change', cargarAgenda);
+  });
   document.getElementById('cobranzaCliente')?.addEventListener('input', () => {
     clearTimeout(cobranzaClienteDebounce);
     cobranzaClienteDebounce = setTimeout(cargarAgenda, 400);
@@ -83,7 +85,8 @@ function render() {
     return;
   }
   tbody.innerHTML = agenda.map(x => {
-    const mapa = x.direccion ? ' <a target="_blank" title="Abrir ubicación" href="https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent(x.direccion) + '"><i class="fas fa-map-marker-alt"></i></a>' : '';
+    const queryMapa = x.latitud != null && x.longitud != null ? x.latitud + ',' + x.longitud : x.direccion;
+    const mapa = queryMapa ? ' <a target="_blank" title="Abrir ubicación en Google Maps" href="https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent(queryMapa) + '"><i class="fas fa-map-marker-alt"></i></a>' : '';
     const estado = x.estado === 'PAGADA' ? 'bg-success' : x.estado === 'PARCIAL' ? 'bg-info' : 'bg-warning text-dark';
     const atrasada = x.fechaVencimiento && String(x.fechaVencimiento).slice(0, 10) < hoy && x.estado !== 'PAGADA';
     return '<tr><td class="text-nowrap">' + (x.fechaVencimiento ? new Date(x.fechaVencimiento).toLocaleDateString() : '-') + (atrasada ? ' <span class="badge bg-danger">Atrasada</span>' : '') + '</td>' +

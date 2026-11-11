@@ -1,6 +1,6 @@
 import { printComprobanteAbono, printRemisionVenta } from './printing.js';
 
-let state = { data: [], editingId: null, sucursales: [], movimientos: [], filtroRequestId: 0 };
+let state = { data: [], editingId: null, sucursales: [], movimientos: [], movimientosCajaId: null, filtroRequestId: 0 };
 
 export function init() {
   bindEvents();
@@ -15,10 +15,14 @@ function bindEvents() {
   btnNuevo?.addEventListener('click', () => abrirModal(null));
   document.getElementById('btnGuardarCaja')?.addEventListener('click', guardarCaja);
   document.getElementById('tableCajasBody')?.addEventListener('click', handleTableClick);
+  document.getElementById('tableMovimientosBody')?.addEventListener('click', handleTableClick);
   document.getElementById('filtroSucursal')?.addEventListener('change', cargarCajas);
   document.getElementById('btnConfirmarMovimiento')?.addEventListener('click', confirmarMovimiento);
   document.getElementById('btnConfirmarApertura')?.addEventListener('click', confirmarApertura);
   document.getElementById('btnRealizarCorte')?.addEventListener('click', realizarCorte);
+  document.getElementById('btnImprimirMovimientosCaja')?.addEventListener('click', () => {
+    if (state.movimientosCajaId) imprimirMovimientosCaja(state.movimientosCajaId);
+  });
 }
 
 async function cargarSucursales() {
@@ -77,6 +81,37 @@ function renderTable() {
 }
 
 function handleTableClick(e) {
+  const movimientoKebab = e.target.closest('.movimiento-kebab');
+  if (movimientoKebab) {
+    e.preventDefault();
+    e.stopPropagation();
+    const movimiento = state.movimientos.find(m => m.idMovimientoCaja === parseInt(movimientoKebab.dataset.movimientoId));
+    if (movimiento) {
+      const items = [];
+      if (movimiento.idAbono) items.push({
+        icon: 'fa-print', text: 'Imprimir comprobante de abono', color: 'var(--primary)',
+        onClick: () => printComprobanteAbono(movimiento, { clienteNombre: movimiento.clienteNombre, cajaNombre: movimiento.cajaNombre })
+      });
+      if (movimiento.idVenta && Utils.hasPermiso('VENTAS_VER')) items.push({
+        icon: 'fa-receipt', text: 'Ver / imprimir venta', color: 'var(--info)',
+        onClick: async () => {
+          try { printRemisionVenta(await API.get('/ventas/' + movimiento.idVenta), { copies: 1 }); }
+          catch (err) { Utils.showToast(err.message, 'error'); }
+        }
+      });
+      if (!movimiento.cancelado && Utils.hasPermiso('CAJAS_MOVIMIENTO')) items.push({
+        danger: true, icon: 'fa-ban',
+        text: movimiento.estadoCancelacion === 'SOLICITADA' ? 'Procesar cancelación solicitada' : 'Cancelar movimiento',
+        onClick: () => cancelarMovimientoCaja(movimiento)
+      });
+      if (!items.length) items.push({
+        icon: 'fa-info-circle', text: movimiento.cancelado ? 'Movimiento cancelado' : 'Sin acciones disponibles', color: 'var(--muted)', onClick: () => {}
+      });
+      Utils.abrirMenuKebab(movimientoKebab, items);
+    }
+    return;
+  }
+
   const kebab = e.target.closest('.kebab-trigger:not(.movimiento-kebab)');
   if (kebab) {
     e.preventDefault();
@@ -105,39 +140,6 @@ function handleTableClick(e) {
       items.push({ danger: true, icon: 'fa-trash', text: 'Eliminar', onClick: () => confirmarEliminar(id) });
     }
     Utils.abrirMenuKebab(kebab, items);
-    return;
-  }
-  const movimientoKebab = e.target.closest('.movimiento-kebab');
-  if (movimientoKebab) {
-    const movimiento = state.movimientos.find(m => m.idMovimientoCaja === parseInt(movimientoKebab.dataset.movimientoId));
-    if (movimiento) {
-      const items = [];
-       if (movimiento.idAbono) items.push({
-          icon: 'fa-print', text: 'Imprimir comprobante de abono', color: 'var(--primary)',
-          onClick: () => printComprobanteAbono(movimiento, {
-            clienteNombre: movimiento.clienteNombre,
-            cajaNombre: movimiento.cajaNombre
-          })
-         });
-      if (movimiento.idVenta && Utils.hasPermiso('VENTAS_VER')) items.push({
-        icon: 'fa-receipt', text: 'Ver / imprimir venta', color: 'var(--info)',
-        onClick: async () => {
-          try {
-            const venta = await API.get('/ventas/' + movimiento.idVenta);
-            printRemisionVenta(venta, { copies: 1 });
-          } catch (err) { Utils.showToast(err.message, 'error'); }
-        }
-      });
-      if (!movimiento.cancelado && Utils.hasPermiso('CAJAS_MOVIMIENTO')) items.push({
-        danger: true, icon: 'fa-ban', text: 'Cancelar movimiento',
-        onClick: () => cancelarMovimientoCaja(movimiento)
-      });
-      if (!items.length) items.push({
-        icon: 'fa-info-circle', text: 'Sin acciones disponibles', color: 'var(--muted)',
-        onClick: () => {}
-      });
-      Utils.abrirMenuKebab(movimientoKebab, items);
-    }
     return;
   }
   const btn = e.target.closest('.btn-action');
@@ -275,6 +277,7 @@ async function verMovimientos(id) {
   try {
     const movs = await API.get('/cajas/' + id + '/movimientos');
     state.movimientos = movs || [];
+    state.movimientosCajaId = id;
     const caja = state.data.find(c => c.idCaja === id);
     document.getElementById('movimientosModalTitle').textContent =
       'Movimientos - ' + (caja ? caja.nombre : '');
@@ -298,6 +301,31 @@ async function verMovimientos(id) {
     }
     new bootstrap.Modal(document.getElementById('movimientosModal')).show();
   } catch (err) { Utils.showToast(err.message, 'error'); }
+}
+
+function imprimirMovimientosCaja(id) {
+  const caja = state.data.find(c => c.idCaja === id);
+  const movimientos = state.movimientos || [];
+  const vigentes = movimientos.filter(m => !m.cancelado);
+  const ingresos = vigentes.filter(m => m.tipo === 'INGRESO').reduce((s, m) => s + (Number(m.monto) || 0), 0);
+  const egresos = vigentes.filter(m => m.tipo === 'EGRESO').reduce((s, m) => s + (Number(m.monto) || 0), 0);
+  const filas = movimientos.length ? movimientos.map(m => `<tr class="${m.cancelado ? 'cancelado' : ''}">
+    <td>${Utils.esc(Utils.formatDateTime(m.fecha))}</td><td>${Utils.esc(m.tipo || '')}</td>
+    <td>${Utils.esc(m.clienteNombre || (m.idVenta ? 'Venta #' + m.idVenta : m.motivo || '-'))}${m.folioCredito ? '<br>Crédito ' + Utils.esc(m.folioCredito) : ''}</td>
+    <td>${Utils.esc(m.usuario || '')}</td><td>${m.cancelado ? 'CANCELADO' : 'VIGENTE'}</td>
+    <td class="monto">${m.tipo === 'INGRESO' ? '+' : '-'}${Utils.formatMonto(m.monto || 0)}</td>
+  </tr>`).join('') : '<tr><td colspan="6" class="empty">No hay movimientos registrados.</td></tr>';
+  const win = window.open('', 'racoon-print-tab');
+  if (!win) { Utils.showToast('Permite las ventanas emergentes para imprimir el reporte', 'warning'); return; }
+  win.document.write(`<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8"><title>Movimientos de caja</title>
+    <style>@page{size:landscape;margin:12mm}*{box-sizing:border-box}body{font:12px Arial;color:#000}h1{margin:0 0 6px}p{margin:3px 0}table{width:100%;border-collapse:collapse;margin-top:16px}th,td{border:1px solid #333;padding:6px;text-align:left}.monto{text-align:right;white-space:nowrap}.cancelado{color:#777;text-decoration:line-through}.empty{text-align:center;padding:20px}.totales{margin-top:12px;text-align:right;font-weight:bold}</style>
+    </head><body><h1>Reporte de movimientos de caja</h1>
+    <p><strong>Caja:</strong> ${Utils.esc(caja?.nombre || '')} &nbsp; <strong>Sucursal:</strong> ${Utils.esc(caja?.sucursalNombre || '')}</p>
+    <p><strong>Estado:</strong> ${Utils.esc(caja?.estado || 'ABIERTA')} &nbsp; <strong>Apertura:</strong> ${Utils.esc(Utils.formatDateTime(caja?.fechaApertura))}</p>
+    <table><thead><tr><th>Fecha</th><th>Tipo</th><th>Descripción / cliente</th><th>Usuario</th><th>Estado</th><th>Monto</th></tr></thead><tbody>${filas}</tbody></table>
+    <div class="totales">Ingresos vigentes: ${Utils.formatMonto(ingresos)} &nbsp; Egresos vigentes: ${Utils.formatMonto(egresos)} &nbsp; Neto: ${Utils.formatMonto(ingresos - egresos)}</div>
+    </body></html>`);
+  win.document.close(); win.focus(); setTimeout(() => win.print(), 300);
 }
 
 async function cancelarMovimientoCaja(movimiento) {
@@ -368,8 +396,10 @@ async function previewCorte(id) {
           <small class="text-muted">Total Gastos</small>
           <h5 class="mb-0 text-danger">-${Utils.formatMonto(corte.totalGastos || 0)}</h5>
         </div></div>
-      </div>
-      <hr>
+       </div>
+       ${corte.anticipos && corte.anticipos.length > 0 ? `<hr><h6 class="fw-semibold">Anticipos en ventas a crédito</h6><div class="table-responsive"><table class="table table-sm"><thead><tr><th>Venta</th><th>Cliente</th><th>Forma de pago</th><th class="text-end">Monto</th></tr></thead><tbody>${corte.anticipos.map(a => `<tr><td>#${a.idVenta || '-'}</td><td>${Utils.esc(a.cliente || '-')}</td><td>${Utils.esc(a.tipoPago || '-')}</td><td class="text-end">${Utils.formatMonto(a.monto || 0)}</td></tr>`).join('')}<tr class="fw-bold"><td colspan="3">Total anticipos</td><td class="text-end">${Utils.formatMonto(corte.totalAnticipos || 0)}</td></tr></tbody></table></div>` : ''}
+       ${corte.detallePagos && corte.detallePagos.length > 0 ? `<hr><h6 class="fw-semibold">Conteo real por forma de pago</h6><div class="table-responsive"><table class="table table-sm"><thead><tr><th>Forma de pago</th><th class="text-end">Sistema</th><th class="text-end">Real</th></tr></thead><tbody>${corte.detallePagos.map(d => `<tr><td>${Utils.esc(d.tipoPagoNombre || '')}</td><td class="text-end">${Utils.formatMonto(d.monto || 0)}</td><td><input type="number" class="form-control form-control-sm caja-corte-real-input text-end" data-id="${d.idTipoPago}" value="${d.montoReal != null ? Number(d.montoReal).toFixed(2) : ''}" min="0" step="0.01"></td></tr>`).join('')}</tbody></table></div>` : ''}
+       <hr>
       <div class="text-center">
         <h5>Saldo Esperado</h5>
         <h3 class="fw-bold" style="color:var(--primary)">${Utils.formatMonto(corte.saldoEsperado)}</h3>
@@ -383,7 +413,12 @@ async function previewCorte(id) {
 async function realizarCorte() {
   const id = parseInt(document.getElementById('btnRealizarCorte').dataset.cajaId);
   try {
-    await API.post('/cajas/' + id + '/corte', {});
+    const corte = await API.post('/cajas/' + id + '/corte', {});
+      const inputs = document.querySelectorAll('.caja-corte-real-input');
+      if (inputs.length > 0 && corte?.idCorte) {
+      const pagos = Array.from(inputs).filter(input => input.value.trim() !== '').map(input => ({ idTipoPago: parseInt(input.dataset.id), montoReal: parseFloat(input.value) }));
+      if (pagos.length > 0) await API.put('/cortes/' + corte.idCorte + '/detalle-pagos', { pagos });
+    }
     Utils.showToast('Corte realizado exitosamente', 'success');
     bootstrap.Modal.getInstance(document.getElementById('cortePreviewModal'))?.hide();
     cargarCajas();

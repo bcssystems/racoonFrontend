@@ -26,13 +26,14 @@ function bindEvents() {
   const btnGuardar = document.getElementById('btnGuardarPromocion');
   if (btnGuardar) btnGuardar.addEventListener('click', guardarPromocion);
 
-  const btnFiltrar = document.getElementById('btnFiltrar');
-  if (btnFiltrar) btnFiltrar.addEventListener('click', () => {
+  const aplicarFiltros = () => {
     state.filterTipo = document.getElementById('filterTipo').value;
     state.filterActivo = document.getElementById('filterActivo').value;
     state.currentPage = 0;
     cargarPromociones(0);
-  });
+  };
+  document.getElementById('filterTipo')?.addEventListener('change', aplicarFiltros);
+  document.getElementById('filterActivo')?.addEventListener('change', aplicarFiltros);
 
   const tipoSelect = document.getElementById('promocionTipo');
   if (tipoSelect) tipoSelect.addEventListener('change', toggleTipoForm);

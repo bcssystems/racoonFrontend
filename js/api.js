@@ -143,6 +143,19 @@ const API = {
     });
   },
 
+  upload(endpoint, formData) {
+    const token = this.getToken();
+    return fetch(this.baseUrl + endpoint, {
+      method: 'POST',
+      headers: token ? { Authorization: 'Bearer ' + token } : {},
+      body: formData,
+    }).then(async response => {
+      const data = await response.json().catch(() => null);
+      if (!response.ok) throw new Error(data?.message || data?.error || 'Error al cargar el archivo');
+      return data;
+    });
+  },
+
   put(endpoint, body) {
     return this.request(endpoint, {
       method: 'PUT',

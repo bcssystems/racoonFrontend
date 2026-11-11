@@ -79,11 +79,13 @@ function bindEvents() {
     abrirModalMovimiento();
   });
   document.getElementById('btnToggleInactivos')?.addEventListener('click', toggleInactivos);
-  document.getElementById('btnMovFullFiltrar')?.addEventListener('click', () => {
-    state.movFullFechaInicio = document.getElementById('movFullFechaInicio')?.value || '';
-    state.movFullFechaFin = document.getElementById('movFullFechaFin')?.value || '';
-    state.movFullPage = 0;
-    cargarMovimientosFull(0);
+  ['movFullFechaInicio', 'movFullFechaFin'].forEach(id => {
+    document.getElementById(id)?.addEventListener('change', () => {
+      state.movFullFechaInicio = document.getElementById('movFullFechaInicio')?.value || '';
+      state.movFullFechaFin = document.getElementById('movFullFechaFin')?.value || '';
+      state.movFullPage = 0;
+      cargarMovimientosFull(0);
+    });
   });
   document.getElementById('btnMovFullLimpiar')?.addEventListener('click', () => {
     if (document.getElementById('movFullFechaInicio')) document.getElementById('movFullFechaInicio').value = '';

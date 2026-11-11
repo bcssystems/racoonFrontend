@@ -4,6 +4,7 @@ let state = {
   size: 15,
   currentCorte: null,
   currentMovimientos: [],
+  printWindow: null,
 };
 
 export function init() {
@@ -25,7 +26,6 @@ function puedeVerMovimientos() {
 }
 
 function bindEvents() {
-  document.getElementById('btnFiltrar')?.addEventListener('click', () => buscar(0));
   document.getElementById('btnLimpiar')?.addEventListener('click', limpiar);
   document.getElementById('filterSucursal')?.addEventListener('change', async (e) => {
     const idSucursal = parseInt(e.target.value);
@@ -37,7 +37,11 @@ function bindEvents() {
         selCaja.innerHTML += cajas.map(c => `<option value="${c.idCaja}">${Utils.esc(c.nombre)}</option>`).join('');
       } catch (_) {}
     }
+    buscar(0);
   });
+  document.getElementById('filterCaja')?.addEventListener('change', () => buscar(0));
+  document.getElementById('filterDesde')?.addEventListener('change', () => buscar(0));
+  document.getElementById('filterHasta')?.addEventListener('change', () => buscar(0));
   document.getElementById('tableBody')?.addEventListener('click', handleTableClick);
   document.getElementById('btnReimprimirCorte')?.addEventListener('click', reimprimirCorte);
   document.getElementById('btnReimprimirCorte80')?.addEventListener('click', () => reimprimirCorte('80mm'));
@@ -60,11 +64,21 @@ function handleTableClick(e) {
 }
 
 async function reimprimirCorteDesdeLista(id) {
+  const printWindow = window.open('', '_blank');
+  if (!printWindow) {
+    Utils.showToast('Permite las ventanas emergentes para abrir la impresión', 'warning');
+    return;
+  }
+  state.printWindow = printWindow;
+  printWindow.document.write('<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8"><title>Preparando impresión</title></head><body><p>Preparando impresión...</p></body></html>');
   try {
     state.currentCorte = await API.get('/cortes/' + id);
     reimprimirCorte();
   } catch (err) {
+    printWindow.close();
     Utils.showToast('No se pudo cargar el corte: ' + err.message, 'error');
+  } finally {
+    state.printWindow = null;
   }
 }
 
@@ -82,8 +96,7 @@ function limpiar() {
   document.getElementById('filterCaja').innerHTML = '<option value="">Todas</option>';
   document.getElementById('filterDesde').value = todayStr();
   document.getElementById('filterHasta').value = todayStr();
-  document.getElementById('tableBody').innerHTML = '<tr><td colspan="12"><div class="empty-state"><i class="fas fa-calculator"></i><p>Selecciona filtros y presiona Buscar</p></div></td></tr>';
-  document.getElementById('pagination').innerHTML = '';
+  buscar(0);
 }
 
 async function buscar(page) {
@@ -180,6 +193,7 @@ async function verCorte(id) {
           </table>
         </div>
       </div>
+      ${corte.anticipos && corte.anticipos.length > 0 ? `<div class="col-12"><div class="panel-card p-3"><h6 class="fw-semibold mb-2">Anticipos en ventas a crédito</h6><div class="table-responsive"><table class="table table-sm table-custom mb-0"><thead><tr><th>Venta</th><th>Cliente</th><th>Fecha</th><th>Forma de pago</th><th class="text-end">Monto</th></tr></thead><tbody>${corte.anticipos.map(a => `<tr><td>#${a.idVenta || '-'}</td><td>${Utils.esc(a.cliente || '-')}</td><td>${Utils.formatDateTime(a.fecha)}</td><td>${Utils.esc(a.tipoPago || '-')}</td><td class="text-end fw-semibold">${Utils.formatMonto(a.monto || 0)}</td></tr>`).join('')}<tr class="fw-bold"><td colspan="4">Total anticipos</td><td class="text-end">${Utils.formatMonto(corte.totalAnticipos || 0)}</td></tr></tbody></table></div></div></div>` : ''}
       ${puedeVerMovimientos() ? `
       <div class="col-12">
         <div class="panel-card p-3">
@@ -221,14 +235,14 @@ async function verCorte(id) {
                 <td>${Utils.esc(d.tipoPagoNombre || '')}</td>
                 <td class="text-end fw-semibold">${Utils.formatMonto(d.monto || 0)}</td>
                 ${isAdmin ? `<td class="text-end">
-                  <input type="number" class="form-control form-control-sm corte-real-input text-end" data-id="${d.idTipoPago}" data-sistema="${(d.monto || 0)}" step="0.01" min="0" value="${(d.montoReal != null ? d.montoReal : (d.monto || 0)).toFixed(2)}" disabled>
+                  <input type="number" class="form-control form-control-sm corte-real-input text-end" data-id="${d.idTipoPago}" data-sistema="${(d.monto || 0)}" step="0.01" min="0" value="${d.montoReal != null ? Number(d.montoReal).toFixed(2) : ''}" disabled>
                 </td>` : `<td class="text-end fw-semibold">${d.montoReal != null ? Utils.formatMonto(d.montoReal) : '-'}</td>`}
                 <td class="text-end fw-semibold" style="${diffColor}">${diffStr}</td>
               </tr>`;}).join('')}
               <tr class="border-top">
                 <td class="fw-bold">Total</td>
                 <td class="text-end fw-bold">${Utils.formatMonto(corte.detallePagos.reduce((s, d) => s + (d.monto || 0), 0))}</td>
-                ${isAdmin ? `<td class="text-end fw-bold corte-total-real">${Utils.formatMonto(corte.totalReal || corte.detallePagos.reduce((s, d) => s + (d.monto || 0), 0))}</td>` : `<td class="text-end fw-bold">${corte.totalReal != null ? Utils.formatMonto(corte.totalReal) : '-'}</td>`}
+                ${isAdmin ? `<td class="text-end fw-bold corte-total-real">${corte.totalReal != null ? Utils.formatMonto(corte.totalReal) : '-'}</td>` : `<td class="text-end fw-bold">${corte.totalReal != null ? Utils.formatMonto(corte.totalReal) : '-'}</td>`}
                 <td class="text-end fw-bold" style="${corte.diferencia != null ? (corte.diferencia === 0 ? '' : (corte.diferencia > 0 ? 'color:var(--success)' : 'color:var(--danger)')) : 'color:#999'}">${corte.diferencia != null ? ((corte.diferencia >= 0 ? '+' : '') + Utils.formatMonto(corte.diferencia)) : '-'}</td>
               </tr>
             </tbody>
@@ -237,6 +251,23 @@ async function verCorte(id) {
           ` : '<p class="text-muted small mb-0">Sin desglose de pagos</p>'}
         </div>
       </div>
+      ${corte.gastos && corte.gastos.length > 0 ? `
+      <div class="col-12">
+        <div class="panel-card p-3">
+          <h6 class="fw-semibold mb-2"><i class="fas fa-money-bill-wave me-1" style="color:var(--danger)"></i> Gastos del periodo <span class="text-muted small">(${corte.gastos.length})</span></h6>
+          <div class="table-responsive"><table class="table table-sm table-custom mb-0">
+            <thead><tr><th>Fecha</th><th>Descripción</th><th>Solicitó</th><th>Autorizó</th><th class="text-end">Monto</th></tr></thead>
+            <tbody>${corte.gastos.map(g => `<tr>
+              <td>${Utils.formatDateTime(g.fechaAutorizacion || g.fechaCreacion)}</td>
+              <td>${Utils.esc(g.descripcion || '')}</td>
+              <td>${Utils.esc(g.usuario || '')}</td>
+              <td>${Utils.esc(g.autorizador || '')}</td>
+              <td class="text-end text-danger fw-semibold">-${Utils.formatMonto(g.monto || 0)}</td>
+            </tr>`).join('')}</tbody>
+            <tfoot><tr><th colspan="4" class="text-end">Total gastos</th><th class="text-end text-danger">-${Utils.formatMonto(corte.totalGastos || 0)}</th></tr></tfoot>
+          </table></div>
+        </div>
+      </div>` : ''}
       ${corte.abonos && corte.abonos.length > 0 ? `
       <div class="col-12">
         <div class="panel-card p-3">
@@ -324,7 +355,7 @@ async function verCorte(id) {
 }
 
 async function imprimirMovimientosCorte(id) {
-  const printWindow = window.open('', '_blank', 'width=900,height=700');
+  const printWindow = window.open('', '_blank');
   if (!printWindow) {
     Utils.showToast('Permite las ventanas emergentes para imprimir el reporte', 'warning');
     return;
@@ -355,7 +386,7 @@ async function imprimirMovimientosCorte(id) {
       </body></html>`);
     printWindow.document.close();
     printWindow.focus();
-    setTimeout(() => printWindow.print(), 350);
+     // La pestaña queda abierta para que el usuario revise e imprima cuando lo decida.
   } catch (err) {
     printWindow.close();
     Utils.showToast('No se pudo generar el reporte: ' + err.message, 'error');
@@ -370,7 +401,11 @@ function reimprimirCorte(formato = 'carta') {
   const fechaStr = now.toLocaleDateString('es-MX', { year: 'numeric', month: 'long', day: 'numeric' });
   const horaStr = now.toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' });
 
-  const printWindow = window.open('', '_blank', 'width=800,height=600');
+   const printWindow = state.printWindow || window.open('', '_blank');
+   if (!printWindow) {
+     Utils.showToast('Permite las ventanas emergentes para abrir la impresión', 'warning');
+     return;
+   }
   const es80mm = formato === '80mm';
   printWindow.document.write(`<!DOCTYPE html>
 <html lang="es">
@@ -397,13 +432,17 @@ function reimprimirCorte(formato = 'carta') {
     .footer { text-align: center; margin-top: 20px; font-size: 10px; color: #000; }
     .firmas-entrega { margin-top: 22px; display: grid; grid-template-columns: 1fr 1fr; gap: 12px; text-align:center; font-size: ${es80mm ? '7px' : '10px'}; }
     .firma-linea { border-top:1px solid #000; padding-top:4px; margin-top:24px; }
-    body, body * { color:#000 !important; background:#fff !important; border-color:#000 !important; box-shadow:none !important; }
+     body, body * { color:#000 !important; background:#fff !important; border-color:#000 !important; box-shadow:none !important; }
+     .print-toolbar { display:flex; gap:8px; align-items:center; justify-content:flex-end; margin-bottom:14px; padding:8px; border:1px solid #bbb; font-family:Arial,sans-serif; }
+     .print-toolbar button { border:1px solid #333; background:#fff; color:#000; padding:6px 12px; cursor:pointer; }
+     .print-toolbar .format { margin-right:auto; font-weight:bold; }
+     @media print { .print-toolbar { display:none !important; } }
   </style>
 </head>
 <body>
+  <div class="print-toolbar"><span class="format">Formato: ${es80mm ? '80 mm' : 'Carta'}</span><button type="button" onclick="window.print()">Imprimir</button></div>
   <div class="header">
-    <img src="assets/imgs/logotex.png" class="logo" alt="" onerror="this.remove()">
-    <div class="sub">Corte de Caja</div>
+  <div class="sub">Corte de Caja</div>
   </div>
   <div class="divider"></div>
   <table class="info-table">
@@ -427,10 +466,16 @@ function reimprimirCorte(formato = 'carta') {
     <tr><td>Total Ingresos</td><td style="color:#059669">+${Utils.formatMonto(corte.totalIngresos || 0)}</td></tr>
     <tr><td>Total Egresos</td><td style="color:#dc2626">-${Utils.formatMonto(corte.totalEgresos || 0)}</td></tr>
     <tr><td>Abonos (Cr\u00e9ditos)</td><td style="color:#0891b2">+${Utils.formatMonto(corte.totalAbonos || 0)}</td></tr>
+    <tr><td>Anticipos en ventas a cr\u00e9dito</td><td style="color:#7c3aed">+${Utils.formatMonto(corte.totalAnticipos || 0)}</td></tr>
     <tr><td>Total Gastos</td><td style="color:#dc2626">-${Utils.formatMonto(corte.totalGastos || 0)}</td></tr>
     <tr class="total-row"><td>Saldo Final</td><td>${Utils.formatMonto(corte.saldoFinalContado || 0)}</td></tr>
-  </table>
-  ${corte.detallePagos && corte.detallePagos.length > 0 ? `
+   </table>
+   ${corte.anticipos && corte.anticipos.length > 0 ? `
+   <div class="divider"></div><div class="section-title">Anticipos en ventas a crédito</div>
+   <table class="data-table" style="font-size:11px"><tr style="font-weight:bold;border-bottom:1px solid #000"><td>Venta / cliente</td><td>Forma de pago</td><td>Monto</td></tr>
+   ${corte.anticipos.map(a => `<tr><td>Venta #${a.idVenta || '-'}<br>${Utils.esc(a.cliente || '-')}</td><td>${Utils.esc(a.tipoPago || '-')}</td><td>${Utils.formatMonto(a.monto || 0)}</td></tr>`).join('')}
+   <tr class="total-row"><td colspan="2">Total anticipos</td><td>${Utils.formatMonto(corte.totalAnticipos || 0)}</td></tr></table>` : ''}
+   ${corte.detallePagos && corte.detallePagos.length > 0 ? `
   <div class="divider"></div>
   <div class="section-title">Desglose por Forma de Pago</div>
   <table class="data-table" style="font-size:11px">
@@ -457,6 +502,14 @@ function reimprimirCorte(formato = 'carta') {
       <td style="text-align:center;padding-top:6px">${corte.totalReal != null ? Utils.formatMonto(corte.totalReal) : '-'}</td>
       <td style="text-align:center;padding-top:6px">${corte.diferencia != null ? ((corte.diferencia >= 0 ? '+' : '') + Utils.formatMonto(corte.diferencia)) : '-'}</td>
     </tr>
+   </table>` : ''}
+  ${corte.gastos && corte.gastos.length > 0 ? `
+  <div class="divider"></div>
+  <div class="section-title">Gastos del periodo</div>
+  <table class="data-table" style="font-size:11px">
+    <tr style="font-weight:bold;border-bottom:1px solid #000"><td>Descripción</td><td style="text-align:right">Monto</td></tr>
+    ${corte.gastos.map(g => `<tr><td>${Utils.esc(g.descripcion || '')}<br><small>${Utils.formatDateTime(g.fechaAutorizacion || g.fechaCreacion)}</small></td><td style="text-align:right;color:#dc2626">-${Utils.formatMonto(g.monto || 0)}</td></tr>`).join('')}
+    <tr style="font-weight:bold;border-top:2px solid #000"><td>Total gastos</td><td style="text-align:right;color:#dc2626">-${Utils.formatMonto(corte.totalGastos || 0)}</td></tr>
   </table>` : ''}
   <div class="divider"></div>
   <div class="section-title">Entrega y recepción</div>
@@ -492,7 +545,6 @@ function reimprimirCorte(formato = 'carta') {
 </html>`);
   printWindow.document.close();
   printWindow.focus();
-  setTimeout(() => { printWindow.print(); }, 300);
 }
 
 async function saveCorteRealCounts() {

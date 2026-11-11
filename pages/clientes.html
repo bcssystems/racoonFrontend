@@ -59,6 +59,9 @@
       <div class="modal-body">
         <form id="formCliente">
           <input type="hidden" id="clienteId">
+          <input type="hidden" id="clienteLatitud">
+          <input type="hidden" id="clienteLongitud">
+          <input type="hidden" id="clientePrecisionUbicacion">
           <div class="row g-3">
             <div class="col-md-6">
               <label class="form-label">Nombre <span class="text-danger">*</span></label>
@@ -141,12 +144,18 @@
               <label class="form-label">N&uacute;m. Interior</label>
               <input type="text" class="form-control" id="clienteNumInt" maxlength="20">
             </div>
-            <div class="col-12"><hr class="my-1"></div>
-            <div class="col-md-3">
-              <div class="form-check mt-2">
-                <input type="checkbox" class="form-check-input" id="clienteTieneCredito">
-                <label class="form-check-label" for="clienteTieneCredito">¿Tiene cr&eacute;dito?</label>
+            <div class="col-12 mt-2">
+              <div class="d-flex justify-content-between align-items-center mb-1">
+                <label class="form-label mb-0">Ubicación en Google Maps</label>
+                <button type="button" class="btn btn-outline-primary btn-sm" id="btnGeocodificarCliente"><i class="fas fa-location-arrow me-1"></i>Ubicar dirección</button>
               </div>
+              <div id="clienteMapa" style="height:220px;border-radius:8px;background:#eef2f7"></div>
+              <div id="clienteUbicacionEstado" class="small text-muted mt-1">Puedes mover el marcador para corregir la ubicación.</div>
+            </div>
+            <div class="col-12"><hr class="my-1"></div>
+            <div class="col-md-6 d-flex align-items-end">
+              <button type="button" class="btn btn-outline-primary btn-sm" id="btnSolicitarCredito" style="display:none"><i class="fas fa-file-signature me-1"></i>Solicitar crédito</button>
+              <span class="small text-muted ms-2" id="clienteSolicitudCreditoInfo"></span>
             </div>
             <div class="col-md-3" id="clienteLimiteCreditoGroup" style="display:none">
               <label class="form-label">L&iacute;mite de Cr&eacute;dito</label>
@@ -167,6 +176,30 @@
       </div>
     </div>
   </div>
+</div>
+
+<div class="modal fade" id="solicitudCreditoModal" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered modal-lg modal-dialog-scrollable"><div class="modal-content border-0 shadow">
+    <div class="modal-header border-0"><h5 class="modal-title fw-bold"><i class="fas fa-file-signature me-2"></i>Solicitud de crédito</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+    <div class="modal-body"><input type="hidden" id="solicitudCreditoClienteId">
+      <div class="alert alert-info py-2 small">Completa la encuesta y carga los cuatro documentos requeridos para enviar la solicitud.</div>
+      <h6 class="fw-semibold">Solicitud y capacidad de pago</h6><div class="row g-2">
+        <div class="col-md-4"><label class="form-label small">Monto solicitado</label><input type="number" id="solMonto" class="form-control" min="1" step="0.01"></div>
+        <div class="col-md-4"><label class="form-label small">Parcialidades</label><select id="solParcialidades" class="form-select"><option>4</option><option>8</option><option>12</option><option>16</option><option>24</option></select></div>
+        <div class="col-md-4"><label class="form-label small">Actividad</label><select id="solActividad" class="form-select"><option>Empleado</option><option>Negocio propio</option><option>Comerciante</option><option>Profesionista independiente</option><option>Otro</option></select></div>
+        <div class="col-md-4"><label class="form-label small">Ingreso mensual</label><input type="number" id="solIngreso" class="form-control" min="0" step="0.01"></div>
+        <div class="col-md-4"><label class="form-label small">Capacidad mensual de pago</label><input type="number" id="solCapacidad" class="form-control" min="0" step="0.01"></div>
+        <div class="col-md-4"><label class="form-label small">Otros créditos</label><select id="solOtrosCreditos" class="form-select"><option>No</option><option>Al corriente</option><option>Con atrasos</option></select></div>
+        <div class="col-md-6"><label class="form-label small">Atrasos importantes anteriores</label><select id="solAtrasos" class="form-select"><option>No</option><option>Ocasionalmente</option><option>Frecuentemente</option></select></div>
+        <div class="col-md-6"><label class="form-label small">Referencia personal</label><input id="solReferencia" class="form-control" maxlength="200" placeholder="Nombre y teléfono"></div>
+      </div><hr><h6 class="fw-semibold">Documentos requeridos</h6><div class="row g-2">
+        <div class="col-md-6"><label class="form-label small">INE frontal</label><input type="file" id="solDocIneFrontal" class="form-control" accept="image/*,application/pdf"></div>
+        <div class="col-md-6"><label class="form-label small">INE trasera</label><input type="file" id="solDocIneTrasera" class="form-control" accept="image/*,application/pdf"></div>
+        <div class="col-md-6"><label class="form-label small">Comprobante de domicilio</label><input type="file" id="solDocDomicilio" class="form-control" accept="image/*,application/pdf"></div>
+        <div class="col-md-6"><label class="form-label small">Pagaré firmado</label><input type="file" id="solDocPagare" class="form-control" accept="image/*,application/pdf"></div>
+      </div><div class="mt-3"><label class="form-label small">Observaciones</label><textarea id="solObservaciones" class="form-control" rows="2" maxlength="1000"></textarea></div>
+    </div><div class="modal-footer border-0"><button class="btn btn-light" data-bs-dismiss="modal">Cancelar</button><button class="btn btn-primary" id="btnEnviarSolicitudCredito">Enviar solicitud</button></div>
+  </div></div>
 </div>
 
 <!-- Modal INE -->

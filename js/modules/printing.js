@@ -548,6 +548,10 @@ export function printRemisionVenta(venta, opts) {
   const fechaStr = now.toLocaleDateString('es-MX', { year: 'numeric', month: 'long', day: 'numeric' });
   const horaStr = now.toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' });
   const desglosePagos = getDesglosePagos(venta);
+  const pagosIniciales = esCredito
+    ? desglosePagos.pagos.filter(p => !p.credito)
+    : desglosePagos.pagos;
+  const montoEnganche = pagosIniciales.reduce((suma, pago) => suma + pago.monto, 0);
 
   const interesTotalCredito = esCredito
     ? (venta.interesTotal != null ? Number(venta.interesTotal) : desglosePagos.montoCredito * porcentajeInteres / 100)
@@ -571,18 +575,17 @@ export function printRemisionVenta(venta, opts) {
     </tr>`;
   }).join('');
 
-  const pagoRows = desglosePagos.pagos.length > 0
-       ? desglosePagos.pagos.map(p => `
-     <tr>
+   const pagoRows = (pagosIniciales.length > 0 || esCredito)
+        ? pagosIniciales.map(p => `
+      <tr>
        <td>${Utils.esc(p.label)}${p.referencia ? ' (' + Utils.esc(p.referencia) + ')' : ''}</td>
        <td class="right">${Utils.formatMonto(p.monto)}</td>
-     </tr>`).join('')
-       + (esCredito && porcentajeInteres > 0
-          ? `<tr><td>Interés mensual ${(porcentajeInteres || 0)}% / ${venta.periodicidad || 'MENSUAL'}: ${venta.numeroParcialidades || plazoMeses || '—'}</td><td class="right">${Utils.formatMonto(interesTotalCredito)}</td></tr>`
-         : '')
-       : `<tr><td>Enviando pedido</td><td class="right small">Pendiente de pago</td></tr>`;
-  const pagareDesgloseHtml = desglosePagos.pagos.map(p =>
-    `<tr><td>${Utils.esc(p.label)}</td><td>${Utils.formatMonto(p.monto)}</td></tr>`).join('')
+      </tr>`).join('')
+       + (esCredito ? `<tr><td><strong>Enganche / pago inicial</strong></td><td class="right"><strong>${Utils.formatMonto(montoEnganche)}</strong></td></tr>` : '')
+       + (esCredito ? `<tr><td>Saldo a crédito</td><td class="right">${Utils.formatMonto(desglosePagos.montoCredito)}</td></tr>` : '')
+        : `<tr><td>Enviando pedido</td><td class="right small">Pendiente de pago</td></tr>`;
+   const pagareDesgloseHtml = (esCredito ? [{ label: 'Capital financiado', monto: desglosePagos.montoCredito }] : []).map(p =>
+     `<tr><td>${Utils.esc(p.label)}</td><td>${Utils.formatMonto(p.monto)}</td></tr>`).join('')
     + (porcentajeInteres > 0
        ? `<tr><td>Interés ${(porcentajeInteres || 0)}%</td><td>${Utils.formatMonto(interesTotalCredito)}</td></tr>`
       : '');
@@ -661,7 +664,7 @@ export function printRemisionVenta(venta, opts) {
   <table class="totals">
     <tr><td>Subtotal</td><td class="right">${Utils.formatMonto(venta.subtotal || 0)}</td></tr>
     <tr><td>Descuento</td><td class="right">-${Utils.formatMonto(venta.descuento || 0)}</td></tr>
-    <tr class="total-row"><td>TOTAL</td><td class="right">${Utils.formatMonto(esCredito ? totalConInteres : venta.total || 0)}</td></tr>
+    <tr class="total-row"><td>TOTAL</td><td class="right">${Utils.formatMonto(venta.total || 0)}</td></tr>
   </table>
   <div class="divider"></div>
   <div class="section">
@@ -670,8 +673,7 @@ export function printRemisionVenta(venta, opts) {
       ${pagoRows}
     </table>
   </div>
-  ${planCreditoTicket(venta, desglosePagos)}
-  ${venta.nota ? `<div class="nota"><strong>Nota:</strong> ${Utils.esc(venta.nota)}</div>` : ''}
+   ${venta.nota ? `<div class="nota"><strong>Nota:</strong> ${Utils.esc(venta.nota)}</div>` : ''}
   <div class="firmas"><div class="firma-espacio"><div class="firma-linea"></div>Firma del cliente</div><div class="firma-espacio"><div class="firma-linea"></div>Firma de quien entrega</div></div>`;
 
     const configFooter = '<div class="ticket-config-footer footer"><strong>Políticas de garantía</strong><br>' + Utils.esc(politicasGarantia).replace(/\n/g, '<br>') + '</div>';
@@ -716,6 +718,14 @@ export function printRemisionVenta(venta, opts) {
   let fullHtml = '<!DOCTYPE html>\n<html lang="es">\n<head>\n  <meta charset="UTF-8">\n  <title>Remisi\u00f3n - Venta #' + venta.idVenta + '</title>\n  <style>' + printCss + '</style>\n</head>\n<body>';
   for (let i = 0; i < numCopies; i++) {
     fullHtml += '<div class="print-copy">' + buildBodyHtml(i) + '</div>';
+  }
+  if (esCredito) {
+    fullHtml += '<div class="print-copy credit-document">' +
+      '<div class="copy-label">DOCUMENTO DE CRÉDITO</div>' +
+      '<div class="header"><div class="sub">' + Utils.esc(empresa) + '</div><div class="folio">CRÉDITO #' + Utils.esc(venta.folioPagare || venta.idVenta) + '</div></div>' +
+      planCreditoTicket(venta, desglosePagos) +
+      pagareHtml +
+      '</div>';
   }
   fullHtml += '\n</body>\n</html>';
   win.document.write(fullHtml);

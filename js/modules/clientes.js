@@ -7,6 +7,10 @@ let state = {
   paises: [],
   detalleClienteId: null,
   showInactive: false,
+  solicitudClienteId: null,
+  clienteMap: null,
+  clienteMarker: null,
+  clienteMapClienteId: null,
 };
 
 const REGIMENES_FISCALES = [
@@ -46,8 +50,24 @@ function bindEvents() {
   document.getElementById('searchCliente')?.addEventListener('input', Utils.debounce(() => cargarClientes(0), 400));
   document.getElementById('filtroListaNegra')?.addEventListener('change', () => cargarClientes(0));
   document.getElementById('btnToggleClientesInactivos')?.addEventListener('click', toggleInactivos);
-  document.getElementById('clienteTieneCredito')?.addEventListener('change', function () {
-    toggleLimiteCreditoGroup(this.checked);
+  document.getElementById('btnSolicitarCredito')?.addEventListener('click', () => {
+    const id = parseInt(document.getElementById('clienteId')?.value);
+    if (id) abrirSolicitudCredito(id);
+  });
+  document.getElementById('btnEnviarSolicitudCredito')?.addEventListener('click', enviarSolicitudCredito);
+  document.getElementById('btnGeocodificarCliente')?.addEventListener('click', geocodificarCliente);
+  ['clienteCp', 'clienteEstado', 'clienteMunicipio', 'clienteColonia', 'clienteCalle', 'clienteNumExt', 'clienteNumInt'].forEach(id => {
+    document.getElementById(id)?.addEventListener('input', () => {
+      document.getElementById('clienteLatitud').value = '';
+      document.getElementById('clienteLongitud').value = '';
+      document.getElementById('clientePrecisionUbicacion').value = '';
+      document.getElementById('clienteUbicacionEstado').textContent = 'La dirección cambió; vuelve a ubicarla en Google Maps.';
+    });
+    document.getElementById(id)?.addEventListener('change', () => {
+      document.getElementById('clienteLatitud').value = '';
+      document.getElementById('clienteLongitud').value = '';
+      document.getElementById('clientePrecisionUbicacion').value = '';
+    });
   });
   document.getElementById('clienteCp')?.addEventListener('input', Utils.debounce(function () {
     const cp = this.value.trim();
@@ -223,6 +243,7 @@ function abrirAccionesCliente(anchor, id) {
     { icon: 'fa-cash-register', text: 'Abonar', color: 'var(--success)', onClick: () => abonarEnPOS(id, c) },
     { icon: 'fa-wallet', text: 'Registrar anticipo', color: 'var(--success)', onClick: () => registrarSaldoFavor(id, c) },
     { icon: 'fa-id-card', text: 'INE' + (c && c.tieneIne ? '  \u2713' : ''), color: 'var(--warning)', onClick: () => abrirModalIne(id) },
+    { icon: 'fa-file-signature', text: 'Solicitar crédito', color: 'var(--primary)', onClick: () => abrirSolicitudCredito(id) },
   ];
   if (Utils.hasPermiso('CLIENTES_EDITAR')) {
     items.push({ icon: 'fa-edit', text: 'Editar', color: 'var(--primary)', onClick: () => abrirModal(id) });
@@ -313,8 +334,13 @@ function abrirDetalleCliente(id) {
   dir.push('<div class="mb-1"><span class="text-muted">Colonia:</span> ' + formatear(c.colonia) + '</div>');
   dir.push('<div class="mb-1"><span class="text-muted">C.P.:</span> ' + formatear(c.cp) + '</div>');
   dir.push('<div class="mb-1"><span class="text-muted">Municipio:</span> ' + formatear(c.municipio) + '</div>');
-  dir.push('<div class="mb-1"><span class="text-muted">Estado:</span> ' + formatear(c.estado) + '</div>');
-  dir.push('<div class="mb-0"><span class="text-muted">Entrega:</span> ' + formatear(c.direccionEntrega) + '</div>');
+   dir.push('<div class="mb-1"><span class="text-muted">Estado:</span> ' + formatear(c.estado) + '</div>');
+   dir.push('<div class="mb-0"><span class="text-muted">Entrega:</span> ' + formatear(c.direccionEntrega) + '</div>');
+   if (c.latitud != null && c.longitud != null) {
+     dir.push('<div class="mt-2"><a class="btn btn-sm btn-outline-primary" target="_blank" rel="noopener" href="https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent(c.latitud + ',' + c.longitud) + '"><i class="fas fa-map-marker-alt me-1"></i>Ver en Google Maps</a> <span class="small text-muted">' + formatear(c.precisionUbicacion || 'Ubicación guardada') + '</span></div>');
+   } else {
+     dir.push('<div class="mt-2 small text-warning"><i class="fas fa-exclamation-triangle me-1"></i>Sin coordenadas; edita el cliente para ubicarlo.</div>');
+   }
   document.getElementById('clienteDetalleDireccion').innerHTML = dir.join('');
 
   const cred = [];
@@ -334,6 +360,9 @@ function abrirModal(id) {
   const modal = new bootstrap.Modal(document.getElementById('clienteModal'));
   document.getElementById('clienteModalTitle').textContent = id ? 'Editar Cliente' : 'Nuevo Cliente';
   document.getElementById('formCliente').reset();
+  const solicitar = document.getElementById('btnSolicitarCredito');
+  if (solicitar) solicitar.style.display = id ? 'inline-block' : 'none';
+  toggleLimiteCreditoGroup(false);
   aplicarPrefijoPais();
 
   if (id) {
@@ -366,18 +395,24 @@ function abrirModal(id) {
       document.getElementById('clienteDireccionEntrega').value = c.direccionEntrega || '';
       document.getElementById('clienteCp').value = c.cp || '';
       document.getElementById('clienteEstado').value = c.estado || '';
-      document.getElementById('clienteMunicipio').value = c.municipio || '';
+       document.getElementById('clienteMunicipio').value = c.municipio || '';
       document.getElementById('clienteCalle').value = c.calle || '';
       document.getElementById('clienteNumExt').value = c.numExt || '';
       document.getElementById('clienteNumInt').value = c.numInt || '';
       if (c.cp) cargarColonias(c.cp, c.colonia || '');
-      document.getElementById('clienteTieneCredito').checked = c.tieneCredito || false;
-      document.getElementById('clienteCreditoIlimitado').checked = c.limiteCredito == null && c.tieneCredito;
-      document.getElementById('clienteLimiteCredito').value = c.limiteCredito || '';
-      toggleLimiteCreditoGroup(c.tieneCredito || false);
+       const solicitar = document.getElementById('btnSolicitarCredito');
+       if (solicitar) solicitar.style.display = c.tieneCredito ? 'none' : 'inline-block';
+       const info = document.getElementById('clienteSolicitudCreditoInfo');
+       if (info) info.textContent = c.tieneCredito ? 'Crédito aprobado' : 'Sin crédito aprobado';
+       document.getElementById('clienteLatitud').value = c.latitud ?? '';
+       document.getElementById('clienteLongitud').value = c.longitud ?? '';
+       document.getElementById('clientePrecisionUbicacion').value = c.precisionUbicacion ?? '';
+       document.getElementById('clienteUbicacionEstado').textContent = c.estadoGeocodificacion ? ('Ubicación: ' + c.estadoGeocodificacion + (c.precisionUbicacion ? ' (' + c.precisionUbicacion + ')' : '')) : 'Sin ubicación guardada';
+       prepararMapaCliente(c);
     }
   }
   modal.show();
+  setTimeout(() => prepararMapaCliente(id ? state.data.find(x => x.idCliente === id) : null), 250);
 }
 
 function toggleLimiteCreditoGroup(show) {
@@ -394,8 +429,8 @@ function combinarTelefonoCliente() {
 }
 
 async function guardarCliente() {
-  const tieneCredito = document.getElementById('clienteTieneCredito').checked;
-  const ilimitado = document.getElementById('clienteCreditoIlimitado').checked;
+  const clienteActual = state.editingId ? state.data.find(c => c.idCliente === state.editingId) : null;
+  const tieneCredito = !!clienteActual?.tieneCredito;
   const data = {
     nombre: document.getElementById('clienteNombre').value.trim(),
     apellidoPaterno: document.getElementById('clienteApaterno').value.trim(),
@@ -417,28 +452,60 @@ async function guardarCliente() {
     estado: document.getElementById('clienteEstado').value.trim(),
     direccion: buildDireccionString(),
     tieneCredito,
+    latitud: parseFloat(document.getElementById('clienteLatitud')?.value) || null,
+    longitud: parseFloat(document.getElementById('clienteLongitud')?.value) || null,
+    precisionUbicacion: document.getElementById('clientePrecisionUbicacion')?.value || null,
   };
   if (!data.nombre) { Utils.showToast('El nombre es obligatorio', 'warning'); return; }
   if (!data.apellidoPaterno) { Utils.showToast('El apellido paterno es obligatorio', 'warning'); return; }
   if (!data.telefono) { Utils.showToast('El tel\u00e9fono es obligatorio', 'warning'); return; }
 
-  if (tieneCredito) {
-    data.limiteCredito = ilimitado ? null : (parseFloat(document.getElementById('clienteLimiteCredito').value) || 0);
-  } else {
-    data.limiteCredito = 0;
-  }
+  data.limiteCredito = tieneCredito ? clienteActual.limiteCredito : 0;
 
   try {
     if (state.editingId) {
       await API.put('/clientes/' + state.editingId, data);
       Utils.showToast('Cliente actualizado', 'success');
     } else {
-      await API.post('/clientes', data);
+      const creado = await API.post('/clientes', data);
       Utils.showToast('Cliente creado', 'success');
+      bootstrap.Modal.getInstance(document.getElementById('clienteModal'))?.hide();
+      cargarClientes(state.currentPage);
+      if (creado?.idCliente) abrirSolicitudCredito(creado.idCliente);
+      return;
     }
     bootstrap.Modal.getInstance(document.getElementById('clienteModal'))?.hide();
     cargarClientes(state.currentPage);
   } catch (err) { Utils.showToast(err.message, 'error'); }
+}
+
+function abrirSolicitudCredito(id) {
+  state.solicitudClienteId = id;
+  document.getElementById('solicitudCreditoClienteId').value = id;
+  ['solMonto', 'solIngreso', 'solCapacidad', 'solReferencia', 'solObservaciones', 'solDocIneFrontal', 'solDocIneTrasera', 'solDocDomicilio', 'solDocPagare'].forEach(x => { const el = document.getElementById(x); if (el) el.value = ''; });
+  document.getElementById('solParcialidades').value = '8';
+  new bootstrap.Modal(document.getElementById('solicitudCreditoModal')).show();
+}
+
+async function enviarSolicitudCredito() {
+  const idCliente = parseInt(document.getElementById('solicitudCreditoClienteId').value);
+  const monto = parseFloat(document.getElementById('solMonto').value);
+  const archivos = [['INE_FRONTAL', 'solDocIneFrontal'], ['INE_TRASERA', 'solDocIneTrasera'], ['DOMICILIO', 'solDocDomicilio'], ['PAGARE', 'solDocPagare']];
+  if (!idCliente || !monto || monto <= 0) { Utils.showToast('Indica un monto solicitado válido', 'warning'); return; }
+  if (archivos.some(([, id]) => !document.getElementById(id)?.files?.[0])) { Utils.showToast('Carga los cuatro documentos requeridos', 'warning'); return; }
+  const encuesta = { actividad: document.getElementById('solActividad').value, ingresoMensual: parseFloat(document.getElementById('solIngreso').value) || 0, capacidadMensual: parseFloat(document.getElementById('solCapacidad').value) || 0, otrosCreditos: document.getElementById('solOtrosCreditos').value, atrasos: document.getElementById('solAtrasos').value, referencia: document.getElementById('solReferencia').value.trim() };
+  const btn = document.getElementById('btnEnviarSolicitudCredito'); if (btn) btn.disabled = true;
+  try {
+    const solicitud = await API.post('/solicitudes-credito', { idCliente, montoSolicitado: monto, parcialidadesSolicitadas: parseInt(document.getElementById('solParcialidades').value), encuestaJson: JSON.stringify(encuesta), observaciones: document.getElementById('solObservaciones').value.trim() });
+    for (const [tipo, inputId] of archivos) { const form = new FormData(); form.append('tipo', tipo); form.append('archivo', document.getElementById(inputId).files[0]); await API.upload('/solicitudes-credito/' + solicitud.idSolicitud + '/documentos', form); }
+    if (Utils.hasPermiso('CREDITOS_SOLICITUDES_AUTORIZAR')) {
+      await API.put('/solicitudes-credito/' + solicitud.idSolicitud + '/resolver', { aprobar: true, montoAprobado: solicitud.montoSugerido, parcialidadesAprobadas: solicitud.parcialidadesSolicitadas, observaciones: 'Aprobación automática para administrador' });
+    }
+    bootstrap.Modal.getInstance(document.getElementById('solicitudCreditoModal'))?.hide();
+    Utils.showToast(solicitud.estado === 'APROBADA' ? 'Crédito aprobado' : 'Solicitud enviada para autorización', 'success');
+    cargarClientes(state.currentPage);
+  } catch (err) { Utils.showToast(err.message, 'error'); }
+  finally { if (btn) btn.disabled = false; }
 }
 
 async function confirmarEliminar(id) {
@@ -885,18 +952,13 @@ async function cargarColonias(cp, selectedColonia) {
   try {
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 4000);
-    const response = await fetch('https://api.zippopotam.us/MX/' + cp, { signal: controller.signal });
-    clearTimeout(timeoutId);
-    if (!response.ok) throw new Error('HTTP ' + response.status);
-    const data = await response.json();
-    if (data && data.places) {
-      const result = {
-        colonias: data.places.map(p => p['place name']),
-        estado: data.places[0]?.state || ''
-      };
-      cpCache[cp] = result;
-      aplicarDatosCP(result, selectedColonia);
-    }
+     const data = await API.get('/catalogos/codigos-postales/' + cp);
+     clearTimeout(timeoutId);
+     if (data && data.colonias) {
+       const result = { colonias: data.colonias, estado: data.estado || '', municipio: data.municipio || '', fuente: data.fuente || '' };
+       cpCache[cp] = result;
+       aplicarDatosCP(result, selectedColonia);
+     }
   } catch (_) {
     document.getElementById('clienteEstado').value = '';
     document.getElementById('clienteColonia').innerHTML = '<option value="">No disponible</option>';
@@ -912,4 +974,48 @@ function aplicarDatosCP(result, selectedColonia) {
   }
   const estadoInput = document.getElementById('clienteEstado');
   if (estadoInput) estadoInput.value = result.estado;
+  const municipioInput = document.getElementById('clienteMunicipio');
+  if (municipioInput && result.municipio) municipioInput.value = result.municipio;
+}
+
+async function prepararMapaCliente(cliente) {
+  const el = document.getElementById('clienteMapa');
+  if (!el || !window.GoogleMapsLoader) return;
+  try {
+    const maps = await GoogleMapsLoader.load();
+    const lat = Number(cliente?.latitud || document.getElementById('clienteLatitud')?.value) || 19.4326;
+    const lng = Number(cliente?.longitud || document.getElementById('clienteLongitud')?.value) || -99.1332;
+    const position = { lat, lng };
+    if (!state.clienteMap) {
+      state.clienteMap = new maps.Map(el, { center: position, zoom: cliente?.latitud ? 16 : 5, mapTypeControl: false, streetViewControl: false });
+      state.clienteMarker = new maps.Marker({ position, map: state.clienteMap, draggable: true, title: 'Ubicación del cliente' });
+      state.clienteMarker.addListener('dragend', e => {
+        document.getElementById('clienteLatitud').value = e.latLng.lat().toFixed(7);
+        document.getElementById('clienteLongitud').value = e.latLng.lng().toFixed(7);
+        document.getElementById('clientePrecisionUbicacion').value = 'MANUAL';
+        document.getElementById('clienteUbicacionEstado').textContent = 'Ubicación ajustada manualmente';
+      });
+    } else {
+      state.clienteMap.setCenter(position);
+      state.clienteMap.setZoom(cliente?.latitud ? 16 : 5);
+      state.clienteMarker.setPosition(position);
+    }
+    google.maps.event.trigger(el, 'resize');
+  } catch (err) { document.getElementById('clienteUbicacionEstado').textContent = err.message; }
+}
+
+async function geocodificarCliente() {
+  const id = parseInt(document.getElementById('clienteId')?.value);
+  if (!id) { Utils.showToast('Guarda primero el cliente para ubicarlo', 'warning'); return; }
+  const btn = document.getElementById('btnGeocodificarCliente'); if (btn) btn.disabled = true;
+  try {
+    const ubicacion = await API.post('/clientes/' + id + '/geocodificar', null);
+    document.getElementById('clienteLatitud').value = ubicacion.latitud;
+    document.getElementById('clienteLongitud').value = ubicacion.longitud;
+    document.getElementById('clientePrecisionUbicacion').value = ubicacion.precisionUbicacion || 'APPROXIMATE';
+    document.getElementById('clienteUbicacionEstado').textContent = 'Ubicación: ' + ubicacion.estadoGeocodificacion + ' (' + (ubicacion.precisionUbicacion || 'aproximada') + ')';
+    prepararMapaCliente(ubicacion);
+    Utils.showToast('Dirección localizada con Google Maps', 'success');
+  } catch (err) { Utils.showToast(err.message, 'error'); }
+  finally { if (btn) btn.disabled = false; }
 }

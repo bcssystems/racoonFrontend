@@ -16,11 +16,8 @@ export function init() {
 }
 
 function bindEvents() {
-  document.getElementById('btnBuscarCreditoCliente')?.addEventListener('click', () => cargarClientesCredito());
+  document.getElementById('searchCreditoCliente')?.addEventListener('input', Utils.debounce(() => cargarClientesCredito(), 400));
   document.getElementById('btnLimpiarCreditoCliente')?.addEventListener('click', limpiarBusqueda);
-  document.getElementById('searchCreditoCliente')?.addEventListener('keydown', e => {
-    if (e.key === 'Enter') cargarClientesCredito();
-  });
   document.querySelectorAll('input[name="filtroCredito"]').forEach(r => {
     r.addEventListener('change', e => {
       state.filtro = e.target.value;
@@ -303,7 +300,7 @@ async function verParcialidades(credito) {
       '<td class="text-end">' + Utils.formatMonto(p.capitalProgramado || 0) + '</td>' +
       '<td class="text-end">' + Utils.formatMonto(p.interesProgramado || 0) + '</td>' +
       '<td class="text-end">' + Utils.formatMonto((p.capitalProgramado || 0) + (p.interesProgramado || 0)) + '</td>' +
-      '<td><span class="badge ' + (p.estado === 'PAGADA' ? 'bg-success' : 'bg-warning text-dark') + '">' + p.estado + '</span></td>' +
+      '<td><span title="' + (p.estado === 'PARCIAL' ? 'Tiene pagos aplicados, pero aún tiene saldo pendiente' : p.estado === 'PENDIENTE' ? 'No tiene pagos aplicados' : 'Capital e interés cubiertos') + '" class="badge ' + (p.estado === 'PAGADA' ? 'bg-success' : 'bg-warning text-dark') + '">' + (p.estado === 'PARCIAL' ? 'PARCIAL (con abonos)' : p.estado) + '</span></td>' +
       '</tr>').join('');
     Utils.showDialog('Parcialidades del crédito #' + credito.idCredito,
       '<div class="small mb-2">Interés mensual: <strong>' + (credito.porcentajeInteres || 0) + '%</strong> | Saldo de interés: <strong>' + Utils.formatMonto(credito.saldoInteres || 0) + '</strong></div>' +
