@@ -130,7 +130,10 @@ function handleTableClick(e) {
 function verSolicitudCredito(s) {
   if (!s) return;
   const encuesta = (() => { try { return JSON.parse(s.encuestaJson || '{}'); } catch (_) { return {}; } })();
-  const docs = (s.documentos || []).map(d => '<li><a href="' + API.mediaBaseUrl + d.url + '" target="_blank" rel="noopener">' + Utils.esc(d.tipo) + '</a></li>').join('') || '<li>Sin documentos</li>';
+  const docs = (s.documentos || []).map(d => {
+    const url = (d.url || '').startsWith('/api/') ? API.baseUrl.replace(/\/api\/v1\/?$/, '') + d.url : API.mediaBaseUrl + d.url;
+    return '<li><a href="' + Utils.esc(url) + '" target="_blank" rel="noopener">' + Utils.esc(d.tipo) + '</a></li>';
+  }).join('') || '<li>Sin documentos</li>';
   Utils.showDialog('Solicitud de crédito #' + s.idSolicitud, '<p><strong>Cliente:</strong> ' + Utils.esc(s.cliente) + '</p><p><strong>Monto:</strong> ' + Utils.formatMonto(s.montoSolicitado) + '<br><strong>Sugerido:</strong> ' + Utils.formatMonto(s.montoSugerido) + '</p><p><strong>Actividad:</strong> ' + Utils.esc(encuesta.actividad || '-') + '<br><strong>Ingreso:</strong> ' + Utils.formatMonto(encuesta.ingresoMensual || 0) + '<br><strong>Capacidad mensual:</strong> ' + Utils.formatMonto(encuesta.capacidadMensual || 0) + '<br><strong>Otros créditos:</strong> ' + Utils.esc(encuesta.otrosCreditos || '-') + '<br><strong>Atrasos:</strong> ' + Utils.esc(encuesta.atrasos || '-') + '</p><strong>Documentos</strong><ul>' + docs + '</ul>');
 }
 

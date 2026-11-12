@@ -560,7 +560,9 @@ function abrirModalIne(id) {
 function renderIneStored(side, url) {
   const preview = document.getElementById('ine' + side + 'Preview');
   if (!preview) return;
-  const src = (url || '').match(/^https?:\/\//) ? url : API.mediaBaseUrl + url;
+   const src = (url || '').match(/^https?:\/\//)
+     ? url
+     : ((url || '').startsWith('/api/') ? API.baseUrl.replace(/\/api\/v1\/?$/, '') + url : API.mediaBaseUrl + url);
   preview.innerHTML = '<img src="' + Utils.esc(src) + '" class="img-fluid border rounded" style="max-height:140px" alt="INE ' + side + '">' +
     '<div class="small mt-1"><a target="_blank" rel="noopener" href="' + Utils.esc(src) + '">Ver</a> · <a download="ine-' + side.toLowerCase() + '.jpg" href="' + Utils.esc(src) + '">Descargar</a> · <span class="text-muted">Reemplaza usando cámara o archivo</span></div>';
 }
