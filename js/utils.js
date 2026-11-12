@@ -1,24 +1,10 @@
 const Utils = {
   getPermisos() {
-    const token = localStorage.getItem('authToken');
-    if (!token) return [];
-    try {
-      const payload = JSON.parse(atob(token.split('.')[1]));
-      return Array.isArray(payload.permisos) ? payload.permisos : [];
-    } catch (_) {
-      return [];
-    }
+    return API.getSession()?.permisos || [];
   },
 
   getRolActual() {
-    const token = localStorage.getItem('authToken');
-    if (!token) return '';
-    try {
-      const payload = JSON.parse(atob(token.split('.')[1]));
-      return payload.rol || '';
-    } catch (_) {
-      return '';
-    }
+    return API.getSession()?.rol || '';
   },
 
   hasPermiso(permiso) {

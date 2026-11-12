@@ -1,188 +1,92 @@
-const API = {
-  baseUrl: '/api/v1',
-  _mediaBaseUrl: undefined,
-  get mediaBaseUrl() {
-    if (this._mediaBaseUrl !== undefined) return this._mediaBaseUrl;
-    if (/^https?:\/\//.test(this.baseUrl)) {
-      try {
-        this._mediaBaseUrl = new URL(this.baseUrl).origin;
-      } catch (_) {
-        this._mediaBaseUrl = '';
-      }
-    } else {
-      this._mediaBaseUrl = '';
+const API = (() => {
+  const baseUrl = window.location.hostname === 'siga.racoonjw.com'
+    ? `${window.location.origin}/api/v1`
+    : (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' ? 'http://localhost:8030/api/v1' : '/api/v1');
+  let csrfToken = null;
+  let csrfPromise = null;
+  let refreshPromise = null;
+  let session = null;
+
+  const authEndpoint = endpoint => /\/auth\/(login|refresh-token|logout|csrf)$/.test(endpoint);
+  const mutation = method => !['GET', 'HEAD', 'OPTIONS'].includes(method);
+
+  function cookie(name) {
+    const prefix = `${name}=`;
+    const value = document.cookie.split('; ').find(item => item.startsWith(prefix));
+    return value ? decodeURIComponent(value.substring(prefix.length)) : null;
+  }
+
+  async function loadCsrf() {
+    if (csrfPromise) return csrfPromise;
+    csrfPromise = fetch(`${baseUrl}/auth/csrf`, { credentials: 'include', cache: 'no-store' })
+      .then(response => { if (!response.ok) throw new Error('No se pudo inicializar la protección CSRF'); return response.json(); })
+      .then(data => { csrfToken = data.token; return csrfToken; })
+      .finally(() => { csrfPromise = null; });
+    return csrfPromise;
+  }
+
+  async function csrf() {
+    if (!cookie('XSRF-TOKEN')) await loadCsrf();
+    csrfToken = cookie('XSRF-TOKEN') || csrfToken;
+    return csrfToken;
+  }
+
+  function clearAuthState() {
+    session = null;
+    ['authToken', 'refreshToken', 'username', 'userNombre', 'userRol'].forEach(key => localStorage.removeItem(key));
+  }
+  function setSession(data) { session = data || null; }
+
+  async function refresh() {
+    if (!refreshPromise) {
+      refreshPromise = (async () => {
+        await csrf();
+        const response = await fetch(`${baseUrl}/auth/refresh-token`, { method: 'POST', credentials: 'include', headers: { 'X-XSRF-TOKEN': cookie('XSRF-TOKEN') || csrfToken } });
+        if (!response.ok) throw new Error('Sesión expirada');
+        const data = await response.json(); setSession(data); return data;
+      })().finally(() => { refreshPromise = null; });
     }
-    return this._mediaBaseUrl;
-  },
-  set mediaBaseUrl(val) { this._mediaBaseUrl = val; },
+    return refreshPromise;
+  }
 
-  getToken() {
-    return localStorage.getItem('authToken');
-  },
-
-  tokenExpirado() {
-    const token = this.getToken();
-    if (!token) return false;
+  async function logout() {
     try {
-      const payload = JSON.parse(atob(token.split('.')[1]));
-      return payload.exp * 1000 < Date.now();
-    } catch (_) {
-      return true;
+      await csrf();
+      await fetch(`${baseUrl}/auth/logout`, { method: 'POST', credentials: 'include', headers: { 'X-XSRF-TOKEN': cookie('XSRF-TOKEN') || csrfToken } });
+    } finally { clearAuthState(); }
+  }
+
+  async function request(endpoint, options = {}, retry = true) {
+    const method = options.method || 'GET';
+    const headers = { 'Content-Type': 'application/json', ...(options.headers || {}) };
+    if (mutation(method) && !endpoint.endsWith('/auth/csrf')) headers['X-XSRF-TOKEN'] = await csrf();
+    const response = await fetch(`${baseUrl}${endpoint}`, { ...options, method, credentials: 'include', headers });
+    if (response.status === 401 && retry && !authEndpoint(endpoint)) {
+      try { await refresh(); return request(endpoint, options, false); }
+      catch (_) { clearAuthState(); throw new Error('Sesión expirada'); }
     }
-  },
-
-  cerrarSesion(mensaje) {
-    localStorage.removeItem('authToken');
-    localStorage.removeItem('refreshToken');
-    localStorage.removeItem('username');
-    localStorage.removeItem('userNombre');
-    localStorage.removeItem('userRol');
-    if (typeof Utils !== 'undefined') {
-      Utils.showToast(mensaje || 'Sesión expirada. Inicia sesión nuevamente.', 'error', 6000);
-    }
-    setTimeout(() => {
-      if (typeof Auth !== 'undefined' && Auth.checkAuthStatus) {
-        Auth.checkAuthStatus();
-      }
-    }, 500);
-  },
-
-  async request(endpoint, options = {}) {
-    if (this.tokenExpirado()) {
-      this.cerrarSesion('Tu sesión ha expirado. Inicia sesión nuevamente.');
-      throw new Error('Sesión expirada');
-    }
-
-    const url = this.baseUrl + endpoint;
-    const config = {
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      ...options,
-    };
-
-    const token = this.getToken();
-    if (token) {
-      config.headers['Authorization'] = 'Bearer ' + token;
-    }
-
-    let response;
-    try {
-      response = await fetch(url, config);
-    } catch (err) {
-      throw new Error('Error de conexión con el servidor');
-    }
-
     if (!response.ok) {
-      let message = 'Error en la solicitud';
-      try {
-        const err = await response.json();
-        message = err.error || err.message || message;
-      } catch (_) {}
-
-      if (response.status === 401) {
-        this.cerrarSesion('Sesión expirada. Inicia sesión nuevamente.');
-        throw new Error('Sesión expirada');
-      }
-
+      let message = `Error ${response.status}`;
+      try { const error = await response.json(); message = error.message || error.error || message; } catch (_) { }
       throw new Error(message);
     }
-
     if (response.status === 204) return null;
-    return response.json();
-  },
+    const text = await response.text(); return text ? JSON.parse(text) : null;
+  }
 
-  async requestUpload(endpoint, formData) {
-    if (this.tokenExpirado()) {
-      this.cerrarSesion('Tu sesión ha expirado.');
-      throw new Error('Sesión expirada');
-    }
+  async function upload(endpoint, formData, retry = true) {
+    const response = await fetch(`${baseUrl}${endpoint}`, { method: 'POST', credentials: 'include', body: formData, headers: { 'X-XSRF-TOKEN': await csrf() } });
+    if (response.status === 401 && retry) { await refresh(); return upload(endpoint, formData, false); }
+    if (!response.ok) { let message = 'Error al subir archivo'; try { const error = await response.json(); message = error.message || error.error || message; } catch (_) { } throw new Error(message); }
+    return response.status === 204 ? null : response.json();
+  }
 
-    const url = this.baseUrl + endpoint;
-    const config = {
-      method: 'POST',
-      headers: {},
-      body: formData,
-    };
-
-    const token = this.getToken();
-    if (token) {
-      config.headers['Authorization'] = 'Bearer ' + token;
-    }
-
-    try {
-      const response = await fetch(url, config);
-      if (!response.ok) {
-        let message = 'Error al subir archivo';
-        try {
-          const err = await response.json();
-          message = err.error || message;
-        } catch (_) {}
-
-        if (response.status === 401) {
-          this.cerrarSesion('Sesión expirada. Inicia sesión nuevamente.');
-          throw new Error('Sesión expirada');
-        }
-
-        throw new Error(message);
-      }
-      return response.json();
-    } catch (err) {
-      throw err;
-    }
-  },
-
-  get(endpoint) {
-    return this.request(endpoint);
-  },
-
-  post(endpoint, body) {
-    return this.request(endpoint, {
-      method: 'POST',
-      body: JSON.stringify(body),
-    });
-  },
-
-  upload(endpoint, formData) {
-    const token = this.getToken();
-    return fetch(this.baseUrl + endpoint, {
-      method: 'POST',
-      headers: token ? { Authorization: 'Bearer ' + token } : {},
-      body: formData,
-    }).then(async response => {
-      const data = await response.json().catch(() => null);
-      if (!response.ok) throw new Error(data?.message || data?.error || 'Error al cargar el archivo');
-      return data;
-    });
-  },
-
-  put(endpoint, body) {
-    return this.request(endpoint, {
-      method: 'PUT',
-      body: JSON.stringify(body),
-    });
-  },
-
-  del(endpoint) {
-    return this.request(endpoint, {
-      method: 'DELETE',
-    });
-  },
-
-  patch(endpoint, body) {
-    return this.request(endpoint, {
-      method: 'PATCH',
-      body: body ? JSON.stringify(body) : undefined,
-    });
-  },
-
-  startTokenCheck() {
-    setInterval(() => {
-      if (this.tokenExpirado()) {
-        this.cerrarSesion('Tu sesión ha expirado. Inicia sesión nuevamente.');
-      }
-    }, 60000);
-  },
-};
-
-API.startTokenCheck();
+  return {
+    baseUrl, mediaBaseUrl: baseUrl.replace(/\/api\/v1\/?$/, ''), getSession: () => session, setSession,
+    cargarCsrf: loadCsrf, cerrarSesion: logout, get: endpoint => request(endpoint),
+    post: (endpoint, body) => request(endpoint, { method: 'POST', body: JSON.stringify(body) }),
+    put: (endpoint, body) => request(endpoint, { method: 'PUT', body: JSON.stringify(body) }),
+    patch: (endpoint, body) => request(endpoint, { method: 'PATCH', body: body ? JSON.stringify(body) : undefined }),
+    del: endpoint => request(endpoint, { method: 'DELETE' }), upload, requestUpload: upload, request,
+  };
+})();
