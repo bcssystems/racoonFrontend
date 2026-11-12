@@ -35,17 +35,23 @@ async function cargarCatalogos() {
   if (pagos) pagos.innerHTML = state.tiposPago.map(t => '<option value="' + t.idTipoPago + '">' + Utils.esc(t.nombre) + '</option>').join('');
   const cajas = document.getElementById('cobranzaAbonoCaja');
   if (cajas) cajas.innerHTML = '<option value="">Seleccionar caja...</option>' + state.cajas.map(c => '<option value="' + c.idCaja + '">' + Utils.esc(c.nombre + ' - ' + (c.sucursalNombre || '')) + '</option>').join('');
-  try {
-    const personas = await API.get('/personas?page=0&size=100&activa=true&sort=nombre,ASC');
-    const cobradores = document.getElementById('cobranzaCobrador');
-    if (cobradores && personas?.content) {
-      const puedeVerTodas = Utils.hasPermiso('COBRANZA_VER_TODAS') || Utils.hasPermiso('CREDITOS_ASIGNAR');
-      cobradores.innerHTML = '<option value="">' + (puedeVerTodas ? 'Todos los cobradores' : 'Mi cartera') + '</option>' + personas.content.map(p =>
+  const cobradores = document.getElementById('cobranzaCobrador');
+  const puedeVerTodas = Utils.hasPermiso('COBRANZA_VER_TODAS');
+  if (cobradores && !puedeVerTodas) {
+    cobradores.innerHTML = '<option value="">Mi cartera</option>';
+    cobradores.disabled = true;
+    return;
+  }
+  if (cobradores && puedeVerTodas) {
+    try {
+      const cobradoresDisponibles = await API.get('/creditos/cobradores');
+      cobradores.innerHTML = '<option value="">Todos los cobradores</option>' + (cobradoresDisponibles || []).map(p =>
         '<option value="' + p.idPersona + '">' + Utils.esc((p.nombre || '') + ' ' + (p.apellido || '')) + '</option>'
       ).join('');
-      if (!puedeVerTodas) cobradores.disabled = true;
+    } catch (_) {
+      cobradores.innerHTML = '<option value="">Todos los cobradores</option>';
     }
-  } catch (_) {}
+  }
 }
 
 async function cargarAgenda() {
