@@ -11,6 +11,7 @@ let state = {
   clienteMap: null,
   clienteMarker: null,
   clienteMapClienteId: null,
+  clienteMapGeocoder: null,
 };
 
 const REGIMENES_FISCALES = [
@@ -948,6 +949,7 @@ async function cargarColonias(cp, selectedColonia) {
   if (!cp || cp.length !== 5) return;
   if (cpCache[cp]) {
     aplicarDatosCP(cpCache[cp], selectedColonia);
+    centrarMapaPorDireccion([cp, cpCache[cp].municipio, cpCache[cp].estado, 'México'].filter(Boolean).join(', '));
     return;
   }
   try {
@@ -957,9 +959,10 @@ async function cargarColonias(cp, selectedColonia) {
      clearTimeout(timeoutId);
      if (data && data.colonias) {
        const result = { colonias: data.colonias, estado: data.estado || '', municipio: data.municipio || '', fuente: data.fuente || '' };
-       cpCache[cp] = result;
-       aplicarDatosCP(result, selectedColonia);
-     }
+        cpCache[cp] = result;
+        aplicarDatosCP(result, selectedColonia);
+        centrarMapaPorDireccion([cp, result.municipio, result.estado, 'México'].filter(Boolean).join(', '));
+      }
   } catch (_) {
     document.getElementById('clienteEstado').value = '';
     document.getElementById('clienteColonia').innerHTML = '<option value="">No disponible</option>';
@@ -979,26 +982,92 @@ function aplicarDatosCP(result, selectedColonia) {
   if (municipioInput && result.municipio) municipioInput.value = result.municipio;
 }
 
+function geocodificarMapa(maps, address) {
+  if (!address) return Promise.resolve(null);
+  state.clienteMapGeocoder ||= new maps.Geocoder();
+  return new Promise(resolve => state.clienteMapGeocoder.geocode({ address, region: 'MX' }, (results, status) => {
+    if (status !== 'OK' || !results?.[0]) return resolve(null);
+    const location = results[0].geometry.location;
+    resolve({ lat: location.lat(), lng: location.lng(), result: results[0] });
+  }));
+}
+
+function actualizarCamposDesdeDireccion(result) {
+  const components = result?.address_components || [];
+  const buscar = tipo => components.find(c => c.types?.includes(tipo))?.long_name || '';
+  const estado = buscar('administrative_area_level_1');
+  const municipio = buscar('locality') || buscar('administrative_area_level_2') || buscar('administrative_area_level_3');
+  const cp = buscar('postal_code');
+  if (estado) document.getElementById('clienteEstado').value = estado;
+  if (municipio) document.getElementById('clienteMunicipio').value = municipio;
+  if (cp && /^\d{5}$/.test(cp)) document.getElementById('clienteCp').value = cp;
+}
+
+function actualizarCoordenadasMapa(position, precision = 'MANUAL') {
+  document.getElementById('clienteLatitud').value = Number(position.lat).toFixed(7);
+  document.getElementById('clienteLongitud').value = Number(position.lng).toFixed(7);
+  document.getElementById('clientePrecisionUbicacion').value = precision;
+  document.getElementById('clienteUbicacionEstado').textContent = precision === 'MANUAL'
+    ? 'Ubicación ajustada manualmente'
+    : 'Ubicación aproximada por código postal';
+}
+
+async function centrarMapaPorDireccion(address) {
+  if (!address || !window.GoogleMapsLoader) return;
+  try {
+    const maps = await GoogleMapsLoader.load();
+    const geocoded = await geocodificarMapa(maps, address);
+    if (!geocoded) return;
+    actualizarCamposDesdeDireccion(geocoded.result);
+    actualizarCoordenadasMapa(geocoded, 'APPROXIMATE');
+    if (!state.clienteMap) {
+      await prepararMapaCliente({ latitud: geocoded.lat, longitud: geocoded.lng });
+    } else {
+      state.clienteMap.setCenter(geocoded);
+      state.clienteMap.setZoom(15);
+      state.clienteMarker?.setPosition(geocoded);
+    }
+  } catch (_) { /* El mapa seguirá disponible para ajustar la ubicación manualmente. */ }
+}
+
 async function prepararMapaCliente(cliente) {
   const el = document.getElementById('clienteMapa');
   if (!el || !window.GoogleMapsLoader) return;
   try {
     const maps = await GoogleMapsLoader.load();
-    const lat = Number(cliente?.latitud || document.getElementById('clienteLatitud')?.value) || 19.4326;
-    const lng = Number(cliente?.longitud || document.getElementById('clienteLongitud')?.value) || -99.1332;
+    let lat = Number(cliente?.latitud || document.getElementById('clienteLatitud')?.value);
+    let lng = Number(cliente?.longitud || document.getElementById('clienteLongitud')?.value);
+    let zoom = lat && lng ? 16 : 13;
+    if (!lat || !lng) {
+      const address = [cliente?.cp || document.getElementById('clienteCp')?.value,
+        cliente?.municipio || document.getElementById('clienteMunicipio')?.value,
+        cliente?.estado || document.getElementById('clienteEstado')?.value, 'México'].filter(Boolean).join(', ');
+      const geocoded = await geocodificarMapa(maps, address);
+      lat = geocoded?.lat || 21.0183;
+      lng = geocoded?.lng || -101.8564;
+      zoom = geocoded ? 15 : 13;
+      if (geocoded) actualizarCamposDesdeDireccion(geocoded.result);
+    }
     const position = { lat, lng };
     if (!state.clienteMap) {
-      state.clienteMap = new maps.Map(el, { center: position, zoom: cliente?.latitud ? 16 : 5, mapTypeControl: false, streetViewControl: false });
+      state.clienteMap = new maps.Map(el, { center: position, zoom, mapTypeControl: false, streetViewControl: false });
       state.clienteMarker = new maps.Marker({ position, map: state.clienteMap, draggable: true, title: 'Ubicación del cliente' });
-      state.clienteMarker.addListener('dragend', e => {
-        document.getElementById('clienteLatitud').value = e.latLng.lat().toFixed(7);
-        document.getElementById('clienteLongitud').value = e.latLng.lng().toFixed(7);
-        document.getElementById('clientePrecisionUbicacion').value = 'MANUAL';
-        document.getElementById('clienteUbicacionEstado').textContent = 'Ubicación ajustada manualmente';
+      state.clienteMarker.addListener('dragend', async e => {
+        const position = e.latLng.toJSON();
+        actualizarCoordenadasMapa(position);
+        const geocoded = await geocodificarMapa(maps, position.lat + ',' + position.lng);
+        if (geocoded) actualizarCamposDesdeDireccion(geocoded.result);
+      });
+      state.clienteMap.addListener('click', async e => {
+        const position = e.latLng.toJSON();
+        state.clienteMarker.setPosition(position);
+        actualizarCoordenadasMapa(position);
+        const geocoded = await geocodificarMapa(maps, position.lat + ',' + position.lng);
+        if (geocoded) actualizarCamposDesdeDireccion(geocoded.result);
       });
     } else {
       state.clienteMap.setCenter(position);
-      state.clienteMap.setZoom(cliente?.latitud ? 16 : 5);
+      state.clienteMap.setZoom(zoom);
       state.clienteMarker.setPosition(position);
     }
     google.maps.event.trigger(el, 'resize');
