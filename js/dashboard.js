@@ -77,12 +77,13 @@ function initSidebarDelegation() {
 
 const Dashboard = {
   init() {
-    const username = localStorage.getItem('userNombre') || localStorage.getItem('username') || 'Usuario';
+    const session = API.getSession();
+    const username = session?.nombre || session?.usuario || 'Usuario';
     const displayName = document.getElementById('display-name');
     if (displayName) displayName.textContent = username;
 
     const avatar = document.getElementById('topbar-avatar');
-    if (avatar) avatar.textContent = (localStorage.getItem('username') || 'U').charAt(0).toUpperCase();
+    if (avatar) avatar.textContent = (session?.usuario || 'U').charAt(0).toUpperCase();
 
     const versionEl = document.getElementById('sidebar-version');
     if (versionEl && typeof PAYLOAD_VERSION !== 'undefined') versionEl.textContent = 'v' + PAYLOAD_VERSION;

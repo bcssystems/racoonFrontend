@@ -1,105 +1,26 @@
 const Auth = {
-  init() {
-    this.bindEvents();
-    this.checkAuthStatus();
-  },
-
+  init() { this.bindEvents(); this.checkAuthStatus(); },
   bindEvents() {
-    const loginForm = document.getElementById('login-form');
-    if (loginForm) {
-      loginForm.addEventListener('submit', (e) => {
-        e.preventDefault();
-        this.login();
-      });
-    }
-
-    const toggleBtn = document.getElementById('toggle-password');
-    if (toggleBtn) {
-      toggleBtn.addEventListener('click', () => {
-        const pass = document.getElementById('password');
-        const icon = document.getElementById('toggle-password-icon');
-        if (pass.type === 'password') {
-          pass.type = 'text';
-          icon.className = 'fas fa-eye-slash';
-        } else {
-          pass.type = 'password';
-          icon.className = 'fas fa-eye';
-        }
-      });
-    }
+    document.getElementById('login-form')?.addEventListener('submit', e => { e.preventDefault(); this.login(); });
+    document.getElementById('toggle-password')?.addEventListener('click', () => {
+      const input = document.getElementById('password'); const icon = document.getElementById('toggle-password-icon');
+      input.type = input.type === 'password' ? 'text' : 'password'; if (icon) icon.className = input.type === 'password' ? 'fas fa-eye' : 'fas fa-eye-slash';
+    });
   },
-
   async login() {
-    const usuario = document.getElementById('username').value.trim();
-    const password = document.getElementById('password').value;
-    const btn = document.getElementById('btn-login');
-    const btnText = document.getElementById('btn-login-text');
-    const btnLoader = document.getElementById('btn-login-loader');
-
-    if (!usuario || !password) {
-      Utils.showToast('Ingresa usuario y contraseña', 'warning');
-      return;
-    }
-
-    btn.disabled = true;
-    btnText.classList.add('d-none');
-    btnLoader.classList.remove('d-none');
-
-    try {
-      const response = await API.post('/auth/login', { usuario, password });
-
-      localStorage.setItem('authToken', response.accessToken);
-      localStorage.setItem('refreshToken', response.refreshToken);
-      localStorage.setItem('username', response.usuario);
-      localStorage.setItem('userNombre', response.nombre);
-      localStorage.setItem('userRol', response.rol);
-
-      Utils.showToast('Inicio de sesión exitoso', 'success');
-      this.checkAuthStatus();
-    } catch (err) {
-      Utils.showToast(err.message, 'error');
-    } finally {
-      btn.disabled = false;
-      btnText.classList.remove('d-none');
-      btnLoader.classList.add('d-none');
-    }
+    const usuario = document.getElementById('username').value.trim(); const password = document.getElementById('password').value;
+    const button = document.getElementById('btn-login'); const text = document.getElementById('btn-login-text'); const loader = document.getElementById('btn-login-loader');
+    if (!usuario || !password) return Utils.showToast('Ingresa usuario y contraseña', 'warning');
+    button.disabled = true; text?.classList.add('d-none'); loader?.classList.remove('d-none');
+    try { await API.cargarCsrf(); const session = await API.post('/auth/login', { usuario, password }); API.setSession(session); Utils.showToast('Inicio de sesión exitoso', 'success'); this.showDashboard(); }
+    catch (error) { Utils.showToast(error.message || 'Credenciales incorrectas', 'error'); }
+    finally { button.disabled = false; text?.classList.remove('d-none'); loader?.classList.add('d-none'); }
   },
-
-  logout() {
-    if (this._loggingOut) return;
-    this._loggingOut = true;
-
-    const token = localStorage.getItem('authToken');
-    if (token) {
-      fetch('/api/v1/auth/logout', {
-        method: 'POST',
-        headers: { 'Authorization': 'Bearer ' + token },
-      }).catch(() => {});
-    }
-
-    localStorage.clear();
-    Utils.showToast('Sesión cerrada', 'info');
-    this.checkAuthStatus();
-    this._loggingOut = false;
+  async logout() { await API.cerrarSesion().catch(() => {}); this.showLogin(); Utils.showToast('Sesión cerrada', 'info'); },
+  async checkAuthStatus() {
+    try { await API.cargarCsrf(); const session = await API.get('/auth/me'); API.setSession(session); this.showDashboard(); }
+    catch (_) { this.showLogin(); }
   },
-
-  checkAuthStatus() {
-    const token = localStorage.getItem('authToken');
-    const loginView = document.getElementById('login-view');
-    const dashboardView = document.getElementById('dashboard-view');
-
-    if (token && !API.tokenExpirado()) {
-      loginView.classList.add('d-none');
-      dashboardView.classList.remove('d-none');
-      if (typeof Dashboard !== 'undefined') {
-        Dashboard.init();
-      }
-    } else {
-      if (token) {
-        localStorage.clear();
-      }
-      loginView.classList.remove('d-none');
-      dashboardView.classList.add('d-none');
-    }
-  },
+  showLogin() { document.getElementById('login-view')?.classList.remove('d-none'); document.getElementById('dashboard-view')?.classList.add('d-none'); },
+  showDashboard() { document.getElementById('login-view')?.classList.add('d-none'); document.getElementById('dashboard-view')?.classList.remove('d-none'); Dashboard.init(); },
 };
