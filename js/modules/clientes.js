@@ -988,18 +988,23 @@ async function prepararMapaCliente(cliente) {
     const lng = Number(cliente?.longitud || document.getElementById('clienteLongitud')?.value) || -99.1332;
     const position = { lat, lng };
     if (!state.clienteMap) {
-      state.clienteMap = new maps.Map(el, { center: position, zoom: cliente?.latitud ? 16 : 5, mapTypeControl: false, streetViewControl: false });
-      state.clienteMarker = new maps.Marker({ position, map: state.clienteMap, draggable: true, title: 'Ubicación del cliente' });
+      state.clienteMap = new maps.Map(el, { center: position, zoom: cliente?.latitud ? 16 : 5, mapId: window.GoogleMapsMapId || 'DEMO_MAP_ID', mapTypeControl: false, streetViewControl: false });
+      const AdvancedMarkerElement = maps.marker?.AdvancedMarkerElement;
+      if (!AdvancedMarkerElement) throw new Error('Google Maps no cargó la librería de marcadores');
+      state.clienteMarker = new AdvancedMarkerElement({ position, map: state.clienteMap, gmpDraggable: true, title: 'Ubicación del cliente' });
       state.clienteMarker.addListener('dragend', e => {
-        document.getElementById('clienteLatitud').value = e.latLng.lat().toFixed(7);
-        document.getElementById('clienteLongitud').value = e.latLng.lng().toFixed(7);
+        const position = e.latLng || state.clienteMarker.position;
+        const lat = typeof position.lat === 'function' ? position.lat() : position.lat;
+        const lng = typeof position.lng === 'function' ? position.lng() : position.lng;
+        document.getElementById('clienteLatitud').value = Number(lat).toFixed(7);
+        document.getElementById('clienteLongitud').value = Number(lng).toFixed(7);
         document.getElementById('clientePrecisionUbicacion').value = 'MANUAL';
         document.getElementById('clienteUbicacionEstado').textContent = 'Ubicación ajustada manualmente';
       });
     } else {
       state.clienteMap.setCenter(position);
       state.clienteMap.setZoom(cliente?.latitud ? 16 : 5);
-      state.clienteMarker.setPosition(position);
+      state.clienteMarker.position = position;
     }
     google.maps.event.trigger(el, 'resize');
   } catch (err) { document.getElementById('clienteUbicacionEstado').textContent = err.message; }
