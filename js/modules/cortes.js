@@ -481,14 +481,9 @@ async function reimprimirCorte(formato = 'carta') {
     .firmas-entrega { margin-top: 22px; display: grid; grid-template-columns: 1fr 1fr; gap: 12px; text-align:center; font-size: ${es80mm ? '7px' : '10px'}; }
     .firma-linea { border-top:1px solid #000; padding-top:4px; margin-top:24px; }
      body, body * { color:#000 !important; background:#fff !important; border-color:#000 !important; box-shadow:none !important; }
-     .print-toolbar { display:flex; gap:8px; align-items:center; justify-content:flex-end; margin-bottom:14px; padding:8px; border:1px solid #bbb; font-family:Arial,sans-serif; }
-     .print-toolbar button { border:1px solid #333; background:#fff; color:#000; padding:6px 12px; cursor:pointer; }
-     .print-toolbar .format { margin-right:auto; font-weight:bold; }
-     @media print { .print-toolbar { display:none !important; } }
   </style>
 </head>
 <body>
-  <div class="print-toolbar"><span class="format">Formato: ${es80mm ? '80 mm' : 'Carta'}</span><button type="button" onclick="window.print()">Imprimir</button></div>
    <div class="header">
    ${logoHtmlContent}
    <div class="sub">Corte de Caja</div>
@@ -595,6 +590,7 @@ async function reimprimirCorte(formato = 'carta') {
   printWindow.document.close();
   await esperarLogo(printWindow);
   printWindow.focus();
+  setTimeout(() => printWindow.print(), 300);
 }
 
 async function saveCorteRealCounts() {

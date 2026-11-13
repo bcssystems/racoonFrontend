@@ -1460,6 +1460,13 @@ function imprimirTicketCorte(corte) {
   const now = new Date();
   const fechaStr = now.toLocaleDateString('es-MX', { year: 'numeric', month: 'long', day: 'numeric' });
   const horaStr = now.toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' });
+  const logoValue = state.configs.logoTicket || state.configs.logoUrl || state.configs.logoEmpresa || '';
+  const logo = logoValue
+    ? (/^(https?:|data:|blob:)/i.test(logoValue)
+      ? logoValue
+      : API.mediaBaseUrl + (logoValue.startsWith('/') ? logoValue : '/' + logoValue))
+    : '';
+  const logoHtml = logo ? '<img src="' + Utils.esc(logo) + '" class="logo" alt="Logo" onerror="this.remove()">' : '';
 
    const printWindow = window.open('', '_blank');
   printWindow.document.write(`<!DOCTYPE html>
@@ -1485,16 +1492,11 @@ function imprimirTicketCorte(corte) {
     .data-table td:last-child { text-align: right; font-weight: 600; }
     .data-table .total-row td { font-size: 14px; font-weight: bold; border-top: 2px solid #000; border-bottom: none; padding-top: 8px; }
      .footer { text-align: center; margin-top: 20px; font-size: 10px; color: #888; }
-     .print-toolbar { display:flex; gap:8px; align-items:center; justify-content:flex-end; margin-bottom:14px; padding:8px; border:1px solid #bbb; font-family:Arial,sans-serif; }
-     .print-toolbar .format { margin-right:auto; font-weight:bold; }
-     .print-toolbar button { border:1px solid #333; background:#fff; color:#000; padding:6px 12px; cursor:pointer; }
-     @media print { .print-toolbar { display:none !important; } }
   </style>
 </head>
 <body>
-   <div class="print-toolbar"><span class="format">Formato: Carta</span><button type="button" onclick="window.print()">Imprimir</button></div>
-  <div class="header">
-     <div class="sub">Corte de Caja</div>
+   <div class="header">
+     ${logoHtml}<div class="sub">Corte de Caja</div>
   </div>
   <div class="divider"></div>
   <table class="info-table">
@@ -1572,8 +1574,9 @@ function imprimirTicketCorte(corte) {
   </div>
 </body>
 </html>`);
-  printWindow.document.close();
-  printWindow.focus();
+   printWindow.document.close();
+   printWindow.focus();
+   setTimeout(() => printWindow.print(), 300);
    // La pestaña permanece abierta y la impresión se inicia desde el botón de la página.
 }
 
