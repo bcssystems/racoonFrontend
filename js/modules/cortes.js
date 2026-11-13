@@ -23,7 +23,40 @@ async function cargarConfiguraciones() {
   try {
     const logo = await API.get('/configuraciones/logo');
     state.configs.logoTicket = logo?.valor || '';
-  } catch (_) {}
+    if (!state.configs.logoTicket) {
+      const lista = await API.get('/configuraciones');
+      const config = (lista || []).find(c => c.clave === 'logoTicket');
+      state.configs.logoTicket = config?.valor || '';
+    }
+  } catch (_) {
+    try {
+      const lista = await API.get('/configuraciones');
+      const config = (lista || []).find(c => c.clave === 'logoTicket');
+      state.configs.logoTicket = config?.valor || '';
+    } catch (_) {}
+  }
+}
+
+function obtenerLogoUrl() {
+  const value = state.configs.logoTicket || state.configs.logoUrl || state.configs.logoEmpresa || '';
+  if (!value) return '';
+  return /^(https?:|data:|blob:)/i.test(value)
+    ? value
+    : API.mediaBaseUrl + (value.startsWith('/') ? value : '/' + value);
+}
+
+function logoHtml() {
+  const url = obtenerLogoUrl();
+  return url ? '<img src="' + Utils.esc(url) + '" class="logo" alt="Logo" onerror="this.remove()">' : '';
+}
+
+async function esperarLogo(win) {
+  const image = win.document.querySelector('.logo');
+  if (!image || image.complete) return;
+  await Promise.race([
+    new Promise(resolve => { image.addEventListener('load', resolve, { once: true }); image.addEventListener('error', resolve, { once: true }); }),
+    new Promise(resolve => setTimeout(resolve, 3000)),
+  ]);
 }
 
 function todayStr() {
@@ -370,6 +403,7 @@ async function imprimirMovimientosCorte(id) {
     Utils.showToast('Permite las ventanas emergentes para imprimir el reporte', 'warning');
     return;
   }
+  if (state.logoPromise) await state.logoPromise;
   printWindow.document.write('<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8"><title>Movimientos del corte</title></head><body><p>Consultando movimientos...</p></body></html>');
   try {
     const [corte, movimientos] = await Promise.all([
@@ -387,15 +421,16 @@ async function imprimirMovimientosCorte(id) {
     printWindow.document.open();
     printWindow.document.write(`<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8"><title>Movimientos del corte #${corte.idCorte}</title>
       <style>@page{size:landscape;margin:12mm}*{box-sizing:border-box}body{font:12px Arial,sans-serif;color:#000}h1{font-size:20px;margin:0 0 6px}p{margin:3px 0}table{width:100%;border-collapse:collapse;margin-top:16px}th,td{border:1px solid #333;padding:6px;text-align:left;vertical-align:top}th{background:#eee}.amount{text-align:right;white-space:nowrap}.empty{text-align:center;padding:20px}.total{text-align:right;font-weight:bold;margin-top:10px}@media print{th{background:#fff}}</style>
-      </head><body><h1>Movimientos del corte #${corte.idCorte}</h1>
+       </head><body>${logoHtml()}<h1>Movimientos del corte #${corte.idCorte}</h1>
       <p><strong>Caja:</strong> ${Utils.esc(corte.cajaNombre || '')} &nbsp; <strong>Sucursal:</strong> ${Utils.esc(corte.sucursalNombre || '')}</p>
       <p><strong>Periodo:</strong> ${Utils.esc(Utils.formatDateTime(corte.fechaApertura))} — ${Utils.esc(Utils.formatDateTime(corte.fechaCierre))}</p>
       <p><strong>Responsable:</strong> ${Utils.esc(corte.usuario || '')}</p>
       <table><thead><tr><th>Fecha</th><th>Tipo</th><th>Descripción</th><th>Cliente / crédito</th><th>Usuario</th><th>Estado</th><th>Monto</th></tr></thead><tbody>${filas}</tbody></table>
       <div class="total">Neto de movimientos vigentes: ${Utils.formatMonto(total)}</div>
       </body></html>`);
-    printWindow.document.close();
-    printWindow.focus();
+     printWindow.document.close();
+     await esperarLogo(printWindow);
+     printWindow.focus();
      // La pestaña queda abierta para que el usuario revise e imprima cuando lo decida.
   } catch (err) {
     printWindow.close();
@@ -419,13 +454,7 @@ async function reimprimirCorte(formato = 'carta') {
   const horaStr = now.toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' });
 
    const es80mm = formato === '80mm';
-   const logoValue = state.configs.logoTicket || state.configs.logoUrl || state.configs.logoEmpresa || '';
-   const logo = logoValue
-     ? (/^(https?:|data:|blob:)/i.test(logoValue)
-       ? logoValue
-       : API.mediaBaseUrl + (logoValue.startsWith('/') ? logoValue : '/' + logoValue))
-     : '';
-   const logoHtml = logo ? '<img src="' + Utils.esc(logo) + '" class="logo" alt="Logo" onerror="this.remove()">' : '';
+   const logoHtmlContent = logoHtml();
    printWindow.document.write(`<!DOCTYPE html>
 <html lang="es">
 <head>
@@ -461,7 +490,7 @@ async function reimprimirCorte(formato = 'carta') {
 <body>
   <div class="print-toolbar"><span class="format">Formato: ${es80mm ? '80 mm' : 'Carta'}</span><button type="button" onclick="window.print()">Imprimir</button></div>
    <div class="header">
-   ${logoHtml}
+   ${logoHtmlContent}
    <div class="sub">Corte de Caja</div>
   </div>
   <div class="divider"></div>
@@ -564,6 +593,7 @@ async function reimprimirCorte(formato = 'carta') {
 </body>
 </html>`);
   printWindow.document.close();
+  await esperarLogo(printWindow);
   printWindow.focus();
 }
 
