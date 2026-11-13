@@ -6,12 +6,13 @@ let state = {
   currentMovimientos: [],
   printWindow: null,
   configs: {},
+  logoPromise: null,
 };
 
 export function init() {
   bindEvents();
   cargarSucursales();
-  cargarConfiguraciones();
+  state.logoPromise = cargarConfiguraciones();
   const hoy = todayStr();
   document.getElementById('filterDesde').value = hoy;
   document.getElementById('filterHasta').value = hoy;
@@ -20,9 +21,8 @@ export function init() {
 
 async function cargarConfiguraciones() {
   try {
-    const lista = await API.get('/configuraciones');
-    state.configs = {};
-    (lista || []).forEach(c => { if (c.clave) state.configs[c.clave] = c.valor || ''; });
+    const logo = await API.get('/configuraciones/logo');
+    state.configs.logoTicket = logo?.valor || '';
   } catch (_) {}
 }
 
@@ -403,19 +403,21 @@ async function imprimirMovimientosCorte(id) {
   }
 }
 
-function reimprimirCorte(formato = 'carta') {
+async function reimprimirCorte(formato = 'carta') {
   const corte = state.currentCorte;
   if (!corte) return;
+
+  const printWindow = state.printWindow || window.open('', '_blank');
+  if (!printWindow) {
+    Utils.showToast('Permite las ventanas emergentes para abrir la impresión', 'warning');
+    return;
+  }
+  if (state.logoPromise) await state.logoPromise;
 
   const now = new Date();
   const fechaStr = now.toLocaleDateString('es-MX', { year: 'numeric', month: 'long', day: 'numeric' });
   const horaStr = now.toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' });
 
-   const printWindow = state.printWindow || window.open('', '_blank');
-   if (!printWindow) {
-     Utils.showToast('Permite las ventanas emergentes para abrir la impresión', 'warning');
-     return;
-   }
    const es80mm = formato === '80mm';
    const logoValue = state.configs.logoTicket || state.configs.logoUrl || state.configs.logoEmpresa || '';
    const logo = logoValue

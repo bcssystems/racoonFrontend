@@ -35,7 +35,7 @@ async function cargar() {
         const logoUrl = /^https?:\/\//i.test(c.valor)
           ? c.valor
           : API.mediaBaseUrl + (c.valor.startsWith('/') ? c.valor : '/' + c.valor);
-        if (logo) logo.innerHTML = 'Logo actual: <a href="' + Utils.esc(logoUrl) + '" target="_blank" rel="noopener">ver archivo</a>';
+        if (logo) logo.innerHTML = 'Logo actual:<br><img src="' + Utils.esc(logoUrl) + '" alt="Logo del ticket" style="display:block;max-width:220px;max-height:90px;margin-top:6px;object-fit:contain" onerror="this.remove()"><a href="' + Utils.esc(logoUrl) + '" target="_blank" rel="noopener">ver archivo</a>';
       }
       const id = CAMPOS[c.clave];
       if (!id) return;
