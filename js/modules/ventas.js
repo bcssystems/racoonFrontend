@@ -179,8 +179,9 @@ function bindEvents() {
 
   document.getElementById('posFilterCategoria')?.addEventListener('change', () => buscarProductos());
   document.getElementById('precioSelector')?.addEventListener('change', () => {
+    const resultadosAbiertos = state.posProductPanelOpen;
     actualizarPreciosSeleccionados();
-    buscarProductos(true);
+    if (resultadosAbiertos) buscarProductos(true);
   });
 
   document.getElementById('posCliente')?.addEventListener('change', onPosClienteChange);
@@ -339,6 +340,7 @@ async function cargarCotizacionDesdeLocalStorage() {
           sku: producto ? producto.sku : d.productoSku || '',
           cantidad: d.cantidad,
           precioUnitario: d.precioUnitario,
+          precioBase: producto?.precioBase ?? null,
           stockActual: producto ? getStockSucursal(producto) : 0,
         });
       }
@@ -471,7 +473,8 @@ async function sincronizarCarritoDesdeServidor() {
       nombre: r.productoNombre || (prod ? prod.nombre : 'Producto'),
       sku: r.productoSku || (prod ? prod.sku : ''),
       cantidad: r.cantidad,
-       precioUnitario: prod ? getPrecioProducto(prod) : 0,
+      precioUnitario: prod ? getPrecioProducto(prod) : 0,
+      precioBase: prod?.precioBase ?? null,
     };
   });
 
@@ -519,6 +522,7 @@ function iniciarPollingCaja() {
           sku: r.productoSku || (prod ? prod.sku : ''),
           cantidad: r.cantidad,
            precioUnitario: prod ? getPrecioProducto(prod) : 0,
+           precioBase: prod?.precioBase ?? null,
         };
       });
       state.cart = [...envioItems, ...nuevosCart];
@@ -765,6 +769,7 @@ async function agregarAlCart(prodId) {
       sku: p.sku,
       cantidad: 1,
       precioUnitario: precio,
+      precioBase: p.precioBase ?? null,
       stockActual: getStockSucursal(p),
       unidadMedida: p.unidadMedida || 'PIEZA',
     });
@@ -951,24 +956,27 @@ function renderCart() {
 function recalcularTotales() {
   let subtotal = 0;
   let descuento = 0;
+  let total = 0;
 
   state.cart.forEach(d => {
     const p = state.productos.find(x => x.idProducto === d.idProducto);
-    if (p) {
-      const precioBase = p.precioBase || 0;
-      const precioActual = d.precioUnitario;
-      d.subtotal = d.cantidad * d.precioUnitario;
-      subtotal += d.subtotal;
-      descuento += (precioBase - precioActual) * d.cantidad;
+    if (p || d.precioBase != null) {
+      const precioBase = Number(d.precioBase ?? p?.precioBase ?? d.precioUnitario) || 0;
+      const precioActual = Number(d.precioUnitario) || 0;
+      d.subtotal = d.cantidad * precioActual;
+      subtotal += precioBase * d.cantidad;
+      total += d.subtotal;
+      descuento += Math.max(0, precioBase - precioActual) * d.cantidad;
     } else {
       // VR items (temp negative IDs) always contribute to subtotal
       d.subtotal = d.cantidad * d.precioUnitario;
       subtotal += d.subtotal;
+      total += d.subtotal;
     }
   });
 
   descuento = Math.max(0, descuento);
-  const total = Math.max(0, subtotal);
+  total = Math.max(0, total);
 
   document.getElementById('posSubtotal').textContent = Utils.formatMonto(subtotal);
   document.getElementById('posDescuento').textContent = '-' + Utils.formatMonto(descuento);
@@ -2092,9 +2100,10 @@ async function reanudarEspera(idVenta) {
         idProducto: d.idProducto,
         nombre: d.productoNombre || d.descripcion || 'Producto',
         sku: d.productoSku || '',
-        cantidad: d.cantidad,
-        precioUnitario: d.precioUnitario,
-        unidadMedida: d.unidadMedida || 'UNIDAD',
+         cantidad: d.cantidad,
+         precioUnitario: d.precioUnitario,
+         precioBase: prod?.precioBase ?? null,
+         unidadMedida: d.unidadMedida || 'UNIDAD',
         stockActual: prod ? stockCajaDisponible(prod) : 0,
       };
     });
