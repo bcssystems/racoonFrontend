@@ -30,14 +30,17 @@ async function cargar() {
   try {
     configs = await API.get('/configuraciones');
     configs.forEach(c => {
+      if (c.clave === 'logoTicket' && c.valor) {
+        const logo = document.getElementById('cfg-logoActual');
+        const logoUrl = /^https?:\/\//i.test(c.valor)
+          ? c.valor
+          : API.mediaBaseUrl + (c.valor.startsWith('/') ? c.valor : '/' + c.valor);
+        if (logo) logo.innerHTML = 'Logo actual: <a href="' + Utils.esc(logoUrl) + '" target="_blank" rel="noopener">ver archivo</a>';
+      }
       const id = CAMPOS[c.clave];
       if (!id) return;
       const el = document.getElementById(id);
       if (el && el.type !== 'file') el.value = c.valor;
-      if (c.clave === 'logoTicket' && c.valor) {
-        const logo = document.getElementById('cfg-logoActual');
-        if (logo) logo.innerHTML = 'Logo actual: <a href="' + Utils.esc(API.mediaBaseUrl + c.valor) + '" target="_blank" rel="noopener">ver archivo</a>';
-      }
       const desc = document.getElementById('desc-' + c.clave);
       if (desc) desc.textContent = c.descripcion || '';
     });

@@ -5,15 +5,25 @@ let state = {
   currentCorte: null,
   currentMovimientos: [],
   printWindow: null,
+  configs: {},
 };
 
 export function init() {
   bindEvents();
   cargarSucursales();
+  cargarConfiguraciones();
   const hoy = todayStr();
   document.getElementById('filterDesde').value = hoy;
   document.getElementById('filterHasta').value = hoy;
   buscar(0);
+}
+
+async function cargarConfiguraciones() {
+  try {
+    const lista = await API.get('/configuraciones');
+    state.configs = {};
+    (lista || []).forEach(c => { if (c.clave) state.configs[c.clave] = c.valor || ''; });
+  } catch (_) {}
 }
 
 function todayStr() {
@@ -406,8 +416,15 @@ function reimprimirCorte(formato = 'carta') {
      Utils.showToast('Permite las ventanas emergentes para abrir la impresión', 'warning');
      return;
    }
-  const es80mm = formato === '80mm';
-  printWindow.document.write(`<!DOCTYPE html>
+   const es80mm = formato === '80mm';
+   const logoValue = state.configs.logoTicket || state.configs.logoUrl || state.configs.logoEmpresa || '';
+   const logo = logoValue
+     ? (/^(https?:|data:|blob:)/i.test(logoValue)
+       ? logoValue
+       : API.mediaBaseUrl + (logoValue.startsWith('/') ? logoValue : '/' + logoValue))
+     : '';
+   const logoHtml = logo ? '<img src="' + Utils.esc(logo) + '" class="logo" alt="Logo" onerror="this.remove()">' : '';
+   printWindow.document.write(`<!DOCTYPE html>
 <html lang="es">
 <head>
   <meta charset="UTF-8">
@@ -441,8 +458,9 @@ function reimprimirCorte(formato = 'carta') {
 </head>
 <body>
   <div class="print-toolbar"><span class="format">Formato: ${es80mm ? '80 mm' : 'Carta'}</span><button type="button" onclick="window.print()">Imprimir</button></div>
-  <div class="header">
-  <div class="sub">Corte de Caja</div>
+   <div class="header">
+   ${logoHtml}
+   <div class="sub">Corte de Caja</div>
   </div>
   <div class="divider"></div>
   <table class="info-table">
