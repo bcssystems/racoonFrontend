@@ -76,16 +76,45 @@ async function cargarAgenda() {
   const tablaParams = params.toString();
   const calendarioParams = new URLSearchParams(params); const semana = rangoSemana('SEMANA'); calendarioParams.set('desde', semana.desde); calendarioParams.set('hasta', semana.hasta); calendarioParams.set('page', '0'); calendarioParams.set('size', '100');
   try {
-    const [tabla, calendario] = await Promise.all([
+    const resultados = await Promise.allSettled([
       API.get('/creditos/cobranza/agenda?' + tablaParams),
       API.get('/creditos/cobranza/agenda?' + calendarioParams.toString())
     ]);
-    const page = tabla && Array.isArray(tabla.content) ? tabla : { content: Array.isArray(tabla) ? tabla : [], totalPages: 1, totalElements: Array.isArray(tabla) ? tabla.length : 0 };
-    state.agenda = page.content || [];
-    state.calendario = calendario?.content || (Array.isArray(calendario) ? calendario : []);
-    state.totalPaginas = page.totalPages || 1; state.totalElementos = page.totalElements || state.agenda.length;
+    const tabla = resultados[0].status === 'fulfilled' ? resultados[0].value : null;
+    const calendario = resultados[1].status === 'fulfilled' ? resultados[1].value : null;
+    const page = normalizarPagina(tabla);
+    state.agenda = page.content;
+    state.calendario = normalizarLista(calendario);
+    state.totalPaginas = page.totalPages;
+    state.totalElementos = page.totalElements;
     render();
-  } catch (err) { Utils.showToast(err.message, 'error'); }
+    const fallo = resultados.find(r => r.status === 'rejected');
+    if (fallo) Utils.showToast(fallo.reason?.message || 'No se pudo cargar toda la agenda', 'error');
+  } catch (err) {
+    state.agenda = [];
+    state.calendario = [];
+    state.totalPaginas = 1;
+    state.totalElementos = 0;
+    render();
+    Utils.showToast(err.message, 'error');
+  }
+}
+
+function normalizarLista(respuesta) {
+  if (Array.isArray(respuesta)) return respuesta;
+  if (respuesta && Array.isArray(respuesta.content)) return respuesta.content;
+  if (respuesta && Array.isArray(respuesta.data)) return respuesta.data;
+  return [];
+}
+
+function normalizarPagina(respuesta) {
+  const content = normalizarLista(respuesta);
+  const esPagina = respuesta && !Array.isArray(respuesta) && Array.isArray(respuesta.content);
+  const totalElementos = esPagina && Number.isFinite(Number(respuesta.totalElements))
+    ? Number(respuesta.totalElements) : content.length;
+  const totalPaginas = esPagina && Number.isFinite(Number(respuesta.totalPages))
+    ? Math.max(1, Number(respuesta.totalPages)) : 1;
+  return { content, totalPages: totalPaginas, totalElements: totalElementos };
 }
 
 async function cargarProgreso() {
@@ -103,7 +132,7 @@ function renderProgreso(progreso) {
   if (global) global.innerHTML = '<div class="row align-items-center g-2"><div class="col-md-3"><strong>Meta total:</strong> ' + Utils.formatMonto(progreso.metaTotal || 0) + '</div><div class="col-md-3"><strong>Cobrado:</strong> ' + Utils.formatMonto(progreso.cobradoTotal || 0) + '</div><div class="col-md-6"><div class="d-flex justify-content-between small mb-1"><span>Avance global</span><strong>' + porcentaje.toFixed(1) + '%</strong></div><div class="cobranza-progress-track"><div class="cobranza-progress-bar" style="width:' + Math.min(100, Math.max(0, porcentaje)) + '%"></div></div></div></div>';
   const fecha = document.getElementById('cobranzaProgresoFecha'); if (fecha) fecha.textContent = progreso.fecha ? new Date(progreso.fecha + 'T00:00:00').toLocaleDateString() : '';
   const body = document.getElementById('cobranzaProgresoBody'); if (!body) return;
-  const lista = progreso.cobradores || [];
+  const lista = Array.isArray(progreso.cobradores) ? progreso.cobradores : [];
   body.innerHTML = lista.length ? lista.map(c => '<tr><td>' + Utils.esc(c.cobrador || '-') + '</td><td class="text-end">' + Utils.formatMonto(c.meta || 0) + '</td><td class="text-end">' + Utils.formatMonto(c.cobrado || 0) + '</td><td><div class="d-flex justify-content-between small"><span>' + Math.min(100, Number(c.porcentaje || 0)).toFixed(1) + '%</span><span>' + (Number(c.porcentaje || 0) > 100 ? 'Meta superada' : '') + '</span></div><div class="cobranza-progress-track"><div class="cobranza-progress-bar" style="width:' + Math.min(100, Math.max(0, Number(c.porcentaje || 0))) + '%"></div></div></td><td class="text-end">' + Utils.formatMonto(c.restante || 0) + '</td><td><button type="button" class="btn-kebab-toggle kebab-trigger cobranza-progreso-kebab" data-cobrador-id="' + c.idCobrador + '" title="Acciones"><i class="fas fa-ellipsis-v"></i></button></td></tr>').join('') : '<tr><td colspan="6" class="text-muted text-center">Sin meta o abonos para este día</td></tr>';
 }
 
