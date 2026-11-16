@@ -1497,9 +1497,11 @@ function imprimirTicketCorte(corte) {
     .section-title { font-size: 13px; font-weight: bold; margin: 12px 0 6px; text-transform: uppercase; letter-spacing: 1px; }
     .data-table { width: 100%; border-collapse: collapse; font-size: 12px; }
     .data-table td { padding: 5px 8px; border-bottom: 1px solid #ddd; }
-    .data-table td:last-child { text-align: right; font-weight: 600; }
-    .data-table .total-row td { font-size: 14px; font-weight: bold; border-top: 2px solid #000; border-bottom: none; padding-top: 8px; }
-     .footer { text-align: center; margin-top: 20px; font-size: 10px; color: #888; }
+     .data-table td:last-child { text-align: right; font-weight: 600; }
+     .data-table .total-row td { font-size: 14px; font-weight: bold; border-top: 2px solid #000; border-bottom: none; padding-top: 8px; }
+     .firmas-entrega { margin-top: 28px; display: grid; grid-template-columns: 1fr 1fr; gap: 18px; text-align: center; font-size: 10px; }
+     .firma-linea { border-top: 1px solid #000; padding-top: 4px; margin-top: 28px; }
+      .footer { text-align: center; margin-top: 20px; font-size: 10px; color: #888; }
   </style>
 </head>
 <body>
@@ -1576,7 +1578,13 @@ function imprimirTicketCorte(corte) {
      <tr style="font-weight:bold;border-bottom:1px solid #000"><td>Folio</td><td>Cliente</td><td>Fecha</td><td>Tipo pago</td><td>Monto</td></tr>
      ${corte.abonos.map(a => `<tr><td>${Utils.esc(a.folioCredito || '-')}</td><td>${Utils.esc(a.cliente || '-')}</td><td>${a.fecha ? new Date(a.fecha).toLocaleString('es-MX') : '-'}</td><td>${Utils.esc(a.tipoPago || '-')}</td><td>${Utils.formatMonto(a.monto || 0)}</td></tr>`).join('')}
    </table>` : ''}
-  <div class="footer">
+   <div class="divider"></div>
+   <div class="section-title">Entrega y recepción</div>
+   <div class="firmas-entrega">
+     <div><div class="firma-linea">Entregado por<br>${Utils.esc(corte.usuario || 'PENDIENTE')}</div></div>
+     <div><div class="firma-linea">Recibido por<br>${Utils.esc(corte.recibidoPor || 'PENDIENTE')}</div></div>
+   </div>
+   <div class="footer">
     <p>--- Fin del Corte ---</p>
     <p>${fechaStr} ${horaStr}</p>
   </div>

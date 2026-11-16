@@ -516,7 +516,7 @@ const STATE_CUENTA_80MM_CSS = `
 function abrirVentana(titulo, alto, ancho) {
   // Reutiliza una sola pestaña del mismo navegador para todos los comprobantes.
   // No se envían dimensiones para evitar que el navegador la convierta en popup.
-  const win = window.open('', 'racoon-print-tab');
+   const win = window.open('', '_blank');
   if (!win) {
     Utils.showToast('Bloqueador de popups activo. Permite las ventanas emergentes.', 'warning');
     return null;

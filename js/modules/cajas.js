@@ -85,21 +85,27 @@ function handleTableClick(e) {
   if (movimientoKebab) {
     e.preventDefault();
     e.stopPropagation();
-    const movimiento = state.movimientos.find(m => m.idMovimientoCaja === parseInt(movimientoKebab.dataset.movimientoId));
+    const movimiento = state.movimientos.find(m =>
+      (movimientoKebab.dataset.gastoId && m.idGasto === parseInt(movimientoKebab.dataset.gastoId)) ||
+      (!movimientoKebab.dataset.gastoId && m.idMovimientoCaja === parseInt(movimientoKebab.dataset.movimientoId))
+    );
     if (movimiento) {
       const items = [];
-      if (movimiento.idAbono) items.push({
+      if (movimiento.idGasto) items.push({
+        icon: 'fa-receipt', text: 'Gasto autorizado', color: 'var(--danger)', onClick: () => {}
+      });
+      if (!movimiento.idGasto && movimiento.idAbono) items.push({
         icon: 'fa-print', text: 'Imprimir comprobante de abono', color: 'var(--primary)',
         onClick: () => printComprobanteAbono(movimiento, { clienteNombre: movimiento.clienteNombre, cajaNombre: movimiento.cajaNombre })
       });
-      if (movimiento.idVenta && Utils.hasPermiso('VENTAS_VER')) items.push({
+      if (!movimiento.idGasto && movimiento.idVenta && Utils.hasPermiso('VENTAS_VER')) items.push({
         icon: 'fa-receipt', text: 'Ver / imprimir venta', color: 'var(--info)',
         onClick: async () => {
           try { printRemisionVenta(await API.get('/ventas/' + movimiento.idVenta), { copies: 1 }); }
           catch (err) { Utils.showToast(err.message, 'error'); }
         }
       });
-      if (!movimiento.cancelado && Utils.hasPermiso('CAJAS_MOVIMIENTO')) items.push({
+      if (!movimiento.idGasto && !movimiento.cancelado && Utils.hasPermiso('CAJAS_MOVIMIENTO')) items.push({
         danger: true, icon: 'fa-ban',
         text: movimiento.estadoCancelacion === 'SOLICITADA' ? 'Procesar cancelación solicitada' : 'Cancelar movimiento',
         onClick: () => cancelarMovimientoCaja(movimiento)
@@ -295,7 +301,7 @@ async function verMovimientos(id) {
             ${esIngreso ? '+' : '-'}${Utils.formatMonto(m.monto)}
           </td>
           <td>${m.clienteNombre ? '<strong>' + Utils.esc(m.clienteNombre) + '</strong><br><small>Crédito ' + Utils.esc(m.folioCredito || ('#' + m.idCredito)) + '</small>' : m.idVenta ? '<strong>Venta #' + m.idVenta + '</strong><br><small>' + (Utils.esc(m.motivo) || '-') + '</small>' : (Utils.esc(m.motivo) || '-')}</td>
-          <td><button type="button" class="btn-kebab-toggle kebab-trigger movimiento-kebab" data-movimiento-id="${m.idMovimientoCaja}" title="Acciones"><i class="fas fa-ellipsis-v"></i></button></td>
+          <td><button type="button" class="btn-kebab-toggle kebab-trigger movimiento-kebab" ${m.idGasto ? 'data-gasto-id="' + m.idGasto + '"' : 'data-movimiento-id="' + m.idMovimientoCaja + '"'} title="Acciones"><i class="fas fa-ellipsis-v"></i></button></td>
         </tr>`;
       }).join('');
     }
@@ -308,14 +314,14 @@ function imprimirMovimientosCaja(id) {
   const movimientos = state.movimientos || [];
   const vigentes = movimientos.filter(m => !m.cancelado);
   const ingresos = vigentes.filter(m => m.tipo === 'INGRESO').reduce((s, m) => s + (Number(m.monto) || 0), 0);
-  const egresos = vigentes.filter(m => m.tipo === 'EGRESO').reduce((s, m) => s + (Number(m.monto) || 0), 0);
+   const egresos = vigentes.filter(m => m.tipo === 'EGRESO' || m.tipo === 'GASTO').reduce((s, m) => s + (Number(m.monto) || 0), 0);
   const filas = movimientos.length ? movimientos.map(m => `<tr class="${m.cancelado ? 'cancelado' : ''}">
     <td>${Utils.esc(Utils.formatDateTime(m.fecha))}</td><td>${Utils.esc(m.tipo || '')}</td>
     <td>${Utils.esc(m.clienteNombre || (m.idVenta ? 'Venta #' + m.idVenta : m.motivo || '-'))}${m.folioCredito ? '<br>Crédito ' + Utils.esc(m.folioCredito) : ''}</td>
     <td>${Utils.esc(m.usuario || '')}</td><td>${m.cancelado ? 'CANCELADO' : 'VIGENTE'}</td>
     <td class="monto">${m.tipo === 'INGRESO' ? '+' : '-'}${Utils.formatMonto(m.monto || 0)}</td>
   </tr>`).join('') : '<tr><td colspan="6" class="empty">No hay movimientos registrados.</td></tr>';
-  const win = window.open('', 'racoon-print-tab');
+  const win = window.open('', '_blank');
   if (!win) { Utils.showToast('Permite las ventanas emergentes para imprimir el reporte', 'warning'); return; }
   win.document.write(`<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8"><title>Movimientos de caja</title>
     <style>@page{size:landscape;margin:12mm}*{box-sizing:border-box}body{font:12px Arial;color:#000}h1{margin:0 0 6px}p{margin:3px 0}table{width:100%;border-collapse:collapse;margin-top:16px}th,td{border:1px solid #333;padding:6px;text-align:left}.monto{text-align:right;white-space:nowrap}.cancelado{color:#777;text-decoration:line-through}.empty{text-align:center;padding:20px}.totales{margin-top:12px;text-align:right;font-weight:bold}</style>
