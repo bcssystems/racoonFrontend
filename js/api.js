@@ -61,7 +61,8 @@ const API = (() => {
     const headers = { 'Content-Type': 'application/json', ...(options.headers || {}) };
     if (mutation(method) && !endpoint.endsWith('/auth/csrf')) headers['X-XSRF-TOKEN'] = await csrf();
     const response = await fetch(`${baseUrl}${endpoint}`, { ...options, method, credentials: 'include', headers });
-    if (response.status === 401 && retry && !authEndpoint(endpoint)) {
+    const authExpired = response.status === 401 || (response.status === 403 && endpoint.endsWith('/auth/me'));
+    if (authExpired && retry && !authEndpoint(endpoint)) {
       try { await refresh(); return request(endpoint, options, false); }
       catch (_) { clearAuthState(); throw new Error('Sesión expirada'); }
     }
@@ -76,7 +77,7 @@ const API = (() => {
 
   async function upload(endpoint, formData, retry = true) {
     const response = await fetch(`${baseUrl}${endpoint}`, { method: 'POST', credentials: 'include', body: formData, headers: { 'X-XSRF-TOKEN': await csrf() } });
-    if (response.status === 401 && retry) { await refresh(); return upload(endpoint, formData, false); }
+    if ((response.status === 401 || response.status === 403) && retry) { await refresh(); return upload(endpoint, formData, false); }
     if (!response.ok) { let message = 'Error al subir archivo'; try { const error = await response.json(); message = error.message || error.error || message; } catch (_) { } throw new Error(message); }
     return response.status === 204 ? null : response.json();
   }

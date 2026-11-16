@@ -548,10 +548,18 @@ function abrirModalIne(id) {
   API.get('/clientes/' + id + '/ine').then(ine => {
     if (ine && (ine.urlFotoFrontal || ine.urlFotoTrasera)) {
       if (ine.urlFotoFrontal) renderIneStored('Frontal', ine.urlFotoFrontal);
+      else document.getElementById('ineFrontalPreview').innerHTML = '<span class="text-muted small">Sin INE frontal registrada.</span>';
       if (ine.urlFotoTrasera) renderIneStored('Trasera', ine.urlFotoTrasera);
+      else document.getElementById('ineTraseraPreview').innerHTML = '<span class="text-muted small">Sin INE trasera registrada.</span>';
       if (ine.codigoLector) document.getElementById('ineCodigoLector').value = ine.codigoLector;
+    } else {
+      document.getElementById('ineFrontalPreview').innerHTML = '<span class="text-muted small">Sin INE frontal registrada.</span>';
+      document.getElementById('ineTraseraPreview').innerHTML = '<span class="text-muted small">Sin INE trasera registrada.</span>';
     }
-  }).catch(() => {});
+  }).catch(() => {
+    document.getElementById('ineFrontalPreview').innerHTML = '<span class="text-danger small">No se pudo cargar la INE frontal. Intenta nuevamente.</span>';
+    document.getElementById('ineTraseraPreview').innerHTML = '<span class="text-danger small">No se pudo cargar la INE trasera. Intenta nuevamente.</span>';
+  });
   new bootstrap.Modal(document.getElementById('clienteIneModal')).show();
 }
 
