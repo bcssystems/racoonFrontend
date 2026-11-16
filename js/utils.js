@@ -679,6 +679,13 @@ const Utils = {
       if (!modalEl) return;
       if (modalEl._bsBackdropEl && modalEl._bsBackdropEl.style) modalEl._bsBackdropEl.style.zIndex = '';
       modalEl._bsBackdropEl = null;
+      setTimeout(() => {
+        if (document.querySelector('.modal.show')) return;
+        document.querySelectorAll('.modal-backdrop').forEach(backdrop => backdrop.remove());
+        document.body.classList.remove('modal-open');
+        document.body.style.removeProperty('overflow');
+        document.body.style.removeProperty('padding-right');
+      }, 50);
     });
   },
 };

@@ -3,6 +3,7 @@ import { printRemisionVenta, printComprobanteAbono } from './printing.js';
 let state = {
   caja: null,
   cajas: [],
+  ingresoGuardando: false,
   sucursales: [],
   clientes: [],
   productos: [],
@@ -1675,11 +1676,15 @@ async function ponerEnEspera() {
 }
 
 async function ingresarEfectivo() {
+  if (state.ingresoGuardando) return;
   const monto = parseFloat(document.getElementById('posIngresoMonto').value);
   const motivo = document.getElementById('posIngresoMotivo').value.trim();
   if (!monto || monto <= 0) { Utils.showToast('Monto inv\u00e1lido', 'warning'); return; }
   if (!motivo) { Utils.showToast('Motivo requerido', 'warning'); return; }
 
+  const boton = document.getElementById('btnGuardarIngreso');
+  state.ingresoGuardando = true;
+  if (boton) boton.disabled = true;
   try {
     await API.post('/cajas/' + state.caja.idCaja + '/ingresos', { monto, motivo });
     Utils.showToast('Ingreso registrado', 'success');
@@ -1688,6 +1693,7 @@ async function ingresarEfectivo() {
     document.getElementById('posIngresoMotivo').value = '';
     await refreshCaja();
   } catch (err) { Utils.showToast(err.message, 'error'); }
+  finally { state.ingresoGuardando = false; if (boton) boton.disabled = false; }
 }
 
 function abrirAbonoPOSDesdeLocalStorage() {

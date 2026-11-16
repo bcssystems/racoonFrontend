@@ -1,6 +1,6 @@
 import { printComprobanteAbono, printRemisionVenta } from './printing.js';
 
-let state = { data: [], editingId: null, sucursales: [], movimientos: [], movimientosCajaId: null, filtroRequestId: 0 };
+let state = { data: [], editingId: null, sucursales: [], movimientos: [], movimientosCajaId: null, filtroRequestId: 0, movimientoGuardando: false };
 
 export function init() {
   bindEvents();
@@ -226,11 +226,11 @@ async function abrirAperturaModal(id) {
     if (String(document.getElementById('apCajaId').value) !== String(id)) return;
     if (input) {
       input.value = (Number(sugerencia.saldoInicial) || 0).toFixed(2);
-      input.readOnly = sugerencia.tipoCaja !== 'SECUNDARIA';
+      input.readOnly = false;
     }
     if (info) info.textContent = sugerencia.tipoCaja === 'SECUNDARIA'
-      ? 'Caja secundaria: se sugiere el fondo configurado como referencia; puedes ajustar el saldo inicial.'
-      : 'Caja principal: se aplicará el fondo configurado para cajas normales.';
+      ? 'Saldo sugerido; puedes ajustar el saldo inicial antes de abrir.'
+      : 'Saldo sugerido por configuración; puedes ajustar el saldo inicial antes de abrir.';
   } catch (err) {
     if (info) info.textContent = 'No se pudo consultar el fondo configurado: ' + err.message;
   }
@@ -263,6 +263,7 @@ async function cerrarCaja(id) {
 }
 
 async function confirmarMovimiento() {
+  if (state.movimientoGuardando) return;
   const id = parseInt(document.getElementById('movCajaId').value);
   const tipo = document.getElementById('movTipo').value;
   const monto = parseFloat(document.getElementById('movMonto').value);
@@ -271,12 +272,16 @@ async function confirmarMovimiento() {
   if (isNaN(monto) || monto <= 0) { Utils.showToast('Monto inv&aacute;lido', 'warning'); return; }
 
   const endpoint = tipo === 'INGRESO' ? '/cajas/' + id + '/ingresos' : '/cajas/' + id + '/egresos';
+  const boton = document.getElementById('btnConfirmarMovimiento');
+  state.movimientoGuardando = true;
+  if (boton) boton.disabled = true;
   try {
     await API.post(endpoint, { monto, motivo });
     Utils.showToast('Movimiento registrado', 'success');
     bootstrap.Modal.getInstance(document.getElementById('cajaMovimientoModal'))?.hide();
     cargarCajas();
   } catch (err) { Utils.showToast(err.message, 'error'); }
+  finally { state.movimientoGuardando = false; if (boton) boton.disabled = false; }
 }
 
 async function verMovimientos(id) {
