@@ -17,17 +17,23 @@ export function init() {
   document.getElementById('cobranzaAntiguedad')?.addEventListener('change', () => { state.pagina = 0; state.tarjeta = ''; cargarAgenda(); });
   document.querySelectorAll('[data-cobranza-card]').forEach(card => card.addEventListener('click', () => {
     state.tarjeta = card.dataset.cobranzaCard || '';
+    if (state.tarjeta === 'CARTERA') {
+      Utils.cargarVista('pages/cartera-cobranza.html', 'cartera-cobranza');
+      return;
+    }
+    if (state.tarjeta === 'META') {
+      Utils.cargarVista('pages/metas-cobranza.html', 'metas-cobranza');
+      return;
+    }
     if (state.tarjeta === 'HOY') { document.getElementById('cobranzaDia').value = String(new Date().getDay()); document.getElementById('cobranzaAntiguedad').value = ''; }
     if (state.tarjeta === 'SEMANA') { document.getElementById('cobranzaDia').value = 'SEMANA'; document.getElementById('cobranzaAntiguedad').value = ''; }
     if (state.tarjeta === 'ATRASADOS') { document.getElementById('cobranzaDia').value = 'SEMANA'; document.getElementById('cobranzaAntiguedad').value = 'ATRASADOS'; }
     state.pagina = 0; cargarAgenda();
   }));
   document.getElementById('tableCobranzaBody')?.addEventListener('click', manejarClick);
-  document.getElementById('cobranzaProgresoBody')?.addEventListener('click', manejarClick);
   document.getElementById('btnGuardarCobranzaAbono')?.addEventListener('click', guardarAbono);
   cargarCatalogos();
   cargarAgenda();
-  cargarProgreso();
 }
 
 function fechaLocal(d) {
@@ -170,7 +176,7 @@ function render() {
   if (!tbody) return;
   if (!agenda.length) {
     tbody.innerHTML = '<tr><td colspan="9"><div class="empty-state"><i class="fas fa-calendar-check"></i><p>No hay cobranzas para el periodo seleccionado</p></div></td></tr>';
-    renderPagination(); renderCalendar(agendaCalendario); return;
+    renderPagination(); return;
   }
   tbody.innerHTML = agenda.map(x => {
     const queryMapa = x.latitud != null && x.longitud != null ? x.latitud + ',' + x.longitud : x.direccion;
@@ -184,7 +190,7 @@ function render() {
       '<td class="text-end fw-semibold">' + Utils.formatMonto(x.saldo || 0) + '</td><td><span class="badge ' + estado + '">' + Utils.esc(x.estado) + '</span></td>' +
       '<td>' + '<button type="button" class="btn-kebab-toggle kebab-trigger cobranza-kebab" data-cobranza-id="' + x.idCredito + '" data-cobranza-parcialidad="' + x.idParcialidad + '" title="Acciones"><i class="fas fa-ellipsis-v"></i></button>' + '</td></tr>';
   }).join('');
-  renderPagination(); renderCalendar(agendaCalendario);
+  renderPagination();
 }
 
 function renderPagination() {
