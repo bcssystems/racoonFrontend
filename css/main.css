@@ -1036,3 +1036,10 @@ body {
 }
 .permiso-item-base:hover { background-color: #e9ecef; }
 .permisos-cell { max-width: 280px; }
+ .cobranza-calendar { display:grid; grid-template-columns:repeat(7,minmax(150px,1fr)); gap:8px; overflow-x:auto; }
+ .cobranza-day { min-height:170px; background:var(--surface,#fff); border:1px solid var(--border,#e5e7eb); border-radius:10px; padding:8px; }
+ .cobranza-day-title { font-weight:700; font-size:.8rem; text-transform:uppercase; color:var(--text-muted,#6b7280); border-bottom:1px solid var(--border,#e5e7eb); padding-bottom:6px; margin-bottom:6px; }
+ .cobranza-event { width:100%; text-align:left; border:0; border-left:4px solid #2563eb; background:#eff6ff; border-radius:6px; padding:6px; margin-bottom:6px; font-size:.75rem; cursor:pointer; }
+ .cobranza-event.atrasado { border-left-color:#dc2626; background:#fef2f2; }
+ .cobranza-event:hover { filter:brightness(.97); }
+ @media (max-width: 900px) { .cobranza-calendar { grid-template-columns:repeat(7, minmax(135px,1fr)); } }
