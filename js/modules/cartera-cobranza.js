@@ -37,7 +37,7 @@ async function cargarCatalogos() {
   const cajas = document.getElementById('carteraAbonoCaja'); if (cajas) cajas.innerHTML = '<option value="">Seleccionar caja...</option>' + state.cajas.map(c => '<option value="' + c.idCaja + '">' + Utils.esc(c.nombre + ' - ' + (c.sucursalNombre || '')) + '</option>').join('');
 }
 async function cargar() {
-  const rango = semana(); const params = new URLSearchParams({ desde: rango.desde, hasta: rango.hasta, page: String(state.pagina), size: '20' });
+  const rango = semana(); const params = new URLSearchParams({ desde: rango.desde, hasta: rango.hasta, incluirAtrasados: 'true', page: String(state.pagina), size: '20' });
   const cobrador = document.getElementById('carteraCobrador')?.value; const estado = document.getElementById('carteraEstado')?.value; const cliente = document.getElementById('carteraCliente')?.value.trim();
   if (cobrador === 'ME') params.set('miCartera', 'true'); else if (cobrador) params.set('idCobrador', cobrador);
   if (estado) params.set('estado', estado); if (cliente) params.set('cliente', cliente);

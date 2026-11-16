@@ -70,10 +70,12 @@ async function cargarAgenda() {
   const dia = document.getElementById('cobranzaDia')?.value || 'SEMANA';
   const rango = rangoSemana(dia);
   const estado = document.getElementById('cobranzaEstado').value;
+  const antiguedad = document.getElementById('cobranzaAntiguedad')?.value || '';
   const idCobrador = document.getElementById('cobranzaCobrador')?.value;
   const cliente = document.getElementById('cobranzaCliente')?.value.trim();
   const params = new URLSearchParams();
   params.set('desde', rango.desde); params.set('hasta', rango.hasta);
+  params.set('incluirAtrasados', String(state.tarjeta !== 'HOY' && antiguedad !== 'HOY'));
   if (estado) params.set('estado', estado);
   if (idCobrador && idCobrador !== 'ME') params.set('idCobrador', idCobrador);
   if (idCobrador === 'ME') params.set('miCartera', 'true');
