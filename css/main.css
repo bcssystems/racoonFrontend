@@ -1042,4 +1042,6 @@ body {
  .cobranza-event { width:100%; text-align:left; border:0; border-left:4px solid #2563eb; background:#eff6ff; border-radius:6px; padding:6px; margin-bottom:6px; font-size:.75rem; cursor:pointer; }
  .cobranza-event.atrasado { border-left-color:#dc2626; background:#fef2f2; }
  .cobranza-event:hover { filter:brightness(.97); }
+ .cobranza-progress-track { height:12px; background:#e5e7eb; border-radius:99px; overflow:hidden; }
+ .cobranza-progress-bar { height:100%; background:linear-gradient(90deg,#2563eb,#10b981); border-radius:99px; transition:width .35s ease; }
  @media (max-width: 900px) { .cobranza-calendar { grid-template-columns:repeat(7, minmax(135px,1fr)); } }

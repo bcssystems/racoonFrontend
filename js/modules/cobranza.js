@@ -23,9 +23,11 @@ export function init() {
     state.pagina = 0; cargarAgenda();
   }));
   document.getElementById('tableCobranzaBody')?.addEventListener('click', manejarClick);
+  document.getElementById('cobranzaProgresoBody')?.addEventListener('click', manejarClick);
   document.getElementById('btnGuardarCobranzaAbono')?.addEventListener('click', guardarAbono);
   cargarCatalogos();
   cargarAgenda();
+  cargarProgreso();
 }
 
 function fechaLocal(d) {
@@ -84,6 +86,25 @@ async function cargarAgenda() {
     state.totalPaginas = page.totalPages || 1; state.totalElementos = page.totalElements || state.agenda.length;
     render();
   } catch (err) { Utils.showToast(err.message, 'error'); }
+}
+
+async function cargarProgreso() {
+  const miCartera = !Utils.hasPermiso('COBRANZA_VER_TODAS');
+  try {
+    const progreso = await API.get('/creditos/cobranza/progreso?miCartera=' + miCartera);
+    renderProgreso(progreso);
+  } catch (err) { Utils.showToast(err.message, 'error'); }
+}
+
+function renderProgreso(progreso) {
+  if (!progreso) return;
+  const porcentaje = Number(progreso.porcentajeTotal || 0);
+  const global = document.getElementById('cobranzaProgresoGlobal');
+  if (global) global.innerHTML = '<div class="row align-items-center g-2"><div class="col-md-3"><strong>Meta total:</strong> ' + Utils.formatMonto(progreso.metaTotal || 0) + '</div><div class="col-md-3"><strong>Cobrado:</strong> ' + Utils.formatMonto(progreso.cobradoTotal || 0) + '</div><div class="col-md-6"><div class="d-flex justify-content-between small mb-1"><span>Avance global</span><strong>' + porcentaje.toFixed(1) + '%</strong></div><div class="cobranza-progress-track"><div class="cobranza-progress-bar" style="width:' + Math.min(100, Math.max(0, porcentaje)) + '%"></div></div></div></div>';
+  const fecha = document.getElementById('cobranzaProgresoFecha'); if (fecha) fecha.textContent = progreso.fecha ? new Date(progreso.fecha + 'T00:00:00').toLocaleDateString() : '';
+  const body = document.getElementById('cobranzaProgresoBody'); if (!body) return;
+  const lista = progreso.cobradores || [];
+  body.innerHTML = lista.length ? lista.map(c => '<tr><td>' + Utils.esc(c.cobrador || '-') + '</td><td class="text-end">' + Utils.formatMonto(c.meta || 0) + '</td><td class="text-end">' + Utils.formatMonto(c.cobrado || 0) + '</td><td><div class="d-flex justify-content-between small"><span>' + Math.min(100, Number(c.porcentaje || 0)).toFixed(1) + '%</span><span>' + (Number(c.porcentaje || 0) > 100 ? 'Meta superada' : '') + '</span></div><div class="cobranza-progress-track"><div class="cobranza-progress-bar" style="width:' + Math.min(100, Math.max(0, Number(c.porcentaje || 0))) + '%"></div></div></td><td class="text-end">' + Utils.formatMonto(c.restante || 0) + '</td><td><button type="button" class="btn-kebab-toggle kebab-trigger cobranza-progreso-kebab" data-cobrador-id="' + c.idCobrador + '" title="Acciones"><i class="fas fa-ellipsis-v"></i></button></td></tr>').join('') : '<tr><td colspan="6" class="text-muted text-center">Sin meta o abonos para este día</td></tr>';
 }
 
 function rangoSemana(dia) {
@@ -159,6 +180,11 @@ function renderCalendar(items) {
 }
 
 function manejarClick(e) {
+  const progresoKebab = e.target.closest('.cobranza-progreso-kebab');
+  if (progresoKebab) {
+    Utils.abrirMenuKebab(progresoKebab, [{ icon: 'fa-list', text: 'Ver cartera del cobrador', color: 'var(--primary)', onClick: () => { const select = document.getElementById('cobranzaCobrador'); if (select) { select.value = progresoKebab.dataset.cobradorId; state.pagina = 0; state.tarjeta = ''; cargarAgenda(); } } }]);
+    return;
+  }
   const kebab = e.target.closest('.cobranza-kebab');
   if (kebab) {
     const item = buscarItem(kebab.dataset.cobranzaId, kebab.dataset.cobranzaParcialidad);
@@ -211,6 +237,6 @@ async function guardarAbono() {
     await API.post('/creditos/cobranza/abonos', { idCredito: state.seleccion.idCredito, monto, tipo: 'PARCIAL', idTipoPago, idCaja });
     bootstrap.Modal.getInstance(document.getElementById('cobranzaAbonoModal'))?.hide();
     Utils.showToast('Cobranza registrada', 'success');
-    cargarAgenda();
+    await Promise.all([cargarAgenda(), cargarProgreso()]);
   } catch (err) { Utils.showToast(err.message, 'error'); }
 }
