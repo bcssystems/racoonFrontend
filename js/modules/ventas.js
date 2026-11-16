@@ -1956,14 +1956,17 @@ async function realizarCorte() {
     }
   } catch (_) {}
   try {
-    const corteCreado = await API.post('/cajas/' + state.caja.idCaja + '/corte', {});
+    let corteCreado = await API.post('/cajas/' + state.caja.idCaja + '/corte', {});
     const inputs = document.querySelectorAll('.corte-real-input');
     if (inputs.length > 0 && corteCreado?.idCorte) {
       const pagos = [];
       inputs.forEach(inp => {
         if (inp.value.trim() !== '') pagos.push({ idTipoPago: parseInt(inp.dataset.id), montoReal: parseFloat(inp.value) });
       });
-      if (pagos.length > 0) await API.put('/cortes/' + corteCreado.idCorte + '/detalle-pagos', { pagos });
+      if (pagos.length > 0) {
+        const corteActualizado = await API.put('/cortes/' + corteCreado.idCorte + '/detalle-pagos', { pagos });
+        if (corteActualizado) corteCreado = corteActualizado;
+      }
     }
     Utils.showToast('Corte realizado', 'success');
     bootstrap.Modal.getInstance(document.getElementById('posCorteModal'))?.hide();

@@ -423,7 +423,7 @@ async function realizarCorte() {
       const inputs = document.querySelectorAll('.caja-corte-real-input');
       if (inputs.length > 0 && corte?.idCorte) {
       const pagos = Array.from(inputs).filter(input => input.value.trim() !== '').map(input => ({ idTipoPago: parseInt(input.dataset.id), montoReal: parseFloat(input.value) }));
-      if (pagos.length > 0) await API.put('/cortes/' + corte.idCorte + '/detalle-pagos', { pagos });
+       if (pagos.length > 0) await API.put('/cortes/' + corte.idCorte + '/detalle-pagos', { pagos });
     }
     Utils.showToast('Corte realizado exitosamente', 'success');
     bootstrap.Modal.getInstance(document.getElementById('cortePreviewModal'))?.hide();
