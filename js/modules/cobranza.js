@@ -176,7 +176,9 @@ function render() {
   if (!tbody) return;
   if (!agenda.length) {
     tbody.innerHTML = '<tr><td colspan="9"><div class="empty-state"><i class="fas fa-calendar-check"></i><p>No hay cobranzas para el periodo seleccionado</p></div></td></tr>';
-    renderPagination(); return;
+    const pagination = document.getElementById('cobranzaPagination');
+    if (pagination) pagination.innerHTML = '';
+    return;
   }
   tbody.innerHTML = agenda.map(x => {
     const queryMapa = x.latitud != null && x.longitud != null ? x.latitud + ',' + x.longitud : x.direccion;
@@ -195,7 +197,7 @@ function render() {
 
 function renderPagination() {
   const el = document.getElementById('cobranzaPagination'); if (!el) return;
-  if (state.totalPaginas <= 1) { el.innerHTML = '<small class="text-muted">' + state.totalElementos + ' registro(s)</small>'; return; }
+  if (state.totalPaginas <= 1 || state.totalElementos <= 0) { el.innerHTML = ''; return; }
   let html = '<div class="d-flex justify-content-between align-items-center"><small class="text-muted">' + state.totalElementos + ' registro(s)</small><div class="btn-group btn-group-sm">';
   html += '<button class="btn btn-outline-secondary" data-page="' + (state.pagina - 1) + '" ' + (state.pagina === 0 ? 'disabled' : '') + '>Anterior</button>';
   for (let i = 0; i < state.totalPaginas; i++) if (i < 3 || i >= state.totalPaginas - 2 || Math.abs(i - state.pagina) <= 1) html += '<button class="btn ' + (i === state.pagina ? 'btn-primary' : 'btn-outline-secondary') + '" data-page="' + i + '">' + (i + 1) + '</button>';

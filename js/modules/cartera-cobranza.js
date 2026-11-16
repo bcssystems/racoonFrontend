@@ -1,4 +1,4 @@
-let state = { items: [], pagina: 0, totalPaginas: 1, totalElementos: 0, selected: null, tiposPago: [], cajas: [] };
+let state = { items: [], calendario: [], pagina: 0, totalPaginas: 1, totalElementos: 0, selected: null, tiposPago: [], cajas: [] };
 let debounce;
 
 export function init() {
@@ -41,13 +41,15 @@ async function cargar() {
   const cobrador = document.getElementById('carteraCobrador')?.value; const estado = document.getElementById('carteraEstado')?.value; const cliente = document.getElementById('carteraCliente')?.value.trim();
   if (cobrador === 'ME') params.set('miCartera', 'true'); else if (cobrador) params.set('idCobrador', cobrador);
   if (estado) params.set('estado', estado); if (cliente) params.set('cliente', cliente);
+  const calendarioParams = new URLSearchParams(params); calendarioParams.set('page', '0'); calendarioParams.set('size', '100');
   try {
-    const respuesta = await API.get('/creditos/cobranza/agenda?' + params);
-    state.items = lista(respuesta); state.totalPaginas = Math.max(1, Number(respuesta?.totalPages) || 1); state.totalElementos = Number(respuesta?.totalElements) || state.items.length; render();
-  } catch (err) { state.items = []; state.totalPaginas = 1; state.totalElementos = 0; render(); Utils.showToast(err.message, 'error'); }
+    const [respuesta, calendario] = await Promise.all([API.get('/creditos/cobranza/agenda?' + params), API.get('/creditos/cobranza/agenda?' + calendarioParams)]);
+    state.items = lista(respuesta); state.calendario = lista(calendario); state.totalPaginas = Math.max(1, Number(respuesta?.totalPages) || 1); state.totalElementos = Number(respuesta?.totalElements) || state.items.length; render();
+  } catch (err) { state.items = []; state.calendario = []; state.totalPaginas = 1; state.totalElementos = 0; render(); Utils.showToast(err.message, 'error'); }
 }
 function render() {
   const body = document.getElementById('carteraCobranzaBody'); if (!body) return;
+  renderCalendar();
   const hoy = fechaLocal(new Date());
   body.innerHTML = state.items.length ? state.items.map(x => {
     const atrasada = x.fechaVencimiento && String(x.fechaVencimiento).slice(0, 10) < hoy && x.estado !== 'PAGADA';
@@ -55,8 +57,16 @@ function render() {
     return '<tr><td class="text-nowrap">' + (x.fechaVencimiento ? new Date(x.fechaVencimiento).toLocaleDateString() : '-') + (atrasada ? ' <span class="badge bg-danger">Atrasada</span>' : '') + '</td><td><strong>' + Utils.esc(x.clienteNombre || '') + '</strong><br><small class="text-muted">Parcialidad #' + x.numero + '</small></td><td>' + Utils.esc(x.telefono || '—') + '</td><td>' + Utils.esc(x.direccion || '—') + '</td><td>' + Utils.esc(x.folioCredito || ('#' + x.idCredito)) + '</td><td class="text-end">' + Utils.formatMonto(x.montoProgramado || 0) + '</td><td class="text-end fw-semibold">' + Utils.formatMonto(x.saldo || 0) + '</td><td><span class="badge ' + estado + '">' + Utils.esc(x.estado || '') + '</span></td><td><button type="button" class="btn-kebab-toggle kebab-trigger cartera-kebab" data-id="' + x.idCredito + '" data-parcialidad="' + x.idParcialidad + '" title="Acciones"><i class="fas fa-ellipsis-v"></i></button></td></tr>';
   }).join('') : '<tr><td colspan="9" class="text-center text-muted py-4">No hay créditos en la cartera semanal</td></tr>';
   const pagination = document.getElementById('carteraCobranzaPagination');
-  if (pagination) pagination.innerHTML = '<div class="d-flex justify-content-between align-items-center"><small class="text-muted">' + state.totalElementos + ' registro(s)</small><div class="btn-group btn-group-sm"><button class="btn btn-outline-secondary" data-page="' + (state.pagina - 1) + '" ' + (state.pagina === 0 ? 'disabled' : '') + '>Anterior</button><span class="btn btn-outline-secondary disabled">' + (state.pagina + 1) + ' / ' + state.totalPaginas + '</span><button class="btn btn-outline-secondary" data-page="' + (state.pagina + 1) + '" ' + (state.pagina >= state.totalPaginas - 1 ? 'disabled' : '') + '>Siguiente</button></div></div>';
+  if (pagination) pagination.innerHTML = state.totalPaginas <= 1 || state.totalElementos <= 0 ? '' : '<div class="d-flex justify-content-between align-items-center"><small class="text-muted">' + state.totalElementos + ' registro(s)</small><div class="btn-group btn-group-sm"><button class="btn btn-outline-secondary" data-page="' + (state.pagina - 1) + '" ' + (state.pagina === 0 ? 'disabled' : '') + '>Anterior</button>' + Array.from({ length: state.totalPaginas }, (_, i) => '<button class="btn ' + (i === state.pagina ? 'btn-primary' : 'btn-outline-secondary') + '" data-page="' + i + '">' + (i + 1) + '</button>').join('') + '<button class="btn btn-outline-secondary" data-page="' + (state.pagina + 1) + '" ' + (state.pagina >= state.totalPaginas - 1 ? 'disabled' : '') + '>Siguiente</button></div></div>';
   pagination?.querySelectorAll('[data-page]')?.forEach(b => b.addEventListener('click', () => { state.pagina = Number(b.dataset.page); cargar(); }));
+}
+function renderCalendar() {
+  const el = document.getElementById('carteraCalendario'); if (!el) return;
+  const ahora = new Date(); const actual = ahora.getDay(); const lunes = new Date(ahora); lunes.setHours(0, 0, 0, 0); lunes.setDate(ahora.getDate() - (actual === 0 ? 6 : actual - 1));
+  const nombres = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'];
+  const hoy = fechaLocal(new Date());
+  el.innerHTML = nombres.map((nombre, index) => { const fecha = new Date(lunes); fecha.setDate(lunes.getDate() + index); const clave = fechaLocal(fecha); const eventos = state.calendario.filter(x => String(x.fechaVencimiento || '').slice(0, 10) === clave); return '<div class="cobranza-day"><div class="cobranza-day-title">' + nombre + ' ' + fecha.getDate() + '</div>' + (eventos.length ? eventos.map(x => '<button type="button" class="cobranza-event ' + (clave < hoy && x.estado !== 'PAGADA' ? 'atrasado' : '') + ' cartera-calendar-item" data-id="' + x.idCredito + '" data-parcialidad="' + x.idParcialidad + '"><strong>' + Utils.esc(x.clienteNombre || '') + '</strong><br>' + Utils.esc(x.folioCredito || ('#' + x.idCredito)) + ' · ' + Utils.formatMonto(x.saldo || 0) + '<span class="float-end">⋮</span></button>').join('') : '<small class="text-muted">Sin cobros</small>') + '</div>'; }).join('');
+  el.querySelectorAll('.cartera-calendar-item').forEach(btn => btn.addEventListener('click', () => { const item = buscar(btn.dataset.id, btn.dataset.parcialidad) || state.calendario.find(x => String(x.idCredito) === btn.dataset.id && String(x.idParcialidad) === btn.dataset.parcialidad); if (item) { const acciones = [{ icon: 'fa-eye', text: 'Ver detalle del crédito', color: 'var(--info)', onClick: () => detalle(item) }]; if (item.saldo > 0 && Utils.hasPermiso('COBRANZA_ABONAR')) acciones.push({ icon: 'fa-money-bill-wave', text: 'Registrar abono', color: 'var(--success)', onClick: () => abrirAbono(item) }); Utils.abrirMenuKebab(btn, acciones); } }));
 }
 function buscar(id, parcialidad) { return state.items.find(x => String(x.idCredito) === String(id) && String(x.idParcialidad) === String(parcialidad)); }
 function manejarClick(e) {
