@@ -3,9 +3,7 @@ let cobranzaClienteDebounce;
 
 export function init() {
   const hoy = fechaLocal(new Date());
-  document.getElementById('cobranzaDesde').value = hoy;
-  document.getElementById('cobranzaHasta').value = hoy;
-  ['cobranzaDesde', 'cobranzaHasta', 'cobranzaEstado', 'cobranzaCobrador'].forEach(id => {
+  ['cobranzaDia', 'cobranzaEstado', 'cobranzaCobrador'].forEach(id => {
     document.getElementById(id)?.addEventListener('change', cargarAgenda);
   });
   document.getElementById('cobranzaCliente')?.addEventListener('input', () => {
@@ -13,8 +11,7 @@ export function init() {
     cobranzaClienteDebounce = setTimeout(cargarAgenda, 400);
   });
   document.getElementById('btnHoyCobranza')?.addEventListener('click', () => {
-    document.getElementById('cobranzaDesde').value = hoy;
-    document.getElementById('cobranzaHasta').value = hoy;
+    document.getElementById('cobranzaDia').value = String(new Date().getDay());
     cargarAgenda();
   });
   document.getElementById('cobranzaAntiguedad')?.addEventListener('change', render);
@@ -38,38 +35,46 @@ async function cargarCatalogos() {
   const cobradores = document.getElementById('cobranzaCobrador');
   const puedeVerTodas = Utils.hasPermiso('COBRANZA_VER_TODAS');
   if (cobradores && !puedeVerTodas) {
-    cobradores.innerHTML = '<option value="">Mi cartera</option>';
+    cobradores.innerHTML = '<option value="ME">Mi cartera</option>';
     cobradores.disabled = true;
     return;
   }
   if (cobradores && puedeVerTodas) {
     try {
       const cobradoresDisponibles = await API.get('/creditos/cobradores');
-      cobradores.innerHTML = '<option value="">Todos los cobradores</option>' + (cobradoresDisponibles || []).map(p =>
+    cobradores.innerHTML = '<option value="">Todos los cobradores</option><option value="ME">Mi cartera</option>' + (cobradoresDisponibles || []).map(p =>
         '<option value="' + p.idPersona + '">' + Utils.esc((p.nombre || '') + ' ' + (p.apellido || '')) + '</option>'
       ).join('');
     } catch (_) {
-      cobradores.innerHTML = '<option value="">Todos los cobradores</option>';
+      cobradores.innerHTML = '<option value="">Todos los cobradores</option><option value="ME">Mi cartera</option>';
     }
   }
 }
 
 async function cargarAgenda() {
-  const desde = document.getElementById('cobranzaDesde').value;
-  const hasta = document.getElementById('cobranzaHasta').value;
+  const dia = document.getElementById('cobranzaDia')?.value || 'SEMANA';
+  const rango = rangoSemana(dia);
   const estado = document.getElementById('cobranzaEstado').value;
   const idCobrador = document.getElementById('cobranzaCobrador')?.value;
   const cliente = document.getElementById('cobranzaCliente')?.value.trim();
   const params = new URLSearchParams();
-  if (desde) params.set('desde', desde);
-  if (hasta) params.set('hasta', hasta);
+  params.set('desde', rango.desde); params.set('hasta', rango.hasta);
   if (estado) params.set('estado', estado);
-  if (idCobrador) params.set('idCobrador', idCobrador);
+  if (idCobrador && idCobrador !== 'ME') params.set('idCobrador', idCobrador);
+  if (idCobrador === 'ME') params.set('miCartera', 'true');
   if (cliente) params.set('cliente', cliente);
   try {
     state.agenda = await API.get('/creditos/cobranza/agenda?' + params.toString()) || [];
     render();
   } catch (err) { Utils.showToast(err.message, 'error'); }
+}
+
+function rangoSemana(dia) {
+  const ahora = new Date(); const actual = ahora.getDay();
+  const lunes = new Date(ahora); lunes.setHours(0, 0, 0, 0); lunes.setDate(ahora.getDate() - (actual === 0 ? 6 : actual - 1));
+  const desde = new Date(lunes); const hasta = new Date(lunes);
+  if (dia !== 'SEMANA') { const offset = dia === '0' ? 6 : Number(dia) - 1; desde.setDate(lunes.getDate() + offset); hasta.setDate(lunes.getDate() + offset); }
+  return { desde: fechaLocal(desde), hasta: fechaLocal(dia === 'SEMANA' ? new Date(lunes.getTime() + 6 * 86400000) : hasta) };
 }
 
 function render() {

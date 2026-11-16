@@ -37,7 +37,7 @@ async function cargar() {
         ? state.filtroEstado === 'SOLICITADA_CANCELACION' && item.estado === 'SOLICITADA_CANCELACION'
         : state.filtroEstado === 'PENDIENTE';
     });
-    state.pendientes.sort((a, b) => new Date(b.fechaSolicitudCancelacion || b.fechaMovimiento || 0) - new Date(a.fechaSolicitudCancelacion || a.fechaMovimiento || 0));
+    state.pendientes.sort((a, b) => new Date(b.fechaSolicitudCancelacion || b.fechaMovimiento || b.fechaSolicitud || 0) - new Date(a.fechaSolicitudCancelacion || a.fechaMovimiento || a.fechaSolicitud || 0));
     render();
   } catch (err) {
     state.pendientes = [];

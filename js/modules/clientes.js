@@ -31,6 +31,8 @@ const REGIMENES_FISCALES = [
   { value: "626", label: "626 - R\u00e9gimen Simplificado de Confianza" },
 ];
 
+const SOLICITUD_CAM = { stream: null, target: null };
+
 export function init() {
   bindEvents();
   initIneCameras();
@@ -56,6 +58,9 @@ function bindEvents() {
     if (id) abrirSolicitudCredito(id);
   });
   document.getElementById('btnEnviarSolicitudCredito')?.addEventListener('click', enviarSolicitudCredito);
+  document.querySelectorAll('.sol-camera-btn').forEach(btn => btn.addEventListener('click', () => abrirCamaraSolicitud(btn.dataset.target)));
+  document.getElementById('btnCapturarSolicitudFoto')?.addEventListener('click', capturarFotoSolicitud);
+  document.getElementById('solicitudCamaraModal')?.addEventListener('hidden.bs.modal', detenerCamaraSolicitud);
   document.getElementById('btnGeocodificarCliente')?.addEventListener('click', geocodificarCliente);
   ['clienteCp', 'clienteEstado', 'clienteMunicipio', 'clienteColonia', 'clienteCalle', 'clienteNumExt', 'clienteNumInt'].forEach(id => {
     document.getElementById(id)?.addEventListener('input', () => {
@@ -495,11 +500,8 @@ async function enviarSolicitudCredito() {
   try {
     const solicitud = await API.post('/solicitudes-credito', { idCliente, montoSolicitado: monto, encuestaJson: JSON.stringify(encuesta), observaciones: document.getElementById('solObservaciones').value.trim() });
     for (const [tipo, inputId] of archivos) { const form = new FormData(); form.append('tipo', tipo); form.append('archivo', document.getElementById(inputId).files[0]); await API.upload('/solicitudes-credito/' + solicitud.idSolicitud + '/documentos', form); }
-    if (Utils.hasPermiso('CREDITOS_SOLICITUDES_AUTORIZAR')) {
-      await API.put('/solicitudes-credito/' + solicitud.idSolicitud + '/resolver', { aprobar: true, montoAprobado: solicitud.montoSugerido, observaciones: 'Aprobación automática para administrador' });
-    }
     bootstrap.Modal.getInstance(document.getElementById('solicitudCreditoModal'))?.hide();
-    Utils.showToast(solicitud.estado === 'APROBADA' ? 'Crédito aprobado' : 'Solicitud enviada para autorización', 'success');
+    Utils.showToast('Solicitud enviada para autorización', 'success');
     cargarClientes(state.currentPage);
   } catch (err) { Utils.showToast(err.message, 'error'); }
   finally { if (btn) btn.disabled = false; }
@@ -985,6 +987,43 @@ function aplicarDatosCP(result, selectedColonia) {
   if (estadoInput) estadoInput.value = result.estado;
   const municipioInput = document.getElementById('clienteMunicipio');
   if (municipioInput && result.municipio) municipioInput.value = result.municipio;
+}
+
+async function abrirCamaraSolicitud(target) {
+  if (!navigator.mediaDevices?.getUserMedia) {
+    Utils.showToast('La cámara requiere HTTPS o localhost; selecciona un archivo manualmente.', 'warning');
+    return;
+  }
+  SOLICITUD_CAM.target = target;
+  try {
+    SOLICITUD_CAM.stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: 'environment' }, width: { ideal: 1600 } }, audio: false });
+    const video = document.getElementById('solicitudCamaraVideo');
+    video.srcObject = SOLICITUD_CAM.stream;
+    await video.play();
+    bootstrap.Modal.getOrCreateInstance(document.getElementById('solicitudCamaraModal')).show();
+  } catch (e) { detenerCamaraSolicitud(); Utils.showToast('No fue posible activar la cámara: ' + (e.message || 'permiso denegado'), 'error'); }
+}
+
+function capturarFotoSolicitud() {
+  const video = document.getElementById('solicitudCamaraVideo');
+  const canvas = document.getElementById('solicitudCamaraCanvas');
+  if (!video?.videoWidth || !SOLICITUD_CAM.target) return;
+  canvas.width = video.videoWidth; canvas.height = video.videoHeight;
+  canvas.getContext('2d').drawImage(video, 0, 0, canvas.width, canvas.height);
+  canvas.toBlob(blob => {
+    if (!blob) return;
+    const file = new File([blob], SOLICITUD_CAM.target + '-' + Date.now() + '.jpg', { type: 'image/jpeg' });
+    const input = document.getElementById(SOLICITUD_CAM.target);
+    const transfer = new DataTransfer(); transfer.items.add(file); input.files = transfer.files;
+    bootstrap.Modal.getInstance(document.getElementById('solicitudCamaraModal'))?.hide();
+    Utils.showToast('Fotografía capturada', 'success');
+  }, 'image/jpeg', 0.88);
+}
+
+function detenerCamaraSolicitud() {
+  SOLICITUD_CAM.stream?.getTracks().forEach(t => t.stop());
+  SOLICITUD_CAM.stream = null; SOLICITUD_CAM.target = null;
+  const video = document.getElementById('solicitudCamaraVideo'); if (video) video.srcObject = null;
 }
 
 function geocodificarMapa(maps, address) {

@@ -192,14 +192,16 @@
         <div class="col-md-6"><label class="form-label small">Atrasos importantes anteriores</label><select id="solAtrasos" class="form-select"><option>No</option><option>Ocasionalmente</option><option>Frecuentemente</option></select></div>
         <div class="col-md-6"><label class="form-label small">Referencia personal</label><input id="solReferencia" class="form-control" maxlength="200" placeholder="Nombre y teléfono"></div>
       </div><hr><h6 class="fw-semibold">Documentos requeridos</h6><div class="row g-2">
-        <div class="col-md-6"><label class="form-label small">INE frontal</label><input type="file" id="solDocIneFrontal" class="form-control" accept="image/*,application/pdf"></div>
-        <div class="col-md-6"><label class="form-label small">INE trasera</label><input type="file" id="solDocIneTrasera" class="form-control" accept="image/*,application/pdf"></div>
-        <div class="col-md-6"><label class="form-label small">Comprobante de domicilio</label><input type="file" id="solDocDomicilio" class="form-control" accept="image/*,application/pdf"></div>
-        <div class="col-md-6"><label class="form-label small">Pagaré firmado</label><input type="file" id="solDocPagare" class="form-control" accept="image/*,application/pdf"></div>
+         <div class="col-md-6"><label class="form-label small">INE frontal</label><div class="input-group"><input type="file" id="solDocIneFrontal" class="form-control" accept="image/*,application/pdf" capture="environment"><button type="button" class="btn btn-outline-primary sol-camera-btn" data-target="solDocIneFrontal"><i class="fas fa-camera"></i></button></div></div>
+         <div class="col-md-6"><label class="form-label small">INE trasera</label><div class="input-group"><input type="file" id="solDocIneTrasera" class="form-control" accept="image/*,application/pdf" capture="environment"><button type="button" class="btn btn-outline-primary sol-camera-btn" data-target="solDocIneTrasera"><i class="fas fa-camera"></i></button></div></div>
+         <div class="col-md-6"><label class="form-label small">Comprobante de domicilio</label><div class="input-group"><input type="file" id="solDocDomicilio" class="form-control" accept="image/*,application/pdf" capture="environment"><button type="button" class="btn btn-outline-primary sol-camera-btn" data-target="solDocDomicilio"><i class="fas fa-camera"></i></button></div></div>
+         <div class="col-md-6"><label class="form-label small">Pagaré firmado</label><div class="input-group"><input type="file" id="solDocPagare" class="form-control" accept="image/*,application/pdf" capture="environment"><button type="button" class="btn btn-outline-primary sol-camera-btn" data-target="solDocPagare"><i class="fas fa-camera"></i></button></div></div>
       </div><div class="mt-3"><label class="form-label small">Observaciones</label><textarea id="solObservaciones" class="form-control" rows="2" maxlength="1000"></textarea></div>
     </div><div class="modal-footer border-0"><button class="btn btn-light" data-bs-dismiss="modal">Cancelar</button><button class="btn btn-primary" id="btnEnviarSolicitudCredito">Enviar solicitud</button></div>
   </div></div>
 </div>
+
+<div class="modal fade" id="solicitudCamaraModal" tabindex="-1"><div class="modal-dialog modal-dialog-centered"><div class="modal-content border-0 shadow"><div class="modal-header"><h5 class="modal-title">Tomar fotografía</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div><div class="modal-body text-center"><video id="solicitudCamaraVideo" class="w-100 rounded bg-dark" autoplay playsinline style="max-height:60vh"></video><canvas id="solicitudCamaraCanvas" class="d-none"></canvas><p class="small text-muted mt-2 mb-0">Asegúrate de que el documento sea legible.</p></div><div class="modal-footer"><button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancelar</button><button type="button" class="btn btn-primary" id="btnCapturarSolicitudFoto"><i class="fas fa-camera me-1"></i>Capturar</button></div></div></div></div>
 
 <!-- Modal INE -->
 <div class="modal fade" id="clienteIneModal" tabindex="-1">
