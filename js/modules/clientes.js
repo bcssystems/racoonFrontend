@@ -8,6 +8,7 @@ let state = {
   detalleClienteId: null,
   showInactive: false,
   solicitudClienteId: null,
+  aumentoClienteId: null,
   clienteMap: null,
   clienteMarker: null,
   clienteMapClienteId: null,
@@ -58,6 +59,8 @@ function bindEvents() {
     if (id) abrirSolicitudCredito(id);
   });
   document.getElementById('btnEnviarSolicitudCredito')?.addEventListener('click', enviarSolicitudCredito);
+  document.getElementById('btnEnviarAumentoLinea')?.addEventListener('click', enviarAumentoLinea);
+  document.getElementById('btnGenerarPagareAumento')?.addEventListener('click', generarPagareAumento);
   document.querySelectorAll('.sol-camera-btn').forEach(btn => btn.addEventListener('click', () => abrirCamaraSolicitud(btn.dataset.target)));
   document.getElementById('btnCapturarSolicitudFoto')?.addEventListener('click', capturarFotoSolicitud);
   document.getElementById('solicitudCamaraModal')?.addEventListener('hidden.bs.modal', detenerCamaraSolicitud);
@@ -250,6 +253,7 @@ function abrirAccionesCliente(anchor, id) {
     { icon: 'fa-wallet', text: 'Registrar anticipo', color: 'var(--success)', onClick: () => registrarSaldoFavor(id, c) },
     { icon: 'fa-id-card', text: 'INE' + (c && c.tieneIne ? '  \u2713' : ''), color: 'var(--warning)', onClick: () => abrirModalIne(id) },
      ...(!c?.tieneCredito ? [{ icon: 'fa-file-signature', text: 'Solicitar crédito', color: 'var(--primary)', onClick: () => abrirSolicitudCredito(id) }] : []),
+     ...(c?.tieneCredito && Utils.hasPermiso('CREDITOS_SOLICITAR') ? [{ icon: 'fa-arrow-up-right-dots', text: 'Solicitar aumento de línea', color: 'var(--success)', onClick: () => abrirAumentoLinea(id) }] : []),
   ];
   if (Utils.hasPermiso('CLIENTES_EDITAR')) {
     items.push({ icon: 'fa-edit', text: 'Editar', color: 'var(--primary)', onClick: () => abrirModal(id) });
@@ -502,6 +506,52 @@ async function enviarSolicitudCredito() {
     for (const [tipo, inputId] of archivos) { const form = new FormData(); form.append('tipo', tipo); form.append('archivo', document.getElementById(inputId).files[0]); await API.upload('/solicitudes-credito/' + solicitud.idSolicitud + '/documentos', form); }
     bootstrap.Modal.getInstance(document.getElementById('solicitudCreditoModal'))?.hide();
     Utils.showToast('Solicitud enviada para autorización', 'success');
+    cargarClientes(state.currentPage);
+  } catch (err) { Utils.showToast(err.message, 'error'); }
+  finally { if (btn) btn.disabled = false; }
+}
+
+function abrirAumentoLinea(id) {
+  const cliente = (state.data || []).find(c => c.idCliente === id);
+  if (!cliente || !cliente.tieneCredito) return;
+  state.aumentoClienteId = id;
+  document.getElementById('aumentoLineaClienteId').value = id;
+  document.getElementById('aumentoLineaInfo').innerHTML = '<strong>' + Utils.esc((cliente.nombre || '') + ' ' + (cliente.apellidoPaterno || '')) + '</strong><br>Límite actual: <strong>' + Utils.formatMonto(cliente.limiteCredito || 0) + '</strong>';
+  document.getElementById('aumentoLineaMonto').value = '';
+  document.getElementById('aumentoDocPagare').value = '';
+  document.getElementById('aumentoLineaObservaciones').value = '';
+  new bootstrap.Modal(document.getElementById('aumentoLineaModal')).show();
+}
+
+function generarPagareAumento() {
+  const id = parseInt(document.getElementById('aumentoLineaClienteId').value);
+  const cliente = (state.data || []).find(c => c.idCliente === id);
+  const monto = parseFloat(document.getElementById('aumentoLineaMonto').value);
+  if (!cliente || !monto || monto <= (cliente.limiteCredito || 0)) { Utils.showToast('Indica un nuevo límite mayor al límite actual', 'warning'); return; }
+  const win = window.open('', '_blank');
+  if (!win) { Utils.showToast('Permite las ventanas emergentes para generar el pagaré', 'warning'); return; }
+  const nombre = Utils.esc((cliente.nombre || '') + ' ' + (cliente.apellidoPaterno || ''));
+  const direccion = Utils.esc([cliente.calle, cliente.numExt, cliente.colonia, cliente.municipio, cliente.estado].filter(Boolean).join(' '));
+  win.document.write('<!doctype html><html><head><meta charset="utf-8"><title>Pagaré - Aumento de línea</title><style>body{font-family:Arial,sans-serif;margin:50px;color:#222}h1{text-align:center;font-size:20px;letter-spacing:2px}p{font-size:15px;line-height:1.7}.monto{border:2px solid #222;padding:14px;text-align:center;font-size:24px;font-weight:bold;margin:24px 0}.firma{margin-top:90px;text-align:center}.linea{border-top:1px solid #222;width:330px;margin:auto}@media print{button{display:none}}</style></head><body><h1>PAGARÉ</h1><p>Por medio del presente pagaré, <strong>' + nombre + '</strong>, reconozco adeudar y me obligo a pagar la cantidad correspondiente al aumento de línea de crédito autorizado.</p><div class="monto">AUMENTO DE LÍNEA DE CRÉDITO<br>' + Utils.formatMonto(monto) + '</div><p>Nuevo límite total de crédito: <strong>' + Utils.formatMonto(monto) + '</strong><br>Dirección: ' + direccion + '<br>Fecha: ' + new Date().toLocaleDateString('es-MX') + '</p><p>Declaro que los datos son correctos y acepto las condiciones de pago aplicables a mi crédito.</p><div class="firma"><div class="linea"></div><strong>' + nombre + '</strong><br>Firma del cliente</div><script>window.onload=function(){window.print()}</script></body></html>');
+  win.document.close(); win.focus();
+}
+
+async function enviarAumentoLinea() {
+  const idCliente = parseInt(document.getElementById('aumentoLineaClienteId').value);
+  const cliente = (state.data || []).find(c => c.idCliente === idCliente);
+  const monto = parseFloat(document.getElementById('aumentoLineaMonto').value);
+  const archivo = document.getElementById('aumentoDocPagare')?.files?.[0];
+  if (!idCliente || !cliente || !monto || monto <= (cliente.limiteCredito || 0)) { Utils.showToast('El nuevo límite debe ser mayor al límite actual', 'warning'); return; }
+  if (!archivo) { Utils.showToast('Adjunta el pagaré firmado por archivo o cámara', 'warning'); return; }
+  const btn = document.getElementById('btnEnviarAumentoLinea'); if (btn) btn.disabled = true;
+  try {
+    const solicitud = await API.post('/solicitudes-credito', { idCliente, montoSolicitado: monto, tipoSolicitud: 'AUMENTO_LINEA', encuestaJson: null, observaciones: document.getElementById('aumentoLineaObservaciones').value.trim() });
+    const form = new FormData(); form.append('tipo', 'PAGARE'); form.append('archivo', archivo);
+    await API.upload('/solicitudes-credito/' + solicitud.idSolicitud + '/documentos', form);
+    const finalSolicitud = Utils.hasPermiso('CREDITOS_SOLICITUDES_VER')
+      ? await API.get('/solicitudes-credito/' + solicitud.idSolicitud) : solicitud;
+    bootstrap.Modal.getInstance(document.getElementById('aumentoLineaModal'))?.hide();
+    Utils.showToast(finalSolicitud.estado === 'APROBADA' ? 'Aumento de línea aprobado automáticamente' : 'Solicitud de aumento enviada para autorización', 'success');
     cargarClientes(state.currentPage);
   } catch (err) { Utils.showToast(err.message, 'error'); }
   finally { if (btn) btn.disabled = false; }

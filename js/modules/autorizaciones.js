@@ -29,15 +29,18 @@ async function cargar() {
     ]);
     const ventas = (ventasRes.content || ventasRes || []).map(v => ({ ...v, _tipoSolicitud: 'VENTA' }));
     const movimientos = (movimientosRes.content || movimientosRes || []).map(m => ({ ...m, _tipoSolicitud: 'MOVIMIENTO' }));
-    const solicitudes = (solicitudesRes || []).map(s => ({ ...s, _tipoSolicitud: 'SOLICITUD_CREDITO', id: s.idSolicitud, estado: s.estado, fechaSolicitud: s.fechaSolicitud }));
+    const solicitudes = (solicitudesRes || []).map(s => ({ ...s, _tipoSolicitud: s.tipoSolicitud === 'AUMENTO_LINEA' ? 'AUMENTO_LINEA' : 'SOLICITUD_CREDITO', id: s.idSolicitud, estado: s.estado, fechaSolicitud: s.fechaSolicitud }));
     state.pendientes = ventas.concat(movimientos, solicitudes).filter(item => {
       if (!state.filtroEstado) return true;
-      if (item._tipoSolicitud === 'SOLICITUD_CREDITO') return state.filtroEstado === 'SOLICITUD_CREDITO';
+      if (item._tipoSolicitud === 'SOLICITUD_CREDITO' || item._tipoSolicitud === 'AUMENTO_LINEA') return state.filtroEstado === 'SOLICITUD_CREDITO' || state.filtroEstado === item._tipoSolicitud;
       return item._tipoSolicitud === 'VENTA'
         ? state.filtroEstado === 'SOLICITADA_CANCELACION' && item.estado === 'SOLICITADA_CANCELACION'
         : state.filtroEstado === 'PENDIENTE';
     });
-    state.pendientes.sort((a, b) => new Date(b.fechaSolicitudCancelacion || b.fechaMovimiento || b.fechaSolicitud || 0) - new Date(a.fechaSolicitudCancelacion || a.fechaMovimiento || a.fechaSolicitud || 0));
+    state.pendientes.sort((a, b) => {
+      const pendiente = x => x.estado === 'PENDIENTE' || x.estado === 'SOLICITADA_CANCELACION';
+      return Number(pendiente(b)) - Number(pendiente(a)) || new Date(b.fechaSolicitudCancelacion || b.fechaMovimiento || b.fechaSolicitud || 0) - new Date(a.fechaSolicitudCancelacion || a.fechaMovimiento || a.fechaSolicitud || 0);
+    });
     render();
   } catch (err) {
     state.pendientes = [];
@@ -59,10 +62,10 @@ function render() {
 
   body.innerHTML = state.pendientes.map(v => {
     const esMovimiento = v._tipoSolicitud === 'MOVIMIENTO';
-    const esSolicitudCredito = v._tipoSolicitud === 'SOLICITUD_CREDITO';
+    const esSolicitudCredito = v._tipoSolicitud === 'SOLICITUD_CREDITO' || v._tipoSolicitud === 'AUMENTO_LINEA';
     if (esSolicitudCredito) {
       const acciones = puedeAutorizarCredito ? '<button type="button" class="btn-kebab-toggle kebab-trigger" data-id="' + v.idSolicitud + '" data-tipo="SOLICITUD_CREDITO" title="Acciones"><i class="fas fa-ellipsis-v"></i></button>' : '<span class="text-muted small">-</span>';
-      return '<tr class="table-row-warning"><td><span class="badge-status badge-warning">#' + v.idSolicitud + '</span></td><td>Solicitud crédito</td><td>Global</td><td>' + Utils.esc(v.cliente || '-') + '</td><td class="fw-semibold">' + Utils.formatMonto(v.montoSolicitado || 0) + '</td><td>' + Utils.esc(v.solicitante || '-') + '</td><td>' + Utils.esc(v.observaciones || 'Documentos y encuesta') + '</td><td>' + Utils.formatDateTime(v.fechaSolicitud) + '</td><td><span class="badge-status badge-warning">Pendiente</span></td><td class="acciones-cell">' + acciones + '</td></tr>';
+      return '<tr class="table-row-warning"><td><span class="badge-status badge-warning">#' + v.idSolicitud + '</span></td><td>' + (v._tipoSolicitud === 'AUMENTO_LINEA' ? 'Aumento de línea' : 'Solicitud crédito') + '</td><td>Global</td><td>' + Utils.esc(v.cliente || '-') + '</td><td class="fw-semibold">' + Utils.formatMonto(v.montoSolicitado || 0) + '</td><td>' + Utils.esc(v.solicitante || '-') + '</td><td>' + Utils.esc(v.observaciones || (v._tipoSolicitud === 'AUMENTO_LINEA' ? 'Nuevo límite de crédito' : 'Documentos y encuesta')) + '</td><td>' + Utils.formatDateTime(v.fechaSolicitud) + '</td><td><span class="badge-status badge-warning">Pendiente</span></td><td class="acciones-cell">' + acciones + '</td></tr>';
     }
     const pendiente = v.estado === (esMovimiento ? 'PENDIENTE' : 'SOLICITADA_CANCELACION');
     const badge = {
@@ -99,7 +102,7 @@ function handleTableClick(e) {
   const id = parseInt(kebab.dataset.id);
   const tipo = kebab.dataset.tipo;
   if (tipo === 'SOLICITUD_CREDITO') {
-    const solicitud = state.pendientes.find(x => x._tipoSolicitud === tipo && x.idSolicitud === id);
+    const solicitud = state.pendientes.find(x => (x._tipoSolicitud === 'SOLICITUD_CREDITO' || x._tipoSolicitud === 'AUMENTO_LINEA') && x.idSolicitud === id);
     const items = [{ icon: 'fa-eye', text: 'Ver solicitud y documentos', color: 'var(--info)', onClick: () => verSolicitudCredito(solicitud) }];
     if (Utils.hasPermiso('CREDITOS_SOLICITUDES_AUTORIZAR')) {
       items.push({ icon: 'fa-check', text: 'Autorizar crédito', color: 'var(--success)', onClick: () => resolverSolicitudCredito(id, true) });
@@ -134,12 +137,12 @@ function verSolicitudCredito(s) {
     const url = (d.url || '').startsWith('/api/') ? API.baseUrl.replace(/\/api\/v1\/?$/, '') + d.url : API.mediaBaseUrl + d.url;
     return '<li><a href="' + Utils.esc(url) + '" target="_blank" rel="noopener">' + Utils.esc(d.tipo) + '</a></li>';
   }).join('') || '<li>Sin documentos</li>';
-  Utils.showDialog('Solicitud de crédito #' + s.idSolicitud, '<p><strong>Cliente:</strong> ' + Utils.esc(s.cliente) + '</p><p><strong>Monto:</strong> ' + Utils.formatMonto(s.montoSolicitado) + '<br><strong>Sugerido:</strong> ' + Utils.formatMonto(s.montoSugerido) + '</p><p><strong>Actividad:</strong> ' + Utils.esc(encuesta.actividad || '-') + '<br><strong>Ingreso:</strong> ' + Utils.formatMonto(encuesta.ingresoMensual || 0) + '<br><strong>Capacidad mensual:</strong> ' + Utils.formatMonto(encuesta.capacidadMensual || 0) + '<br><strong>Otros créditos:</strong> ' + Utils.esc(encuesta.otrosCreditos || '-') + '<br><strong>Atrasos:</strong> ' + Utils.esc(encuesta.atrasos || '-') + '</p><strong>Documentos</strong><ul>' + docs + '</ul>');
+   Utils.showDialog((s.tipoSolicitud === 'AUMENTO_LINEA' ? 'Aumento de línea #' : 'Solicitud de crédito #') + s.idSolicitud, '<p><strong>Cliente:</strong> ' + Utils.esc(s.cliente) + '</p>' + (s.tipoSolicitud === 'AUMENTO_LINEA' ? '<p><strong>Límite anterior:</strong> ' + Utils.formatMonto(s.limiteAnterior || 0) + '<br><strong>Nuevo límite solicitado:</strong> ' + Utils.formatMonto(s.montoSolicitado || 0) + '</p>' : '<p><strong>Monto:</strong> ' + Utils.formatMonto(s.montoSolicitado) + '<br><strong>Sugerido:</strong> ' + Utils.formatMonto(s.montoSugerido) + '</p><p><strong>Actividad:</strong> ' + Utils.esc(encuesta.actividad || '-') + '<br><strong>Ingreso:</strong> ' + Utils.formatMonto(encuesta.ingresoMensual || 0) + '<br><strong>Capacidad mensual:</strong> ' + Utils.formatMonto(encuesta.capacidadMensual || 0) + '<br><strong>Otros créditos:</strong> ' + Utils.esc(encuesta.otrosCreditos || '-') + '<br><strong>Atrasos:</strong> ' + Utils.esc(encuesta.atrasos || '-') + '</p>') + '<strong>Documentos</strong><ul>' + docs + '</ul>');
 }
 
 async function resolverSolicitudCredito(id, aprobar) {
   let monto = null;
-  if (aprobar) { const s = state.pendientes.find(x => x.idSolicitud === id); const valor = await Utils.promptInput('Monto aprobado', 'Monto sugerido: ' + Utils.formatMonto(s?.montoSugerido || 0), String(s?.montoSugerido || '')); if (valor === null) return; monto = parseFloat(valor); if (!monto || monto <= 0) return Utils.showToast('Monto inválido', 'warning'); }
+  if (aprobar) { const s = state.pendientes.find(x => x.idSolicitud === id); const aumento = s?.tipoSolicitud === 'AUMENTO_LINEA'; const valor = await Utils.promptInput(aumento ? 'Nuevo límite aprobado' : 'Monto aprobado', aumento ? 'Nuevo límite solicitado: ' + Utils.formatMonto(s?.montoSolicitado || 0) : 'Monto sugerido: ' + Utils.formatMonto(s?.montoSugerido || 0), String(aumento ? (s?.montoSolicitado || '') : (s?.montoSugerido || ''))); if (valor === null) return; monto = parseFloat(valor); if (!monto || monto <= 0) return Utils.showToast('Monto inválido', 'warning'); }
   else if (!await Utils.confirm('¿Rechazar esta solicitud de crédito?', 'Rechazar solicitud')) return;
   try { await API.put('/solicitudes-credito/' + id + '/resolver', { aprobar, montoAprobado: monto, observaciones: '' }); Utils.showToast(aprobar ? 'Crédito autorizado' : 'Solicitud rechazada', 'success'); await cargar(); } catch (err) { Utils.showToast(err.message, 'error'); }
 }

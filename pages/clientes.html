@@ -201,6 +201,18 @@
   </div></div>
 </div>
 
+<div class="modal fade" id="aumentoLineaModal" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered modal-lg"><div class="modal-content border-0 shadow">
+    <div class="modal-header border-0"><h5 class="modal-title fw-bold"><i class="fas fa-arrow-up-right-dots me-2"></i>Aumento de línea de crédito</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+    <div class="modal-body"><input type="hidden" id="aumentoLineaClienteId"><div class="alert alert-info py-2 small" id="aumentoLineaInfo"></div>
+      <label class="form-label">Nuevo límite total de crédito</label><input type="number" id="aumentoLineaMonto" class="form-control mb-3" min="0.01" step="0.01" placeholder="0.00">
+      <div class="alert alert-warning small">Genera el pagaré, fírmalo y después adjúntalo mediante archivo o cámara.</div>
+      <div class="d-flex gap-2 align-items-end"><div class="flex-grow-1"><label class="form-label small">Pagaré firmado</label><input type="file" id="aumentoDocPagare" class="form-control" accept="image/*,application/pdf" capture="environment"></div><button type="button" class="btn btn-outline-primary sol-camera-btn" data-target="aumentoDocPagare" title="Usar cámara"><i class="fas fa-camera"></i></button><button type="button" class="btn btn-outline-secondary" id="btnGenerarPagareAumento"><i class="fas fa-print me-1"></i>Generar pagaré</button></div>
+      <label class="form-label small mt-3">Observaciones</label><textarea id="aumentoLineaObservaciones" class="form-control" rows="2" maxlength="1000"></textarea>
+    </div><div class="modal-footer border-0"><button class="btn btn-light" data-bs-dismiss="modal">Cancelar</button><button class="btn btn-primary" id="btnEnviarAumentoLinea">Enviar solicitud</button></div>
+  </div></div>
+</div>
+
 <div class="modal fade" id="solicitudCamaraModal" tabindex="-1"><div class="modal-dialog modal-dialog-centered"><div class="modal-content border-0 shadow"><div class="modal-header"><h5 class="modal-title">Tomar fotografía</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div><div class="modal-body text-center"><video id="solicitudCamaraVideo" class="w-100 rounded bg-dark" autoplay playsinline style="max-height:60vh"></video><canvas id="solicitudCamaraCanvas" class="d-none"></canvas><p class="small text-muted mt-2 mb-0">Asegúrate de que el documento sea legible.</p></div><div class="modal-footer"><button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancelar</button><button type="button" class="btn btn-primary" id="btnCapturarSolicitudFoto"><i class="fas fa-camera me-1"></i>Capturar</button></div></div></div></div>
 
 <!-- Modal INE -->
