@@ -581,10 +581,14 @@ export function printRemisionVenta(venta, opts) {
        <td>${Utils.esc(p.label)}${p.referencia ? ' (' + Utils.esc(p.referencia) + ')' : ''}</td>
        <td class="right">${Utils.formatMonto(p.monto)}</td>
       </tr>`).join('')
-       + (esCredito ? `<tr><td><strong>Enganche / pago inicial</strong></td><td class="right"><strong>${Utils.formatMonto(montoEnganche)}</strong></td></tr>` : '')
-       + (esCredito ? `<tr><td>Saldo a crédito</td><td class="right">${Utils.formatMonto(desglosePagos.montoCredito)}</td></tr>` : '')
+        + (esCredito ? `<tr><td><strong>Anticipo recibido</strong></td><td class="right"><strong>-${Utils.formatMonto(montoEnganche)}</strong></td></tr>` : '')
+        + (esCredito ? `<tr><td><strong>Total a financiar</strong></td><td class="right"><strong>${Utils.formatMonto(desglosePagos.montoCredito)}</strong></td></tr>` : '')
         : `<tr><td>Enviando pedido</td><td class="right small">Pendiente de pago</td></tr>`;
-   const pagareDesgloseHtml = (esCredito ? [{ label: 'Capital financiado', monto: desglosePagos.montoCredito }] : []).map(p =>
+   const pagareDesgloseHtml = (esCredito ? [
+       { label: 'Total de productos', monto: Number(venta.total) || 0 },
+       { label: 'Anticipo recibido', monto: -montoEnganche },
+       { label: 'Capital financiado', monto: desglosePagos.montoCredito }
+     ] : []).map(p =>
      `<tr><td>${Utils.esc(p.label)}</td><td>${Utils.formatMonto(p.monto)}</td></tr>`).join('')
     + (porcentajeInteres > 0
        ? `<tr><td>Interés ${(porcentajeInteres || 0)}%</td><td>${Utils.formatMonto(interesTotalCredito)}</td></tr>`
@@ -662,9 +666,10 @@ export function printRemisionVenta(venta, opts) {
     const totalesHtml = `
   <div class="divider"></div>
   <table class="totals">
-    <tr><td>Subtotal</td><td class="right">${Utils.formatMonto(venta.subtotal || 0)}</td></tr>
-    <tr><td>Descuento</td><td class="right">-${Utils.formatMonto(venta.descuento || 0)}</td></tr>
-    <tr class="total-row"><td>TOTAL</td><td class="right">${Utils.formatMonto(venta.total || 0)}</td></tr>
+     <tr><td>Subtotal</td><td class="right">${Utils.formatMonto(venta.subtotal || 0)}</td></tr>
+     <tr><td>Descuento</td><td class="right">-${Utils.formatMonto(venta.descuento || 0)}</td></tr>
+     <tr class="total-row"><td>${esCredito ? 'TOTAL DE PRODUCTOS' : 'TOTAL'}</td><td class="right">${Utils.formatMonto(venta.total || 0)}</td></tr>
+     ${esCredito ? `<tr><td>Anticipo recibido</td><td class="right">-${Utils.formatMonto(montoEnganche)}</td></tr><tr class="total-row"><td>TOTAL A FINANCIAR</td><td class="right">${Utils.formatMonto(desglosePagos.montoCredito)}</td></tr>` : ''}
   </table>
   <div class="divider"></div>
   <div class="section">
