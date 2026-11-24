@@ -1,3 +1,5 @@
+import { printComprobanteGasto } from './printing.js';
+
 let state = { data: [], cajas: [], filtro: 'pendientes' };
 
 export function init() {
@@ -78,9 +80,7 @@ function renderTable() {
       <td><span class="badge-status ${badgeClass}">${g.estado}</span></td>
       <td>${Utils.formatDateTime(g.fechaCreacion)}</td>
       <td class="acciones-cell">
-        ${g.estado === 'PENDIENTE'
-          ? `<button type="button" class="btn-kebab-toggle kebab-trigger" data-id="${g.idGasto}" title="Acciones"><i class="fas fa-ellipsis-v"></i></button>`
-          : '-'}
+        <button type="button" class="btn-kebab-toggle kebab-trigger" data-id="${g.idGasto}" title="Acciones"><i class="fas fa-ellipsis-v"></i></button>
       </td>
     </tr>`;
   }).join('');
@@ -98,6 +98,8 @@ function handleTableClick(e) {
     if (Utils.hasPermiso('GASTOS_RECHAZAR')) {
       items.push({ danger: true, icon: 'fa-times', text: 'Rechazar', onClick: () => confirmarAccion(id, 'rechazar') });
     }
+    const gasto = state.data.find(g => g.idGasto === id);
+    if (gasto) items.push({ icon: 'fa-print', text: 'Imprimir comprobante', onClick: () => printComprobanteGasto(gasto) });
     if (items.length > 0) Utils.abrirMenuKebab(kebab, items);
     return;
   }

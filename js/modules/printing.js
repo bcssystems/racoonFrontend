@@ -896,6 +896,46 @@ export function printComprobanteAbono(abonos, opts) {
   setTimeout(() => win.print(), 300);
 }
 
+export function printComprobanteGasto(gasto, opts) {
+  const options = opts || {};
+  if (!options._confirmed) {
+    seleccionarFormatoDocumento(
+      'Imprimir comprobante de gasto',
+      'Selecciona el formato del comprobante',
+      formato => printComprobanteGasto(gasto, { ...options, formato, _confirmed: true })
+    );
+    return;
+  }
+  const fecha = gasto.fechaCreacion ? new Date(gasto.fechaCreacion) : new Date();
+  const fechaStr = fecha.toLocaleDateString('es-MX', { year: 'numeric', month: 'long', day: 'numeric' });
+  const horaStr = fecha.toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' });
+  const css = options.formato === '80mm' ? TICKET_CSS + TICKET_80MM_CSS : TICKET_CSS;
+  const html = `<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8"><title>Comprobante de gasto #${Utils.esc(gasto.idGasto || '')}</title><style>${css}
+    .gasto-monto { font-size:16pt; font-weight:700; text-align:center; margin:14px 0; }
+    .gasto-estado { text-align:center; font-weight:700; letter-spacing:1px; margin:10px 0; }
+  </style></head><body><div class="print-copy">
+    <div class="header"><div class="sub">Racoon</div><div class="folio">COMPROBANTE DE GASTO</div></div>
+    <table class="info-grid">
+      <tr><td class="label">Folio</td><td>#${Utils.esc(gasto.idGasto || '')}</td></tr>
+      <tr><td class="label">Fecha</td><td>${fechaStr} ${horaStr}</td></tr>
+      <tr><td class="label">Caja</td><td>${Utils.esc(gasto.cajaNombre || '—')}</td></tr>
+      <tr><td class="label">Sucursal</td><td>${Utils.esc(gasto.sucursalNombre || '—')}</td></tr>
+      <tr><td class="label">Solicitante</td><td>${Utils.esc(gasto.usuario || '—')}</td></tr>
+      <tr><td class="label">Autorizó</td><td>${Utils.esc(gasto.autorizador || 'Pendiente')}</td></tr>
+    </table><div class="divider"></div>
+    <div><strong>Descripción</strong><div style="margin-top:5px;overflow-wrap:anywhere">${Utils.esc(gasto.descripcion || '—')}</div></div>
+    <div class="gasto-monto">${Utils.formatMonto(gasto.monto || 0)}</div>
+    <div class="gasto-estado">${Utils.esc(gasto.estado || 'PENDIENTE')}</div>
+    <div class="footer">Conserve este comprobante como constancia del gasto.</div>
+  </div></body></html>`;
+  const win = abrirVentana('Comprobante de gasto #' + (gasto.idGasto || ''), 600, 800);
+  if (!win) return;
+  win.document.write(html);
+  win.document.close();
+  win.focus();
+  setTimeout(() => win.print(), 300);
+}
+
 export function printComprobanteMovimiento(movimiento, opts) {
   const options = opts || {};
   if (!options._confirmed) {

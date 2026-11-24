@@ -156,9 +156,7 @@ function renderTable() {
     const creditoHtml = c.tieneCredito
       ? '<span class="badge bg-info"><i class="fas fa-check me-1"></i>S\u00ed</span>' + (c.tieneIne ? '' : ' <span class="badge bg-danger" title="Falta INE"><i class="fas fa-id-card"></i></span>')
       : '<span class="text-muted">-</span>';
-    const limiteHtml = c.tieneCredito
-      ? (c.limiteCredito != null ? Utils.formatMonto(c.limiteCredito) : '<span class="badge bg-warning text-dark">Ilimitado</span>')
-      : '-';
+    const limiteHtml = c.tieneCredito ? Utils.formatMonto(c.limiteCredito || 0) : '-';
     return `<tr${c.enListaNegra ? ' style="background:rgba(220,38,38,0.04)"' : ''}>
     <td>${Utils.esc(c.nombre)}</td>
     <td>${Utils.esc(c.apellidoPaterno || '')} ${Utils.esc(c.apellidoMaterno || '')}</td>
@@ -352,7 +350,7 @@ function abrirDetalleCliente(id) {
 
   const cred = [];
   cred.push('<div class="mb-1"><span class="text-muted">Cr\u00e9dito:</span> ' + (c.tieneCredito ? '<span class="text-success">Habilitado</span>' : '<span class="text-muted">No</span>') + '</div>');
-  cred.push('<div class="mb-1"><span class="text-muted">L\u00edmite:</span> ' + (c.tieneCredito ? (c.limiteCredito != null ? Utils.formatMonto(c.limiteCredito) : 'Ilimitado') : '-') + '</div>');
+  cred.push('<div class="mb-1"><span class="text-muted">L\u00edmite:</span> ' + (c.tieneCredito ? Utils.formatMonto(c.limiteCredito || 0) : '-') + '</div>');
    cred.push('<div class="mb-1"><span class="text-muted">Saldo a deber:</span> <strong>' + (c.saldoActual != null ? Utils.formatMonto(c.saldoActual) : '-') + '</strong></div>');
    cred.push('<div class="mb-1"><span class="text-muted">Saldo a favor:</span> <strong class="text-success">' + Utils.formatMonto(c.saldoFavor || 0) + '</strong></div>');
    cred.push('<div class="mb-1"><span class="text-muted">Score crediticio:</span> <strong>' + (c.scoreCredito == null ? 100 : c.scoreCredito) + '/100</strong></div>');
@@ -370,6 +368,8 @@ function abrirModal(id) {
   const solicitar = document.getElementById('btnSolicitarCredito');
   if (solicitar) solicitar.style.display = id ? 'inline-block' : 'none';
   toggleLimiteCreditoGroup(false);
+  const limiteInput = document.getElementById('clienteLimiteCredito');
+  if (limiteInput) limiteInput.value = '';
   aplicarPrefijoPais();
 
   if (id) {
@@ -411,6 +411,10 @@ function abrirModal(id) {
        if (solicitar) solicitar.style.display = c.tieneCredito ? 'none' : 'inline-block';
        const info = document.getElementById('clienteSolicitudCreditoInfo');
        if (info) info.textContent = c.tieneCredito ? 'Crédito aprobado' : 'Sin crédito aprobado';
+       if (c.tieneCredito) {
+         toggleLimiteCreditoGroup(true);
+         if (limiteInput) limiteInput.value = c.limiteCredito || 0;
+       }
        document.getElementById('clienteLatitud').value = c.latitud ?? '';
        document.getElementById('clienteLongitud').value = c.longitud ?? '';
        document.getElementById('clientePrecisionUbicacion').value = c.precisionUbicacion ?? '';
@@ -424,7 +428,6 @@ function abrirModal(id) {
 
 function toggleLimiteCreditoGroup(show) {
   document.getElementById('clienteLimiteCreditoGroup').style.display = show ? 'block' : 'none';
-  document.getElementById('clienteCreditoIlimitadoGroup').style.display = show ? 'block' : 'none';
 }
 
 function combinarTelefonoCliente() {
@@ -467,7 +470,11 @@ async function guardarCliente() {
   if (!data.apellidoPaterno) { Utils.showToast('El apellido paterno es obligatorio', 'warning'); return; }
   if (!data.telefono) { Utils.showToast('El tel\u00e9fono es obligatorio', 'warning'); return; }
 
-  data.limiteCredito = tieneCredito ? clienteActual.limiteCredito : 0;
+  data.limiteCredito = tieneCredito ? (parseFloat(document.getElementById('clienteLimiteCredito')?.value) || 0) : 0;
+  if (tieneCredito && data.limiteCredito < 0) {
+    Utils.showToast('El l\u00edmite de cr\u00e9dito no puede ser negativo', 'warning');
+    return;
+  }
 
   try {
     if (state.editingId) {

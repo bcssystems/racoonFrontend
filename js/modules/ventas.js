@@ -1230,12 +1230,10 @@ async function confirmarCobro() {
       Utils.showToast('El cliente seleccionado no tiene cr\u00e9dito habilitado', 'warning');
       return;
     }
-    if (cliente.limiteCredito != null) {
-      const disp = cliente.limiteCredito - (cliente.saldoActual || 0);
-      if (montoCredito > disp) {
-        Utils.showToast('El total excede el l\u00edmite de cr\u00e9dito disponible (' + Utils.formatMonto(disp) + ')', 'warning');
-        return;
-      }
+    const disp = (cliente.limiteCredito || 0) - (cliente.saldoActual || 0);
+    if (montoCredito > disp) {
+      Utils.showToast('El total excede el l\u00edmite de cr\u00e9dito disponible (' + Utils.formatMonto(disp) + ')', 'warning');
+      return;
     }
     const sumaPagos = pagos.reduce((s, p) => s + p.monto, 0);
     if (Math.abs((sumaPagos + montoCredito + montoSaldoFavor) - total) > 0.01) {
