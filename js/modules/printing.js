@@ -670,6 +670,7 @@ export function printRemisionVenta(venta, opts) {
      <tr><td>Descuento</td><td class="right">-${Utils.formatMonto(venta.descuento || 0)}</td></tr>
      <tr class="total-row"><td>${esCredito ? 'TOTAL DE PRODUCTOS' : 'TOTAL'}</td><td class="right">${Utils.formatMonto(venta.total || 0)}</td></tr>
      ${esCredito ? `<tr><td>Anticipo recibido</td><td class="right">-${Utils.formatMonto(montoEnganche)}</td></tr><tr class="total-row"><td>TOTAL A FINANCIAR</td><td class="right">${Utils.formatMonto(desglosePagos.montoCredito)}</td></tr>` : ''}
+     ${esCredito ? `<tr><td>Intereses del crédito</td><td class="right">${Utils.formatMonto(interesTotalCredito)}</td></tr><tr class="total-row"><td>TOTAL A PAGAR</td><td class="right">${Utils.formatMonto(montoEnganche + totalConInteres)}</td></tr>` : ''}
   </table>
   <div class="divider"></div>
   <div class="section">
@@ -716,28 +717,33 @@ export function printRemisionVenta(venta, opts) {
   `;
   }
 
-  const win = abrirVentana('Remisi\u00f3n - Venta #' + venta.idVenta, 600, 800);
-  if (!win) return;
-
   const printCss = formato === '80mm' ? TICKET_CSS + TICKET_80MM_CSS : TICKET_CSS;
-  let fullHtml = '<!DOCTYPE html>\n<html lang="es">\n<head>\n  <meta charset="UTF-8">\n  <title>Remisi\u00f3n - Venta #' + venta.idVenta + '</title>\n  <style>' + printCss + '</style>\n</head>\n<body>';
+  let remisionHtml = '<!DOCTYPE html>\n<html lang="es">\n<head>\n  <meta charset="UTF-8">\n  <title>Remisi\u00f3n - Venta #' + venta.idVenta + '</title>\n  <style>' + printCss + '</style>\n</head>\n<body>';
   for (let i = 0; i < numCopies; i++) {
-    fullHtml += '<div class="print-copy">' + buildBodyHtml(i) + '</div>';
+    remisionHtml += '<div class="print-copy">' + buildBodyHtml(i) + '</div>';
+  }
+  remisionHtml += '\n</body>\n</html>';
+  const remisionWin = abrirVentana('Remisi\u00f3n - Venta #' + venta.idVenta, 600, 800);
+  if (remisionWin) {
+    remisionWin.document.write(remisionHtml);
+    remisionWin.document.close();
+    remisionWin.focus();
+    if (autoPrint) setTimeout(() => { remisionWin.print(); }, 300);
   }
   if (esCredito) {
-    fullHtml += '<div class="print-copy credit-document">' +
+    const creditHtml = '<!DOCTYPE html>\n<html lang="es">\n<head>\n  <meta charset="UTF-8">\n  <title>Cr\u00e9dito - Venta #' + venta.idVenta + '</title>\n  <style>' + printCss + '</style>\n</head>\n<body><div class="print-copy credit-document">' +
       '<div class="copy-label">DOCUMENTO DE CRÉDITO</div>' +
       '<div class="header"><div class="sub">' + Utils.esc(empresa) + '</div><div class="folio">CRÉDITO #' + Utils.esc(venta.folioPagare || venta.idVenta) + '</div></div>' +
       planCreditoTicket(venta, desglosePagos) +
       pagareHtml +
-      '</div>';
-  }
-  fullHtml += '\n</body>\n</html>';
-  win.document.write(fullHtml);
-  win.document.close();
-  win.focus();
-  if (autoPrint) {
-    setTimeout(() => { win.print(); }, 300);
+      '</div></body></html>';
+    const creditWin = abrirVentana('Cr\u00e9dito - Venta #' + venta.idVenta, 600, 800);
+    if (creditWin) {
+      creditWin.document.write(creditHtml);
+      creditWin.document.close();
+      creditWin.focus();
+      if (autoPrint) setTimeout(() => { creditWin.print(); }, 350);
+    }
   }
 }
 
