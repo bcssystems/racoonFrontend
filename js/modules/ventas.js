@@ -1465,8 +1465,9 @@ function imprimirTicketVenta(venta, copies, esCredito, plazoMeses, porcentajeInt
 
 function imprimirTicketCorte(corte) {
   const now = new Date();
-  const fechaStr = now.toLocaleDateString('es-MX', { year: 'numeric', month: 'long', day: 'numeric' });
-  const horaStr = now.toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' });
+  const fechaCorte = corte.fechaCierre ? new Date(corte.fechaCierre) : (corte.fechaApertura ? new Date(corte.fechaApertura) : now);
+  const fechaStr = fechaCorte.toLocaleDateString('es-MX', { year: 'numeric', month: 'long', day: 'numeric' });
+  const horaStr = fechaCorte.toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' });
   const logoValue = state.configs.logoTicket || state.configs.logoUrl || state.configs.logoEmpresa || '';
   const logo = logoValue
     ? (/^(https?:|data:|blob:)/i.test(logoValue)
@@ -1529,7 +1530,9 @@ function imprimirTicketCorte(corte) {
     <tr><td>Total Egresos</td><td style="color:#dc2626">-${Utils.formatMonto(corte.totalEgresos || 0)}</td></tr>
     <tr><td>Abonos (Cr\u00e9ditos)</td><td style="color:#0891b2">+${Utils.formatMonto(corte.totalAbonos || 0)}</td></tr>
     <tr><td>Anticipos en ventas a cr\u00e9dito</td><td style="color:#7c3aed">+${Utils.formatMonto(corte.totalAnticipos || 0)}</td></tr>
-    <tr class="total-row"><td>Saldo Final</td><td>${Utils.formatMonto(corte.saldoFinalContado || 0)}</td></tr>
+     <tr class="total-row"><td>Efectivo esperado</td><td>${Utils.formatMonto(corte.saldoEsperado || 0)}</td></tr>
+     <tr><td>Efectivo contado</td><td>${corte.totalReal != null ? Utils.formatMonto(corte.totalReal) : 'Pendiente de conteo'}</td></tr>
+     <tr><td>Diferencia</td><td>${corte.diferencia != null ? ((corte.diferencia >= 0 ? '+' : '') + Utils.formatMonto(corte.diferencia)) : 'Pendiente de conteo'}</td></tr>
    </table>
    ${corte.anticipos && corte.anticipos.length > 0 ? `
    <div class="divider"></div><div class="section-title">Anticipos en ventas a crédito</div>
