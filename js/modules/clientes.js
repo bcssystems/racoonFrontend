@@ -13,6 +13,7 @@ let state = {
   clienteMarker: null,
   clienteMapClienteId: null,
   clienteMapGeocoder: null,
+  solicitudesPendientes: [],
 };
 
 const REGIMENES_FISCALES = [
@@ -133,6 +134,11 @@ async function cargarClientes(page) {
       state.data = result.content;
       state.totalPages = result.totalPages;
     }
+    try {
+      state.solicitudesPendientes = await API.get('/solicitudes-credito?estado=PENDIENTE') || [];
+    } catch (_) {
+      state.solicitudesPendientes = [];
+    }
     renderTable();
     renderPagination();
   } catch (err) { Utils.showToast(err.message, 'error'); }
@@ -243,6 +249,7 @@ function handleTableClick(e) {
 
 function abrirAccionesCliente(anchor, id) {
   const c = (state.data || []).find(x => x.idCliente === id);
+  const solicitudPendiente = (state.solicitudesPendientes || []).find(s => s.idCliente === id);
   const items = [
     { icon: 'fa-eye', text: 'Ver', color: 'var(--info)', onClick: () => abrirDetalleCliente(id) },
     { icon: 'fa-file-invoice', text: 'Estado de cuenta', color: 'var(--primary)', onClick: () => irACreditos(id) },
@@ -250,8 +257,9 @@ function abrirAccionesCliente(anchor, id) {
     { icon: 'fa-cash-register', text: 'Abonar', color: 'var(--success)', onClick: () => abonarEnPOS(id, c) },
     { icon: 'fa-wallet', text: 'Registrar anticipo', color: 'var(--success)', onClick: () => registrarSaldoFavor(id, c) },
     { icon: 'fa-id-card', text: 'INE' + (c && c.tieneIne ? '  \u2713' : ''), color: 'var(--warning)', onClick: () => abrirModalIne(id) },
-     ...(!c?.tieneCredito ? [{ icon: 'fa-file-signature', text: 'Solicitar crédito', color: 'var(--primary)', onClick: () => abrirSolicitudCredito(id) }] : []),
-     ...(c?.tieneCredito && Utils.hasPermiso('CREDITOS_SOLICITAR') ? [{ icon: 'fa-arrow-up-right-dots', text: 'Solicitar aumento de línea', color: 'var(--success)', onClick: () => abrirAumentoLinea(id) }] : []),
+     ...(solicitudPendiente ? [{ icon: 'fa-clock', text: 'Crédito en espera de autorización', color: 'var(--warning)', onClick: () => document.querySelector('[data-view="pages/autorizaciones.html"]')?.click() }] : []),
+     ...(!solicitudPendiente && !c?.tieneCredito ? [{ icon: 'fa-file-signature', text: 'Solicitar crédito', color: 'var(--primary)', onClick: () => abrirSolicitudCredito(id) }] : []),
+     ...(!solicitudPendiente && c?.tieneCredito && Utils.hasPermiso('CREDITOS_SOLICITAR') ? [{ icon: 'fa-arrow-up-right-dots', text: 'Solicitar aumento de línea', color: 'var(--success)', onClick: () => abrirAumentoLinea(id) }] : []),
   ];
   if (Utils.hasPermiso('CLIENTES_EDITAR')) {
     items.push({ icon: 'fa-edit', text: 'Editar', color: 'var(--primary)', onClick: () => abrirModal(id) });
@@ -549,12 +557,13 @@ async function enviarAumentoLinea() {
   const monto = parseFloat(document.getElementById('aumentoLineaMonto').value);
   const archivo = document.getElementById('aumentoDocPagare')?.files?.[0];
   if (!idCliente || !cliente || !monto || monto <= (cliente.limiteCredito || 0)) { Utils.showToast('El nuevo límite debe ser mayor al límite actual', 'warning'); return; }
-  if (!archivo) { Utils.showToast('Adjunta el pagaré firmado por archivo o cámara', 'warning'); return; }
   const btn = document.getElementById('btnEnviarAumentoLinea'); if (btn) btn.disabled = true;
   try {
     const solicitud = await API.post('/solicitudes-credito', { idCliente, montoSolicitado: monto, tipoSolicitud: 'AUMENTO_LINEA', encuestaJson: null, observaciones: document.getElementById('aumentoLineaObservaciones').value.trim() });
-    const form = new FormData(); form.append('tipo', 'PAGARE'); form.append('archivo', archivo);
-    await API.upload('/solicitudes-credito/' + solicitud.idSolicitud + '/documentos', form);
+     if (archivo) {
+       const form = new FormData(); form.append('tipo', 'PAGARE'); form.append('archivo', archivo);
+       await API.upload('/solicitudes-credito/' + solicitud.idSolicitud + '/documentos', form);
+     }
     const finalSolicitud = Utils.hasPermiso('CREDITOS_SOLICITUDES_VER')
       ? await API.get('/solicitudes-credito/' + solicitud.idSolicitud) : solicitud;
     bootstrap.Modal.getInstance(document.getElementById('aumentoLineaModal'))?.hide();

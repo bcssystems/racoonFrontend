@@ -142,7 +142,21 @@ function verSolicitudCredito(s) {
 
 async function resolverSolicitudCredito(id, aprobar) {
   let monto = null;
-  if (aprobar) { const s = state.pendientes.find(x => x.idSolicitud === id); const aumento = s?.tipoSolicitud === 'AUMENTO_LINEA'; const valor = await Utils.promptInput(aumento ? 'Nuevo límite aprobado' : 'Monto aprobado', aumento ? 'Nuevo límite solicitado: ' + Utils.formatMonto(s?.montoSolicitado || 0) : 'Monto sugerido: ' + Utils.formatMonto(s?.montoSugerido || 0), String(aumento ? (s?.montoSolicitado || '') : (s?.montoSugerido || ''))); if (valor === null) return; monto = parseFloat(valor); if (!monto || monto <= 0) return Utils.showToast('Monto inválido', 'warning'); }
+  if (aprobar) {
+    const s = state.pendientes.find(x => x.idSolicitud === id);
+    const aumento = s?.tipoSolicitud === 'AUMENTO_LINEA';
+    const requeridos = aumento ? ['PAGARE'] : ['INE_FRONTAL', 'INE_TRASERA', 'DOMICILIO', 'PAGARE'];
+    const cargados = new Set((s?.documentos || []).map(d => d.tipo));
+    const faltantes = requeridos.filter(d => !cargados.has(d));
+    if (faltantes.length) {
+      const confirmar = await Utils.confirm('Faltan documentos (' + faltantes.join(', ') + '). Un administrador puede autorizar esta solicitud bajo su responsabilidad. ¿Continuar?', 'Aprobar sin documentos');
+      if (!confirmar) return;
+    }
+    const valor = await Utils.promptInput(aumento ? 'Nuevo límite aprobado' : 'Monto aprobado', aumento ? 'Nuevo límite solicitado: ' + Utils.formatMonto(s?.montoSolicitado || 0) : 'Monto sugerido: ' + Utils.formatMonto(s?.montoSugerido || 0), String(aumento ? (s?.montoSolicitado || '') : (s?.montoSugerido || '')));
+    if (valor === null) return;
+    monto = parseFloat(valor);
+    if (!monto || monto <= 0) return Utils.showToast('Monto inválido', 'warning');
+  }
   else if (!await Utils.confirm('¿Rechazar esta solicitud de crédito?', 'Rechazar solicitud')) return;
   try { await API.put('/solicitudes-credito/' + id + '/resolver', { aprobar, montoAprobado: monto, observaciones: '' }); Utils.showToast(aprobar ? 'Crédito autorizado' : 'Solicitud rechazada', 'success'); await cargar(); } catch (err) { Utils.showToast(err.message, 'error'); }
 }
