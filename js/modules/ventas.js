@@ -1,4 +1,4 @@
-import { printRemisionVenta, printComprobanteAbono } from './printing.js';
+import { printRemisionVenta, printComprobanteAbono, printComprobanteGasto } from './printing.js';
 
 let state = {
   caja: null,
@@ -1829,12 +1829,13 @@ async function solicitarGasto() {
   if (!monto || monto <= 0) { Utils.showToast('Monto inv\u00e1lido', 'warning'); return; }
 
   try {
-    const gasto = await API.post('/gastos', { idCaja: state.caja.idCaja, descripcion: desc, monto });
-    Utils.showToast(gasto.estado === 'AUTORIZADO' ? 'Gasto autorizado y registrado' : 'Gasto solicitado, espera autorización', 'success');
-    bootstrap.Modal.getInstance(document.getElementById('posGastoModal'))?.hide();
+     const gasto = await API.post('/gastos', { idCaja: state.caja.idCaja, descripcion: desc, monto });
+     Utils.showToast(gasto.estado === 'AUTORIZADO' ? 'Gasto autorizado y registrado' : 'Gasto solicitado, espera autorización', 'success');
+     bootstrap.Modal.getInstance(document.getElementById('posGastoModal'))?.hide();
     document.getElementById('posGastoDesc').value = '';
-    document.getElementById('posGastoMonto').value = '';
-    await verificarGastosPendientes();
+     document.getElementById('posGastoMonto').value = '';
+     printComprobanteGasto(gasto);
+     await verificarGastosPendientes();
   } catch (err) { Utils.showToast(err.message, 'error'); }
 }
 
