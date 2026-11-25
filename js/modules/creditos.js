@@ -7,6 +7,8 @@ let state = {
   movimientos: [],
   tiposPago: [],
   filtro: 'pendientes',
+  clientesPage: 0,
+  clientesPageSize: 10,
 };
 
 export function init() {
@@ -16,11 +18,13 @@ export function init() {
 }
 
 function bindEvents() {
-  document.getElementById('searchCreditoCliente')?.addEventListener('input', Utils.debounce(() => cargarClientesCredito(), 400));
+  document.getElementById('searchCreditoCliente')?.addEventListener('input', Utils.debounce(() => { state.clientesPage = 0; cargarClientesCredito(); }, 400));
   document.getElementById('btnLimpiarCreditoCliente')?.addEventListener('click', limpiarBusqueda);
+  document.getElementById('creditoPageSize')?.addEventListener('change', e => { state.clientesPageSize = parseInt(e.target.value) || 10; state.clientesPage = 0; renderClientes(); });
   document.querySelectorAll('input[name="filtroCredito"]').forEach(r => {
     r.addEventListener('change', e => {
       state.filtro = e.target.value;
+      state.clientesPage = 0;
       cargarClientesCredito();
     });
   });
@@ -148,12 +152,16 @@ function renderClientes() {
   const tbody = document.getElementById('tableCreditosClientesBody');
   if (!tbody) return;
 
-  if (state.clientes.length === 0) {
-    tbody.innerHTML = '<tr><td colspan="7"><div class="empty-state"><i class="fas fa-credit-card"></i><p>No hay clientes con cr\u00e9dito</p></div></td></tr>';
-    return;
+   if (state.clientes.length === 0) {
+     tbody.innerHTML = '<tr><td colspan="7"><div class="empty-state"><i class="fas fa-credit-card"></i><p>No hay clientes con cr\u00e9dito</p></div></td></tr>';
+     const pagination = document.getElementById('creditosClientesPagination');
+     if (pagination) pagination.innerHTML = '';
+     return;
   }
 
-  tbody.innerHTML = state.clientes.map(c => {
+   const inicio = state.clientesPage * state.clientesPageSize;
+   const visibles = state.clientes.slice(inicio, inicio + state.clientesPageSize);
+   tbody.innerHTML = visibles.map(c => {
     const disponible = (c.limiteCredito || 0) - (c.saldoActual || 0);
     const score = c.scoreCredito == null ? 100 : c.scoreCredito;
     return `<tr class="credito-cliente-row" data-id="${c.idCliente}">
@@ -169,7 +177,21 @@ function renderClientes() {
         </div>
       </td>
     </tr>`;
-  }).join('');
+   }).join('');
+   renderClientesPagination();
+}
+
+function renderClientesPagination() {
+  const el = document.getElementById('creditosClientesPagination');
+  if (!el) return;
+  const total = Math.ceil(state.clientes.length / state.clientesPageSize);
+  if (total <= 1) { el.innerHTML = ''; return; }
+  let html = '<div class="d-flex justify-content-between align-items-center small"><span>Mostrando ' + (state.clientesPage * state.clientesPageSize + 1) + '-' + Math.min((state.clientesPage + 1) * state.clientesPageSize, state.clientes.length) + ' de ' + state.clientes.length + '</span><div class="btn-group btn-group-sm">';
+  html += '<button class="btn btn-outline-secondary" data-credit-page="' + (state.clientesPage - 1) + '" ' + (state.clientesPage === 0 ? 'disabled' : '') + '>Anterior</button>';
+  html += '<span class="btn btn-light disabled">' + (state.clientesPage + 1) + ' / ' + total + '</span>';
+  html += '<button class="btn btn-outline-secondary" data-credit-page="' + (state.clientesPage + 1) + '" ' + (state.clientesPage >= total - 1 ? 'disabled' : '') + '>Siguiente</button></div></div>';
+  el.innerHTML = html;
+  el.querySelectorAll('[data-credit-page]').forEach(btn => btn.addEventListener('click', () => { state.clientesPage = parseInt(btn.dataset.creditPage); renderClientes(); }));
 }
 
 async function seleccionarCliente(id, vista) {
@@ -443,6 +465,7 @@ function cerrarDetalle() {
 
 function limpiarBusqueda() {
   document.getElementById('searchCreditoCliente').value = '';
+  state.clientesPage = 0;
   const radio = document.getElementById('filtroCredPendientes');
   if (radio) { radio.checked = true; state.filtro = 'pendientes'; }
   cargarClientesCredito();

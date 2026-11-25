@@ -23,6 +23,10 @@
           <label class="btn btn-outline-secondary btn-sm" for="filtroCredTodos">Todos</label>
         </div>
       </div>
+      <div style="min-width:180px">
+        <label class="form-label small">Registros por p&aacute;gina</label>
+        <select class="form-select form-select-sm" id="creditoPageSize"><option value="10">10</option><option value="25">25</option><option value="50">50</option></select>
+      </div>
       <div>
         <label class="form-label small">&nbsp;</label>
         <div class="d-flex gap-1">
@@ -55,6 +59,7 @@
             </tbody>
           </table>
         </div>
+        <div id="creditosClientesPagination" class="p-2"></div>
       </div>
     </div>
   </div>

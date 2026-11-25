@@ -1,4 +1,4 @@
-let state = { pendientes: [], filtroEstado: '' };
+let state = { pendientes: [], filtroEstado: '', busqueda: '', page: 0, pageSize: 10 };
 
 export function init() {
   if (!Utils.hasPermiso('AUTORIZACIONES_VER') && !Utils.hasPermiso('CANCELACIONES_VER') && !Utils.hasPermiso('MOVIMIENTOS_INVENTARIO_VER') && !Utils.hasPermiso('CREDITOS_SOLICITUDES_VER')) {
@@ -14,8 +14,11 @@ function bindEvents() {
   document.getElementById('autorizacionesBody')?.addEventListener('click', handleTableClick);
   document.getElementById('filterAutEstado')?.addEventListener('change', () => {
     state.filtroEstado = document.getElementById('filterAutEstado').value;
+    state.page = 0;
     cargar();
   });
+  document.getElementById('searchAutorizaciones')?.addEventListener('input', Utils.debounce(e => { state.busqueda = e.target.value.trim().toLowerCase(); state.page = 0; render(); }, 300));
+  document.getElementById('autPageSize')?.addEventListener('change', e => { state.pageSize = parseInt(e.target.value) || 10; state.page = 0; render(); });
 }
 
 async function cargar() {
@@ -40,6 +43,10 @@ async function cargar() {
     state.pendientes.sort((a, b) => {
       const pendiente = x => x.estado === 'PENDIENTE' || x.estado === 'SOLICITADA_CANCELACION';
       return Number(pendiente(b)) - Number(pendiente(a)) || new Date(b.fechaSolicitudCancelacion || b.fechaMovimiento || b.fechaSolicitud || 0) - new Date(a.fechaSolicitudCancelacion || a.fechaMovimiento || a.fechaSolicitud || 0);
+    }).filter(item => {
+      if (!state.busqueda) return true;
+      const texto = [item.idVenta, item.idMovimiento, item.idSolicitud, item.cliente, item.clienteNombre, item.usuario, item.solicitante, item.solicitanteCancelacion, item.productoNombre, item.productoSku, item.descripcion, item.observacion, item.motivoCancelacion, item.observaciones].filter(Boolean).join(' ').toLowerCase();
+      return texto.includes(state.busqueda);
     });
     render();
   } catch (err) {
@@ -52,6 +59,8 @@ function render() {
   const body = document.getElementById('autorizacionesBody');
   if (!state.pendientes.length) {
     body.innerHTML = '<tr><td colspan="10"><div class="empty-state"><i class="fas fa-check-double"></i><p>Sin autorizaciones pendientes</p></div></td></tr>';
+    const pagination = document.getElementById('autorizacionesPagination');
+    if (pagination) pagination.innerHTML = '';
     return;
   }
 
@@ -60,7 +69,11 @@ function render() {
   const puedeAutorizarMovimiento = Utils.hasPermiso('PRODUCTOS_MOVIMIENTO');
   const puedeAutorizarCredito = Utils.hasPermiso('CREDITOS_SOLICITUDES_AUTORIZAR');
 
-  body.innerHTML = state.pendientes.map(v => {
+  const totalPaginas = Math.ceil(state.pendientes.length / state.pageSize);
+  if (state.page >= totalPaginas) state.page = Math.max(0, totalPaginas - 1);
+  const inicio = state.page * state.pageSize;
+  const visibles = state.pendientes.slice(inicio, inicio + state.pageSize);
+  body.innerHTML = visibles.map(v => {
     const esMovimiento = v._tipoSolicitud === 'MOVIMIENTO';
     const esSolicitudCredito = v._tipoSolicitud === 'SOLICITUD_CREDITO' || v._tipoSolicitud === 'AUMENTO_LINEA';
     if (esSolicitudCredito) {
@@ -93,6 +106,19 @@ function render() {
       '<td class="acciones-cell">' + acciones + '</td>' +
     '</tr>';
   }).join('');
+  renderPagination();
+}
+
+function renderPagination() {
+  const el = document.getElementById('autorizacionesPagination');
+  if (!el) return;
+  const total = Math.ceil(state.pendientes.length / state.pageSize);
+  if (state.page >= total) state.page = Math.max(0, total - 1);
+  if (total <= 1) { el.innerHTML = ''; return; }
+  let html = '<div class="d-flex justify-content-between align-items-center small"><span>Mostrando ' + (state.page * state.pageSize + 1) + '-' + Math.min((state.page + 1) * state.pageSize, state.pendientes.length) + ' de ' + state.pendientes.length + '</span><div class="btn-group btn-group-sm">';
+  html += '<button class="btn btn-outline-secondary" data-aut-page="' + (state.page - 1) + '" ' + (state.page === 0 ? 'disabled' : '') + '>Anterior</button><span class="btn btn-light disabled">' + (state.page + 1) + ' / ' + total + '</span><button class="btn btn-outline-secondary" data-aut-page="' + (state.page + 1) + '" ' + (state.page >= total - 1 ? 'disabled' : '') + '>Siguiente</button></div></div>';
+  el.innerHTML = html;
+  el.querySelectorAll('[data-aut-page]').forEach(btn => btn.addEventListener('click', () => { state.page = parseInt(btn.dataset.autPage); render(); }));
 }
 
 function handleTableClick(e) {

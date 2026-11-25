@@ -15,6 +15,8 @@
         <option value="SOLICITUD_CREDITO">Solicitudes de crédito</option>
         <option value="AUMENTO_LINEA">Aumentos de línea</option>
       </select>
+      <input type="search" class="form-control form-control-sm" id="searchAutorizaciones" placeholder="Buscar por cliente, usuario, folio o detalle..." style="min-width:280px;max-width:380px">
+      <select class="form-select form-select-sm" id="autPageSize" style="max-width:120px"><option value="10">10 por p&aacute;gina</option><option value="25">25 por p&aacute;gina</option><option value="50">50 por p&aacute;gina</option></select>
     </div>
   </div>
 
@@ -41,6 +43,7 @@
       </table>
     </div>
   </div>
+  <div id="autorizacionesPagination" class="mt-2"></div>
 </div>
 
 <div class="modal fade" id="modalCodigoAutorizacion" tabindex="-1">
