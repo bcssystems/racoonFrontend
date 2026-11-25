@@ -130,8 +130,14 @@
           <input type="hidden" id="productoId">
           <div class="row g-3">
             <div class="col-md-4">
-              <label class="form-label">SKU (generado autom&aacute;ticamente)</label>
-              <input type="text" class="form-control" id="productoSku" disabled>
+              <label class="form-label fw-semibold" for="productoSku">SKU generado autom&aacute;ticamente</label>
+              <div class="input-group">
+                <input type="text" class="form-control fw-semibold" id="productoSku" readonly aria-describedby="productoSkuAyuda">
+                <button type="button" class="btn btn-outline-secondary" id="btnCopiarProductoSku" title="Copiar SKU" aria-label="Copiar SKU">
+                  <i class="fas fa-copy"></i>
+                </button>
+              </div>
+              <div id="productoSkuAyuda" class="form-text">Este ser&aacute; el SKU que se guardar&aacute; para el producto.</div>
             </div>
             <div class="col-md-8">
               <label class="form-label">Nombre <span class="text-danger">*</span></label>

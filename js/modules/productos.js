@@ -37,6 +37,7 @@ function bindEvents() {
   }
   document.getElementById('btnNuevoProducto')?.addEventListener('click', () => abrirModal(null));
   document.getElementById('btnGuardarProducto')?.addEventListener('click', guardarProducto);
+  document.getElementById('btnCopiarProductoSku')?.addEventListener('click', copiarSkuProducto);
   document.getElementById('statsCostoTotalCard')?.addEventListener('click', mostrarCostoPorSucursal);
   document.getElementById('btnExportarInventario')?.addEventListener('click', exportarInventarioCSV);
   document.getElementById('btnExportarInventarioExcel')?.addEventListener('click', exportarInventarioExcel);
@@ -541,6 +542,7 @@ async function abrirModal(id) {
 
       if (skuField) {
         skuField.value = p.sku || '';
+        skuField.disabled = false;
         skuField.readOnly = true;
       }
     } catch (err) {
@@ -558,6 +560,19 @@ async function abrirModal(id) {
   }
 
   modal.show();
+}
+
+async function copiarSkuProducto() {
+  const sku = document.getElementById('productoSku')?.value?.trim();
+  if (!sku) return;
+  try {
+    await navigator.clipboard.writeText(sku);
+    Utils.showToast('SKU copiado', 'success');
+  } catch (_) {
+    const campo = document.getElementById('productoSku');
+    campo?.select();
+    Utils.showToast('Selecciona el SKU para copiarlo', 'info');
+  }
 }
 
 async function generarStockInputs(editingId) {
