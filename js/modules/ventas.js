@@ -1559,11 +1559,11 @@ function imprimirTicketCorte(corte) {
    </table>` : ''}
    ${corte.gastos && corte.gastos.length > 0 ? `
    <div class="divider"></div>
-   <div class="section-title">Gastos del periodo</div>
+    <div class="section-title">Desglose de gastos incluidos en egresos</div>
    <table class="data-table" style="font-size:11px">
      <tr style="font-weight:bold;border-bottom:1px solid #000"><td>Descripción</td><td style="text-align:right">Monto</td></tr>
      ${corte.gastos.map(g => `<tr><td>${Utils.esc(g.descripcion || '')}<br><small>${Utils.formatDateTime(g.fechaAutorizacion || g.fechaCreacion)}</small></td><td style="text-align:right;color:#dc2626">-${Utils.formatMonto(g.monto || 0)}</td></tr>`).join('')}
-     <tr style="font-weight:bold;border-top:2px solid #000"><td>Total gastos</td><td style="text-align:right;color:#dc2626">-${Utils.formatMonto(corte.totalGastos || 0)}</td></tr>
+      <tr style="font-weight:bold;border-top:2px solid #000"><td>Gastos incluidos en egresos</td><td style="text-align:right;color:#dc2626">-${Utils.formatMonto(corte.totalGastos || 0)}</td></tr>
    </table>` : ''}
     ${corte.saldoEsperado != null ? `
   <div class="divider"></div>
